@@ -17,7 +17,7 @@ import {
 
 export const WhatsHappening: React.FC = () => {
     return (
-        <section className="container mx-auto px-4 py-20 relative z-20">
+        <section id="events" className="container mx-auto px-4 py-20 relative z-20">
             <div className="flex items-center space-x-2 mb-8">
                 <Grid className="w-5 h-5 text-ieee-blue" />
                 <h3 className="font-pixel text-lg md:text-xl text-gray-800">WHAT'S HAPPENING</h3>

@@ -1,19 +1,311 @@
-import React from 'react';
-import { MessageCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 
+const PIXEL = 3; // smaller pixel size — background character
+
+// --- Hypixel-style skin (golden armor knight / MVP++ vibe) ---
+
+// Head: dark hair, golden headband, tanned skin, red eyes (Hypixel warlord style)
+const HEAD: string[][] = [
+    ['#1a1a2e','#1a1a2e','#d4af37','#d4af37','#d4af37','#d4af37','#1a1a2e','#1a1a2e'],
+    ['#1a1a2e','#d4af37','#d4af37','#d4af37','#d4af37','#d4af37','#d4af37','#1a1a2e'],
+    ['#1a1a2e','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#1a1a2e'],
+    ['#c4956a','#c4956a','#ffffff','#8b0000','#8b0000','#ffffff','#c4956a','#c4956a'],
+    ['#c4956a','#c4956a','#c4956a','#b8865a','#b8865a','#c4956a','#c4956a','#c4956a'],
+    ['#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a'],
+    ['#c4956a','#b8865a','#b8865a','#b8865a','#b8865a','#b8865a','#b8865a','#c4956a'],
+    ['transparent','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','transparent'],
+];
+
+// Body: golden chestplate armor with dark trim
+const BODY: string[][] = [
+    ['transparent','#b8860b','#d4af37','#d4af37','#d4af37','#d4af37','#b8860b','transparent'],
+    ['transparent','#b8860b','#d4af37','#ffd700','#ffd700','#d4af37','#b8860b','transparent'],
+    ['#c4956a','#b8860b','#d4af37','#d4af37','#d4af37','#d4af37','#b8860b','#c4956a'],
+    ['#c4956a','#b8860b','#b8860b','#d4af37','#d4af37','#b8860b','#b8860b','#c4956a'],
+    ['transparent','#b8860b','#b8860b','#b8860b','#b8860b','#b8860b','#b8860b','transparent'],
+    ['transparent','#2c2c54','#2c2c54','#2c2c54','#2c2c54','#2c2c54','#2c2c54','transparent'],
+    ['transparent','#2c2c54','#2c2c54','transparent','transparent','#2c2c54','#2c2c54','transparent'],
+    ['transparent','#1a1a2e','#1a1a2e','transparent','transparent','#1a1a2e','#1a1a2e','transparent'],
+];
+
+type IdleAction = 'idle' | 'walking' | 'jumping' | 'looking' | 'crouching' | 'headBob';
+
+const PixelGrid: React.FC<{ grid: string[][]; size: number }> = ({ grid, size }) => (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${grid[0].length}, ${size}px)`, lineHeight: 0 }}>
+        {grid.flat().map((color, i) => (
+            <div
+                key={i}
+                style={{
+                    width: size,
+                    height: size,
+                    backgroundColor: color,
+                    imageRendering: 'pixelated',
+                }}
+            />
+        ))}
+    </div>
+);
+
 export const FloatingAction: React.FC = () => {
+    const [posX, setPosX] = useState(80); // percentage from left of viewport
+    const [action, setAction] = useState<IdleAction>('idle');
+    const [facingLeft, setFacingLeft] = useState(false);
+    const [isBlinking, setIsBlinking] = useState(false);
+    const [walkCycle, setWalkCycle] = useState(0); // 0 or 1 for leg swap
+    const [lookDir, setLookDir] = useState<'left' | 'center' | 'right'>('center');
+    const walkTargetRef = useRef(80);
+    const actionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const walkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // --- Random blinking ---
+    useEffect(() => {
+        const blink = () => {
+            setIsBlinking(true);
+            setTimeout(() => setIsBlinking(false), 120);
+        };
+        const id = setInterval(blink, 2500 + Math.random() * 3000);
+        return () => clearInterval(id);
+    }, []);
+
+    // --- Pick a random action every few seconds ---
+    const pickAction = useCallback(() => {
+        const actions: IdleAction[] = ['idle', 'walking', 'jumping', 'looking', 'crouching', 'headBob'];
+        const weights = [25, 35, 10, 15, 8, 7]; // walking most common
+        const total = weights.reduce((a, b) => a + b, 0);
+        let r = Math.random() * total;
+        let chosen: IdleAction = 'idle';
+        for (let i = 0; i < actions.length; i++) {
+            r -= weights[i];
+            if (r <= 0) { chosen = actions[i]; break; }
+        }
+        return chosen;
+    }, []);
+
+    // --- Stop walking ---
+    const stopWalking = useCallback(() => {
+        if (walkIntervalRef.current) {
+            clearInterval(walkIntervalRef.current);
+            walkIntervalRef.current = null;
+        }
+    }, []);
+
+    // --- Start walking to a target ---
+    const startWalking = useCallback((targetX: number) => {
+        stopWalking();
+        walkTargetRef.current = Math.max(5, Math.min(95, targetX));
+        setFacingLeft(targetX < posX);
+
+        walkIntervalRef.current = setInterval(() => {
+            setPosX(prev => {
+                const target = walkTargetRef.current;
+                const step = 0.1; // slow stroll
+                const diff = target - prev;
+                if (Math.abs(diff) < step) {
+                    stopWalking();
+                    setAction('idle');
+                    return target;
+                }
+                setWalkCycle(c => (c + 1) % 2);
+                return prev + (diff > 0 ? step : -step);
+            });
+        }, 60);
+    }, [posX, stopWalking]);
+
+    // --- Action loop ---
+    useEffect(() => {
+        const scheduleNext = () => {
+            const delay = 2000 + Math.random() * 4000;
+            actionTimeoutRef.current = setTimeout(() => {
+                const next = pickAction();
+                setAction(next);
+
+                switch (next) {
+                    case 'walking': {
+                        // walk a short distance (5-20% of viewport)
+                        const dist = (10 + Math.random() * 15) * (Math.random() > 0.5 ? 1 : -1);
+                        startWalking(posX + dist);
+                        break;
+                    }
+                    case 'jumping':
+                        setTimeout(() => setAction('idle'), 500);
+                        break;
+                    case 'looking': {
+                        const dirs: ('left' | 'right')[] = ['left', 'right'];
+                        setLookDir(dirs[Math.floor(Math.random() * dirs.length)]);
+                        setTimeout(() => { setLookDir('center'); setAction('idle'); }, 1200 + Math.random() * 800);
+                        break;
+                    }
+                    case 'crouching':
+                        setTimeout(() => setAction('idle'), 800 + Math.random() * 600);
+                        break;
+                    case 'headBob':
+                        setTimeout(() => setAction('idle'), 1000);
+                        break;
+                    default:
+                        break;
+                }
+
+                scheduleNext();
+            }, delay);
+        };
+
+        scheduleNext();
+        return () => {
+            if (actionTimeoutRef.current) clearTimeout(actionTimeoutRef.current);
+            stopWalking();
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // --- Dynamic head with blinking + look direction ---
+    const getHead = useCallback((): string[][] => {
+        const head = HEAD.map(row => [...row]);
+        if (isBlinking) {
+            head[3][2] = '#c4956a'; head[3][3] = '#c4956a';
+            head[3][4] = '#c4956a'; head[3][5] = '#c4956a';
+        } else if (lookDir === 'left') {
+            head[3][2] = '#8b0000'; head[3][3] = '#ffffff';
+            head[3][4] = '#8b0000'; head[3][5] = '#ffffff';
+        } else if (lookDir === 'right') {
+            head[3][2] = '#ffffff'; head[3][3] = '#8b0000';
+            head[3][4] = '#ffffff'; head[3][5] = '#8b0000';
+        }
+        return head;
+    }, [isBlinking, lookDir]);
+
+    // --- Dynamic body with walking legs ---
+    const getBody = useCallback((): string[][] => {
+        const body = BODY.map(row => [...row]);
+        if (action === 'walking') {
+            // Alternate leg positions for walk cycle
+            if (walkCycle === 0) {
+                body[6] = ['transparent','#2c2c54','#2c2c54','#2c2c54','transparent','transparent','#2c2c54','transparent'];
+                body[7] = ['transparent','#1a1a2e','transparent','transparent','transparent','transparent','#1a1a2e','transparent'];
+            } else {
+                body[6] = ['transparent','#2c2c54','transparent','transparent','#2c2c54','#2c2c54','transparent','transparent'];
+                body[7] = ['transparent','transparent','transparent','#1a1a2e','transparent','transparent','transparent','transparent'];
+            }
+        }
+        return body;
+    }, [action, walkCycle]);
+
+    const isWalking = action === 'walking';
+    const isJumping = action === 'jumping';
+    const isCrouching = action === 'crouching';
+    const isHeadBob = action === 'headBob';
+
+    // Arm swing during walk
+    const leftArmAngle = isWalking ? (walkCycle === 0 ? 20 : -20) : 0;
+    const rightArmAngle = isWalking ? (walkCycle === 0 ? -20 : 20) : 0;
+
     return (
-        <motion.button
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 3, type: "spring", stiffness: 260, damping: 20 }}
-            className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-white rounded-full shadow-xl flex items-center justify-center text-ieee-blue border border-gray-100 group hover:scale-105 transition-transform"
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 3, duration: 0.8 }}
+            className="fixed bottom-2 z-30 pointer-events-none select-none"
+            style={{
+                left: `${posX}%`,
+                transform: 'translateX(-50%)',
+                filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.18))',
+                imageRendering: 'pixelated',
+                opacity: 0.75,
+            }}
         >
-            <MessageCircle className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-            <span className="absolute right-full mr-4 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                Chat with us
-            </span>
-        </motion.button>
+            {/* Whole character */}
+            <motion.div
+                animate={{
+                    y: isJumping ? -14 : isCrouching ? 4 : 0,
+                    scaleY: isCrouching ? 0.85 : 1,
+                    scaleX: facingLeft ? -1 : 1,
+                }}
+                transition={
+                    isJumping
+                        ? { type: 'spring', stiffness: 500, damping: 14 }
+                        : { type: 'spring', stiffness: 300, damping: 20 }
+                }
+                style={{ originY: 1 }}
+            >
+                {/* Head */}
+                <motion.div
+                    animate={
+                        isHeadBob
+                            ? { rotate: [0, -6, 6, -4, 0] }
+                            : isWalking
+                                ? { y: [0, -0.5, 0, 0.5, 0] }
+                                : {}
+                    }
+                    transition={
+                        isHeadBob
+                            ? { duration: 1, ease: 'easeInOut' }
+                            : isWalking
+                                ? { repeat: Infinity, duration: 0.3 }
+                                : {}
+                    }
+                >
+                    <PixelGrid grid={getHead()} size={PIXEL} />
+                </motion.div>
+
+                {/* Body with arms */}
+                <div className="relative">
+                    {/* Left arm */}
+                    <motion.div
+                        className="absolute"
+                        style={{ left: -PIXEL * 1.5, top: 0, transformOrigin: 'top center' }}
+                        animate={{ rotate: leftArmAngle }}
+                        transition={{ duration: 0.15 }}
+                    >
+                        {[0, 1, 2, 3].map(i => (
+                            <div
+                                key={i}
+                                style={{
+                                    width: PIXEL * 1.5,
+                                    height: PIXEL,
+                                    backgroundColor: i < 2 ? '#d4af37' : '#c4956a',
+                                }}
+                            />
+                        ))}
+                    </motion.div>
+
+                    {/* Right arm */}
+                    <motion.div
+                        className="absolute"
+                        style={{ right: -PIXEL * 1.5, top: 0, transformOrigin: 'top center' }}
+                        animate={{ rotate: rightArmAngle }}
+                        transition={{ duration: 0.15 }}
+                    >
+                        {[0, 1, 2, 3].map(i => (
+                            <div
+                                key={i}
+                                style={{
+                                    width: PIXEL * 1.5,
+                                    height: PIXEL,
+                                    backgroundColor: i < 2 ? '#d4af37' : '#c4956a',
+                                }}
+                            />
+                        ))}
+                    </motion.div>
+
+                    <PixelGrid grid={getBody()} size={PIXEL} />
+                </div>
+            </motion.div>
+
+            {/* Shadow on the ground */}
+            <motion.div
+                animate={{
+                    scaleX: isJumping ? 0.5 : isCrouching ? 1.3 : isWalking ? [0.9, 1.1, 0.9] : 1,
+                    opacity: isJumping ? 0.1 : 0.2,
+                }}
+                transition={isWalking ? { repeat: Infinity, duration: 0.3 } : {}}
+                style={{
+                    width: PIXEL * 6,
+                    height: PIXEL * 0.8,
+                    backgroundColor: 'rgba(0,0,0,0.12)',
+                    borderRadius: '50%',
+                    margin: '2px auto 0',
+                }}
+            />
+        </motion.div>
     );
 };

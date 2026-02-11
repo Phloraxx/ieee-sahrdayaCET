@@ -6,6 +6,7 @@ import { TechnicalDetails } from './components/TechnicalDetails';
 import { FloatingIcons } from './components/FloatingIcons';
 import { FloatingAction } from './components/FloatingAction';
 import { WhatsHappening } from './components/WhatsHappening';
+import { Execom } from './components/Execom';
 
 const App: React.FC = () => {
   return (
@@ -34,6 +35,7 @@ const App: React.FC = () => {
       */}
       <div className="relative z-10 mt-[100vh]">
         <WhatsHappening />
+        <Execom />
 
       </div>
 
