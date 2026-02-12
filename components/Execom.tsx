@@ -366,7 +366,7 @@ export const Execom: React.FC = () => {
                 >
                     <div className="text-center md:text-left">
                         <div className="font-mono text-[10px] tracking-[0.3em] text-gray-400 uppercase mb-1">Roster</div>
-                        <div className="font-bold text-2xl md:text-4xl text-gray-900">30</div>
+                        <div className="font-bold text-2xl md:text-4xl text-gray-900">80</div>
                     </div>
                     <div className="text-center">
                         <div className="font-mono text-[10px] tracking-[0.3em] text-gray-400 uppercase mb-1">Events Led</div>
