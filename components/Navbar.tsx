@@ -11,19 +11,48 @@ const navItems: NavItem[] = [
 
 export const Navbar: React.FC = () => {
     const [isVisible, setIsVisible] = useState(true);
+    const [activeSection, setActiveSection] = useState('#home');
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         const handleScrollEvent = () => {
             setIsVisible(false);
             
+            const scrollY = window.scrollY;
+            const viewportHeight = window.innerHeight;
+            
+            // Special case for Home/Hero section which occupies the first viewport
+            if (scrollY < viewportHeight * 0.8) {
+                setActiveSection('#home');
+            } else {
+                // Check other sections
+                // We start checking from the bottom up or top down?
+                // Top down check for sections in the document flow
+                ['#events', '#execom', '#about'].forEach(href => {
+                    const id = href.replace('#', '');
+                    const element = document.getElementById(id);
+                    if (element) {
+                        const rect = element.getBoundingClientRect();
+                        const elementTop = rect.top + scrollY;
+                        const elementBottom = elementTop + rect.height;
+                        
+                        // If the middle of the viewport is within this element
+                        const viewMiddle = scrollY + (viewportHeight / 2);
+                        
+                        if (viewMiddle >= elementTop && viewMiddle < elementBottom) {
+                            setActiveSection(href);
+                        }
+                    }
+                });
+            }
+
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
             
             timeoutRef.current = setTimeout(() => {
                 setIsVisible(true);
-            }, 2000);
+            }, 500);
         };
 
         window.addEventListener('scroll', handleScrollEvent);
@@ -41,33 +70,11 @@ export const Navbar: React.FC = () => {
         const element = document.getElementById(targetId);
         
         if (element) {
-            const elementPosition = element.getBoundingClientRect().top + window.scrollY;
-            const startPosition = window.scrollY;
-            const distance = elementPosition - startPosition;
-            const duration = 1000; // longer duration for smoother feel
-            let start: number | null = null;
-
-            function animation(currentTime: number) {
-                if (start === null) start = currentTime;
-                const timeElapsed = currentTime - start;
-                const progress = Math.min(timeElapsed / duration, 1);
-                
-                // easeInOutCubic
-                const ease = progress < 0.5 
-                    ? 4 * progress * progress * progress 
-                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-
-                window.scrollTo({
-                    top: startPosition + distance * ease,
-                    behavior: 'auto' // ensure instant jump for each frame of animation
-                });
-
-                if (timeElapsed < duration) {
-                    requestAnimationFrame(animation);
-                }
-            }
-
-            requestAnimationFrame(animation);
+            // Use native smooth scrolling for better performance and native feel
+            window.scrollTo({
+                top: element.getBoundingClientRect().top + window.scrollY,
+                behavior: 'smooth'
+            });
         }
     };
 
@@ -81,14 +88,14 @@ export const Navbar: React.FC = () => {
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="fixed top-6 left-0 right-0 z-[100] flex justify-center pointer-events-none"
         >
-            <div className="pointer-events-auto bg-white/70 backdrop-blur-md border border-white/20 shadow-lg shadow-black/5 rounded-full px-2 py-1.5 flex items-center gap-1">
+            <div className="pointer-events-auto bg-white/70 backdrop-blur-md border border-white/20 shadow-lg shadow-black/5 rounded-full px-1.5 py-1.5 md:px-2 flex items-center gap-0.5 md:gap-1 overflow-x-auto max-w-[95vw] no-scrollbar">
                 {navItems.map((item) => (
                     <a
                         key={item.label}
                         href={item.href}
                         onClick={(e) => handleScroll(e, item.href)}
-                        className={`relative px-5 py-2 rounded-full text-xs font-bold tracking-wide transition-all duration-300 ${
-                            item.isActive 
+                        className={`relative px-3 md:px-5 py-2 rounded-full text-[10px] md:text-xs font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${
+                            activeSection === item.href 
                                 ? 'text-gray-900 bg-white shadow-sm' 
                                 : 'text-gray-500 hover:text-ieee-blue hover:bg-white/50'
                         }`}
@@ -96,10 +103,10 @@ export const Navbar: React.FC = () => {
                         {item.label}
                     </a>
                 ))}
-                <div className="w-px h-4 bg-gray-300 mx-1" />
+                <div className="w-px h-4 bg-gray-300 mx-0.5 md:mx-1 flex-shrink-0" />
                 <a
                     href="#join"
-                    className="px-5 py-2 rounded-full text-xs font-bold tracking-wide text-ieee-blue hover:bg-ieee-blue/10 transition-all duration-300"
+                    className="px-3 md:px-5 py-2 rounded-full text-[10px] md:text-xs font-bold tracking-wide text-ieee-blue hover:bg-ieee-blue/10 transition-all duration-300 whitespace-nowrap"
                 >
                     JOIN
                 </a>

@@ -33,7 +33,7 @@ export const Hero: React.FC = () => {
     };
 
     return (
-        <section id="home" className="relative h-screen flex flex-col items-center justify-center z-10 px-4 overflow-hidden">
+        <section className="relative h-[100dvh] flex flex-col items-center justify-center z-10 px-4 overflow-hidden">
             {/* Corner Images - Fixed position relative to Hero container, but animating with it if we wrap everything */}
             {/* Actually, they should probably stay fixed on screen until the hero fades out? 
                  The request says "while scrolling from the hero section, show the 'Whats happening' part ... while the hero section moves upward and zooms in ... and then it should vanish."

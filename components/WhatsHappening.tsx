@@ -14,6 +14,7 @@ import {
     MapPin,
     ArrowUpRight
 } from 'lucide-react';
+import { SocietyStrip } from './SocietyStrip';
 
 export const WhatsHappening: React.FC = () => {
     return (
@@ -24,50 +25,52 @@ export const WhatsHappening: React.FC = () => {
                 <div className="h-px flex-grow bg-gray-300 ml-4"></div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 grid-rows-auto md:grid-rows-[300px_200px] gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 auto-rows-min md:grid-rows-[300px_200px] gap-4">
                 {/* TechnoSummit Card */}
-                <div className="col-span-1 md:col-span-3 row-span-1 bento-card bg-white rounded-xl overflow-hidden border border-gray-200 relative group shadow-sm transition-all hover:shadow-md hover:border-ieee-blue/30">
+                <div className="col-span-1 md:col-span-3 row-span-1 md:row-span-1 bento-card bg-white rounded-xl overflow-hidden border border-gray-200 relative group shadow-sm transition-all hover:shadow-md hover:border-ieee-blue/30 min-h-[400px] md:min-h-0">
                     <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-transparent to-transparent z-10 opacity-90"></div>
                     <div className="absolute inset-0 bg-blue-900 bg-opacity-20 z-0">
                         <img
                             alt="Tech Event"
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDan1v65xTYw2pdWYBGuQBuz9HT2RjzLlAT7UxKI9SHge99Im8EWfaw9Ot-YepzgwLXqQtK-2zBcWaUbbL_v4I3EqxsT8_3kA4vevOrvf85-H2A6yqghYoNSLweXSS40LJAN_pjN_yv8iDwFxHedyh_iqk2KgYRLx7o95D37ijxu2B_eyJJQsufP0cESXYe1kgZrFEzgcxSI0NgfG95QYf6Wht15maau957ROl97GBRsMV65Rg-RQ1uweUrSIEk7j_n4OHO52EmIJM"
+                            src="AGM.webp"
                         />
                     </div>
                     <div className="relative z-20 p-6 md:p-8 h-full flex flex-col justify-center text-white">
-                        <div className="inline-block px-3 py-1 bg-ieee-blue text-white text-[10px] font-mono tracking-wider rounded-sm mb-3 w-max">UPCOMING MEGA EVENT</div>
-                        <h2 className="font-bold text-3xl md:text-5xl font-sans mb-2 drop-shadow-lg">TechnoSummit '24</h2>
-                        <p className="text-gray-200 text-sm md:text-base mb-6 max-w-md">Join the largest technical symposium of the year. Workshops, Hackathons, and more.</p>
+                        <div className="inline-block px-3 py-1 bg-ieee-blue text-white text-[10px] font-mono tracking-wider rounded-sm mb-3 w-max">ANNUAL GENERAL MEETING</div>
+                        <h2 className="font-bold text-3xl md:text-5xl font-sans mb-2 drop-shadow-lg">IEEE AGM '26</h2>
+                        <p className="text-gray-200 text-sm md:text-base mb-6 max-w-md">
+                            Join us as we reflect on a year of innovation, elect the new executive committee, and set the vision for the future of IEEE Sahrdaya SB.
+                        </p>
 
                         <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
-                            <div className="flex space-x-3 font-mono text-sm">
-                                <div className="text-center">
-                                    <span className="block text-2xl font-bold">04</span>
-                                    <span className="text-xs text-gray-400">DAYS</span>
+                            <div className="flex space-x-4 font-mono text-sm shadow-inner bg-black/20 p-2 rounded-lg backdrop-blur-sm border border-white/10">
+                                <div className="text-center px-1">
+                                    <span className="block text-2xl font-bold text-white">23</span>
+                                    <span className="text-[10px] text-gray-300 tracking-wider">FEB</span>
                                 </div>
-                                <span className="text-2xl font-bold">:</span>
-                                <div className="text-center">
-                                    <span className="block text-2xl font-bold">12</span>
-                                    <span className="text-xs text-gray-400">HRS</span>
+                                <span className="text-2xl font-bold text-gray-400 pb-2">:</span>
+                                <div className="text-center px-1">
+                                    <span className="block text-2xl font-bold text-white">20</span>
+                                    <span className="text-[10px] text-gray-300 tracking-wider">26</span>
                                 </div>
-                                <span className="text-2xl font-bold">:</span>
-                                <div className="text-center">
-                                    <span className="block text-2xl font-bold">45</span>
-                                    <span className="text-xs text-gray-400">MIN</span>
+                                <span className="text-2xl font-bold text-gray-400 pb-2">:</span>
+                                <div className="text-center px-1">
+                                    <span className="block text-2xl font-bold text-white">09</span>
+                                    <span className="text-[10px] text-gray-300 tracking-wider">AM</span>
                                 </div>
                             </div>
 
-                            <button className="glass-btn bg-white/10 backdrop-blur-sm border border-white/20 px-6 py-2 rounded-lg text-white font-medium text-sm hover:bg-white/20 transition-all flex items-center space-x-2">
+                            <button className="glass-btn bg-white/10 backdrop-blur-sm border border-white/20 px-6 py-2 rounded-lg text-white font-medium text-sm hover:bg-white/20 hover:scale-105 transition-all flex items-center space-x-2 group">
                                 <span>Register Now</span>
-                                <ArrowRight className="w-4 h-4" />
+                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
                     </div>
                 </div>
 
                 {/* Latest News Card */}
-                <div className="col-span-1 md:col-span-1 row-span-1 bento-card bg-white rounded-xl border border-gray-200 p-5 flex flex-col shadow-sm transition-all hover:shadow-md hover:border-ieee-blue/30">
+                <div className="col-span-1 md:col-span-1 row-span-1 bento-card bg-white rounded-xl border border-gray-200 p-5 flex flex-col shadow-sm transition-all hover:shadow-md hover:border-ieee-blue/30 max-h-[300px] md:max-h-none min-h-[250px] md:min-h-0">
                     <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
                         <h4 className="font-bold text-sm text-gray-800 flex items-center gap-2">
                             <Newspaper className="w-4 h-4 text-ieee-blue" />
@@ -108,7 +111,7 @@ export const WhatsHappening: React.FC = () => {
                 </div>
 
                 {/* Society Spotlight Card */}
-                <div className="col-span-1 md:col-span-1 row-span-1 bento-card bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 p-5 flex flex-col justify-between shadow-sm relative overflow-hidden group transition-all hover:shadow-md hover:border-ieee-blue/30">
+                <div className="col-span-1 md:col-span-1 row-span-1 bento-card bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 p-5 flex flex-col justify-between shadow-sm relative overflow-hidden group transition-all hover:shadow-md hover:border-ieee-blue/30 min-h-[250px] md:min-h-0">
                     <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-ieee-blue opacity-5 rounded-full z-0 group-hover:scale-150 transition-transform duration-500"></div>
                     <div>
                         <div className="text-[10px] font-mono text-gray-400 mb-1 uppercase tracking-wide">Society Spotlight</div>
@@ -188,7 +191,7 @@ export const WhatsHappening: React.FC = () => {
                 </div>
 
                 {/* Join Card */}
-                <div className="col-span-1 md:col-span-1 row-span-1 bento-card bg-ieee-blue rounded-xl border border-blue-800 p-6 flex flex-col items-center justify-center shadow-lg relative overflow-hidden group text-center">
+                <div className="col-span-1 md:col-span-1 row-span-1 bento-card bg-ieee-blue rounded-xl border border-blue-800 p-6 flex flex-col items-center justify-center shadow-lg relative overflow-hidden group text-center min-h-[250px] md:min-h-0">
                     <div className="absolute w-40 h-40 bg-white opacity-10 rounded-full blur-2xl -top-10 -right-10 group-hover:scale-125 transition-transform duration-700"></div>
                     <Users className="w-10 h-10 text-white mb-3 animate-bounce" />
                     <h4 className="font-bold text-white text-lg leading-tight mb-2">Join The Community</h4>
@@ -198,6 +201,9 @@ export const WhatsHappening: React.FC = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Society Logos Marquee */}
+            <SocietyStrip />
         </section>
     );
 };

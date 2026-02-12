@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Users, ArrowUpRight, Linkedin, Mail } from 'lucide-react';
+import { Users, ArrowUpRight, Linkedin, Mail, GripHorizontal } from 'lucide-react';
 
 interface Member {
     name: string;
@@ -11,34 +11,64 @@ interface Member {
 
 const execomMembers: Member[] = [
     {
+        name: 'Anil Antony',
+        role: 'Branch Counselor',
+        tagline: 'GUIDING LIGHT',
+        image: '/Execom/anilantony.jpg',
+    },
+    {
         name: 'Sneha Prasanth',
         role: 'Chairperson',
         tagline: 'LEADING THE CHARGE',
-        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&h=750&fit=crop&crop=faces',
+        image: '/Execom/Sneha_prasanth.jpg',
     },
     {
         name: 'Irene Anto',
         role: 'Vice Chairperson',
         tagline: 'VISION & STRATEGY',
-        image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&h=750&fit=crop&crop=faces',
+        image: '/Execom/Irene Anto/Irene_anto.jpg',
     },
     {
-        name: 'Irfan',
+        name: 'Ameenul Irfan',
         role: 'Secretary',
         tagline: 'KEEPING IT TOGETHER',
-        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=750&fit=crop&crop=faces',
+        image: '/Execom/Ameenul Irfan_/Ameenul_irfan.jpg',
     },
     {
         name: 'Binu Ashik',
         role: 'Joint Secretary',
         tagline: 'BRIDGING THE GAP',
-        image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&h=750&fit=crop&crop=faces',
+        image: '/Execom/Binu Ashik K/Binu_ashik.jpg',
     },
     {
-        name: 'Aaron Stephan',
+        name: 'Aaron Stanphen',
         role: 'Treasurer',
         tagline: 'NUMBERS & BEYOND',
+        image: '/Execom/Aaron Stanphen_/Aaron_stanphen.jpg',
+    },
+    {
+        name: 'Sourav P Bijoy',
+        role: 'Webmaster',
+        tagline: 'DIGITAL ARCHITECT',
+        image: '/Execom/Sourav P Bijoy/SouravPBijoy.jpg',
+    },
+    {
+        name: 'Akhila Thomas',
+        role: 'MDC',
+        tagline: 'MEMBERSHIP DRIV',
+        image: '/Execom/Akhila Thomas/Screenshot_20240811_185346_Gallery.jpg',
+    },
+    {
+        name: 'Alfin Joshi P',
+        role: 'ECC',
+        tagline: 'ELECTRONIC & COMM',
         image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&h=750&fit=crop&crop=faces',
+    },
+    {
+        name: 'Midhun P M',
+        role: 'Technical Coordinator',
+        tagline: 'TECH WIZARD',
+        image: '/Execom/Midhun P M/IMG_20240701_173337.jpg',
     },
 ];
 
@@ -145,6 +175,144 @@ const MemberCard: React.FC<{ member: Member; index: number }> = ({ member, index
     );
 };
 
+const CARD_WIDTH = 270;
+const GAP = 30;
+const ITEM_SIZE = CARD_WIDTH + GAP;
+const SET_WIDTH = ITEM_SIZE * execomMembers.length; // width of one full set
+
+const DragCarousel: React.FC = () => {
+    const trackRef = useRef<HTMLDivElement>(null);
+    const offsetRef = useRef(0);
+    const rafRef = useRef<number>(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const [showHint, setShowHint] = useState(false);
+    const sectionRef = useRef<HTMLDivElement>(null);
+
+    // Physics state
+    const physics = useRef({
+        isDragging: false,
+        startX: 0,
+        currentX: 0,
+        velocity: 0,
+        lastTime: 0,
+        lastX: 0
+    });
+
+    const animate = useCallback(() => {
+        if (!trackRef.current) return;
+
+        // Apply momentum when not dragging
+        if (!physics.current.isDragging) {
+            physics.current.velocity *= 0.95; // Friction
+            
+            // Auto-scroll if velocity is very low
+            if (Math.abs(physics.current.velocity) < 0.1) {
+                physics.current.velocity = -0.5; // Constant slow scroll
+            }
+        }
+
+        offsetRef.current += physics.current.velocity;
+
+        // Infinite loop logic
+        const contentWidth = SET_WIDTH; 
+        // If we've scrolled past the first set, reset to 0
+        if (offsetRef.current <= -contentWidth) {
+            offsetRef.current += contentWidth;
+        }
+        // If we've scrolled past the start (to the right), reset to end
+        if (offsetRef.current > 0) {
+            offsetRef.current -= contentWidth;
+        }
+
+        trackRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
+        rafRef.current = requestAnimationFrame(animate);
+    }, []);
+
+    useEffect(() => {
+        rafRef.current = requestAnimationFrame(animate);
+        return () => cancelAnimationFrame(rafRef.current);
+    }, [animate]);
+
+    const onPointerDown = (e: React.PointerEvent) => {
+        // Only capture simple left clicks or touches
+        if (e.button !== 0) return;
+        
+        setIsDragging(true);
+        physics.current.isDragging = true;
+        physics.current.startX = e.clientX;
+        physics.current.lastX = e.clientX;
+        physics.current.lastTime = performance.now();
+        physics.current.velocity = 0;
+        
+        // Important: Stop auto-scroll immediately
+        // e.currentTarget.setPointerCapture(e.pointerId); // Optional, sometimes causes issues on mobile scroll
+    };
+
+    const onPointerMove = (e: React.PointerEvent) => {
+        if (!physics.current.isDragging) return;
+        
+        const now = performance.now();
+        const deltaX = e.clientX - physics.current.lastX;
+        const deltaTime = now - physics.current.lastTime;
+        
+        // Update offset immediately
+        offsetRef.current += deltaX;
+        
+        // Calculate velocity for momentum
+        if (deltaTime > 0) {
+            physics.current.velocity = deltaX; // Simplified velocity just takes delta
+        }
+
+        physics.current.lastX = e.clientX;
+        physics.current.lastTime = now;
+    };
+
+    const onPointerUp = (e: React.PointerEvent) => {
+        if (!physics.current.isDragging) return;
+        setIsDragging(false);
+        physics.current.isDragging = false;
+        // e.currentTarget.releasePointerCapture(e.pointerId);
+    };
+
+    const items = [...execomMembers, ...execomMembers, ...execomMembers];
+
+    return (
+        <div
+            ref={sectionRef}
+            className="relative w-full select-none"
+            onMouseEnter={() => setShowHint(true)}
+            onMouseLeave={() => setShowHint(false)}
+        >
+            {/* Carousel track */}
+            <div
+                className="overflow-hidden cursor-grab active:cursor-grabbing py-4 touch-pan-y"
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
+                onPointerLeave={onPointerUp}
+            >
+                <div
+                    ref={trackRef}
+                    className="flex will-change-transform"
+                    style={{ gap: `${GAP}px` }}
+                >
+                    {items.map((member, index) => (
+                        <div
+                            key={`${member.name}-${index}`}
+                            className="flex-shrink-0 transition-transform duration-300 ease-out hover:-translate-y-2"
+                            style={{ width: `${CARD_WIDTH}px` }}
+                        >
+                            <MemberCard member={member} index={index % execomMembers.length} />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 export const Execom: React.FC = () => {
     return (
         <section className="bg-white py-20 md:py-32 relative overflow-hidden" id="execom">
@@ -198,23 +366,30 @@ export const Execom: React.FC = () => {
                 >
                     <div className="text-center md:text-left">
                         <div className="font-mono text-[10px] tracking-[0.3em] text-gray-400 uppercase mb-1">Roster</div>
-                        <div className="font-bold text-2xl md:text-4xl text-gray-900">05</div>
+                        <div className="font-bold text-2xl md:text-4xl text-gray-900">30</div>
                     </div>
                     <div className="text-center">
                         <div className="font-mono text-[10px] tracking-[0.3em] text-gray-400 uppercase mb-1">Events Led</div>
-                        <div className="font-bold text-2xl md:text-4xl text-gray-900">20+</div>
+                        <div className="font-bold text-2xl md:text-4xl text-gray-900">100+</div>
                     </div>
                     <div className="text-center md:text-right">
                         <div className="font-mono text-[10px] tracking-[0.3em] text-gray-400 uppercase mb-1">Societies</div>
-                        <div className="font-bold text-2xl md:text-4xl text-gray-900">04</div>
+                        <div className="font-bold text-2xl md:text-4xl text-gray-900">14</div>
                     </div>
                 </motion.div>
 
-                {/* Members grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 md:gap-8">
-                    {execomMembers.map((member, index) => (
-                        <MemberCard key={member.name} member={member} index={index} />
-                    ))}
+                {/* Draggable Carousel */}
+                <DragCarousel />
+
+                {/* View Full Execom Button */}
+                <div className="mt-12 flex justify-center">
+                    <a
+                        href="/execom-full" 
+                        className="group relative inline-flex items-center justify-center px-8 py-3 font-mono text-sm uppercase tracking-widest text-white transition-all duration-300 bg-ieee-blue/90 hover:bg-ieee-blue rounded-full"
+                    >
+                        <span>View Full Execom</span>
+                        <ArrowUpRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
+                    </a>
                 </div>
 
                 {/* Bottom CTA */}
