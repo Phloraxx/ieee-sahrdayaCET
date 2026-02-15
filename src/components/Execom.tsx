@@ -1,6 +1,8 @@
+'use client';
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Users, ArrowUpRight, Linkedin, Mail, GripHorizontal } from 'lucide-react';
 
 interface Member {
@@ -391,7 +393,7 @@ export const Execom: React.FC = () => {
                 {/* View Full Execom Button */}
                 <div className="mt-12 flex justify-center">
                     <Link
-                        to="/full-execom" 
+                        href="/full-execom" 
                         className="group relative inline-flex items-center justify-center px-8 py-3 font-mono text-sm uppercase tracking-widest text-white transition-all duration-300 bg-ieee-blue/90 hover:bg-ieee-blue rounded-full"
                     >
                         <span>View Full Execom</span>

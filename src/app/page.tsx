@@ -1,14 +1,14 @@
 import React from 'react';
-import { Navbar } from '../components/Navbar';
-import { Hero } from '../components/Hero';
-import { GridBackground } from '../components/GridBackground';
-import { TechnicalDetails } from '../components/TechnicalDetails';
-import { FloatingIcons } from '../components/FloatingIcons';
-import { FloatingAction } from '../components/FloatingAction';
-import { WhatsHappening } from '../components/WhatsHappening';
-import { Execom } from '../components/Execom';
+import { Navbar } from '@/components/Navbar';
+import { Hero } from '@/components/Hero';
+import { GridBackground } from '@/components/GridBackground';
+import { TechnicalDetails } from '@/components/TechnicalDetails';
+import { FloatingIcons } from '@/components/FloatingIcons';
+import { FloatingAction } from '@/components/FloatingAction';
+import { WhatsHappening } from '@/components/WhatsHappening';
+import { Execom } from '@/components/Execom';
 
-export const Home: React.FC = () => {
+export default function Home() {
   return (
     <div className="relative w-full bg-white text-gray-900 font-sans selection:bg-ieee-blue/20">
       
@@ -43,4 +43,4 @@ export const Home: React.FC = () => {
       <FloatingAction />
     </div>
   );
-};
+}

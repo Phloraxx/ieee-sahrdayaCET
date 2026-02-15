@@ -1,7 +1,9 @@
+'use client';
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Monitor, Zap, Users, Bot, BarChart3 } from 'lucide-react';
-import { FloatingIconProps } from '../types';
+import { FloatingIconProps } from '@/types';
 
 const icons: FloatingIconProps[] = [
     { icon: <Monitor size={28} />, label: 'CS', x: '15%', y: '25%', delay: 0 },

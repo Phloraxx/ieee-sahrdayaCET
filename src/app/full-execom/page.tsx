@@ -1,7 +1,9 @@
+'use client';
+
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Users, Cpu, Zap, Radio, Atom, GraduationCap, Activity, Bolt, Heart, Cog, Wrench, Sparkles, Camera, FileText, MessageSquare, Palette } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
 // ===== IMAGE MAP - Exact paths from filesystem =====
 const IMAGE_MAP: { [key: string]: string } = {
@@ -427,7 +429,7 @@ const FullExecom: React.FC = () => {
             {/* Mobile Header */}
             <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100">
                 <div className="flex items-center justify-between px-4 py-3">
-                    <Link to="/" className="p-2 -ml-2 text-gray-500 hover:text-gray-900">
+                    <Link href="/" className="p-2 -ml-2 text-gray-500 hover:text-gray-900">
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <span className="font-semibold text-gray-900">EXECOM '26</span>
@@ -473,7 +475,7 @@ const FullExecom: React.FC = () => {
             <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-20 bg-white border-r border-gray-100 flex-col z-50">
                 {/* Back Button */}
                 <Link 
-                    to="/" 
+                    href="/" 
                     className="flex items-center justify-center h-16 border-b border-gray-100 text-gray-400 hover:text-[#00629B] transition-colors"
                 >
                     <ArrowLeft className="w-5 h-5" />

@@ -1,5 +1,7 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
-import { NavItem } from '../types';
+import { NavItem } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const navItems: NavItem[] = [
