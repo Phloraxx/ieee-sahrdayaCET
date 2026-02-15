@@ -18,6 +18,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "IEEE Sahrdaya Student Branch",
   description: "Official website of IEEE Sahrdaya Student Branch - Fostering technological innovation",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

@@ -5,30 +5,30 @@ import { motion } from 'framer-motion';
 
 const PIXEL = 3; // smaller pixel size — background character
 
-// --- Hypixel-style skin (golden armor knight / MVP++ vibe) ---
+// --- IEEE Sahrdaya Engineer Skin (IEEE blue professional look with Sahrdaya touches) ---
 
-// Head: dark hair, golden headband, tanned skin, red eyes (Hypixel warlord style)
+// Head: blue engineer cap/hair (IEEE blue), light skin tone, blue eyes
 const HEAD: string[][] = [
-    ['#1a1a2e','#1a1a2e','#d4af37','#d4af37','#d4af37','#d4af37','#1a1a2e','#1a1a2e'],
-    ['#1a1a2e','#d4af37','#d4af37','#d4af37','#d4af37','#d4af37','#d4af37','#1a1a2e'],
-    ['#1a1a2e','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#1a1a2e'],
-    ['#c4956a','#c4956a','#ffffff','#8b0000','#8b0000','#ffffff','#c4956a','#c4956a'],
-    ['#c4956a','#c4956a','#c4956a','#b8865a','#b8865a','#c4956a','#c4956a','#c4956a'],
-    ['#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a'],
-    ['#c4956a','#b8865a','#b8865a','#b8865a','#b8865a','#b8865a','#b8865a','#c4956a'],
-    ['transparent','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','#c4956a','transparent'],
+    ['#00629B','#00629B','#00629B','#00629B','#00629B','#00629B','#00629B','#00629B'],
+    ['#00629B','#0099D6','#0099D6','#0099D6','#0099D6','#0099D6','#0099D6','#00629B'],
+    ['#00629B','#f5d5b8','#f5d5b8','#f5d5b8','#f5d5b8','#f5d5b8','#f5d5b8','#00629B'],
+    ['#f5d5b8','#f5d5b8','#ffffff','#0099D6','#0099D6','#ffffff','#f5d5b8','#f5d5b8'],
+    ['#f5d5b8','#f5d5b8','#f5d5b8','#e8c4a0','#e8c4a0','#f5d5b8','#f5d5b8','#f5d5b8'],
+    ['#f5d5b8','#f5d5b8','#f5d5b8','#f5d5b8','#f5d5b8','#f5d5b8','#f5d5b8','#f5d5b8'],
+    ['#f5d5b8','#e8c4a0','#e8c4a0','#e8c4a0','#e8c4a0','#e8c4a0','#e8c4a0','#f5d5b8'],
+    ['transparent','#f5d5b8','#f5d5b8','#f5d5b8','#f5d5b8','#f5d5b8','#f5d5b8','transparent'],
 ];
 
-// Body: golden chestplate armor with dark trim
+// Body: IEEE blue shirt/jersey with white accents
 const BODY: string[][] = [
-    ['transparent','#b8860b','#d4af37','#d4af37','#d4af37','#d4af37','#b8860b','transparent'],
-    ['transparent','#b8860b','#d4af37','#ffd700','#ffd700','#d4af37','#b8860b','transparent'],
-    ['#c4956a','#b8860b','#d4af37','#d4af37','#d4af37','#d4af37','#b8860b','#c4956a'],
-    ['#c4956a','#b8860b','#b8860b','#d4af37','#d4af37','#b8860b','#b8860b','#c4956a'],
-    ['transparent','#b8860b','#b8860b','#b8860b','#b8860b','#b8860b','#b8860b','transparent'],
-    ['transparent','#2c2c54','#2c2c54','#2c2c54','#2c2c54','#2c2c54','#2c2c54','transparent'],
-    ['transparent','#2c2c54','#2c2c54','transparent','transparent','#2c2c54','#2c2c54','transparent'],
-    ['transparent','#1a1a2e','#1a1a2e','transparent','transparent','#1a1a2e','#1a1a2e','transparent'],
+    ['transparent','#004a7c','#00629B','#00629B','#00629B','#00629B','#004a7c','transparent'],
+    ['transparent','#004a7c','#00629B','#ffffff','#ffffff','#00629B','#004a7c','transparent'],
+    ['#f5d5b8','#004a7c','#00629B','#00629B','#00629B','#00629B','#004a7c','#f5d5b8'],
+    ['#f5d5b8','#004a7c','#004a7c','#0099D6','#0099D6','#004a7c','#004a7c','#f5d5b8'],
+    ['transparent','#004a7c','#004a7c','#00629B','#00629B','#004a7c','#004a7c','transparent'],
+    ['transparent','#2c3e50','#2c3e50','#2c3e50','#2c3e50','#2c3e50','#2c3e50','transparent'],
+    ['transparent','#2c3e50','#2c3e50','transparent','transparent','#2c3e50','#2c3e50','transparent'],
+    ['transparent','#1a252f','#1a252f','transparent','transparent','#1a252f','#1a252f','transparent'],
 ];
 
 type IdleAction = 'idle' | 'walking' | 'jumping' | 'looking' | 'crouching' | 'headBob';
@@ -164,14 +164,14 @@ export const FloatingAction: React.FC = () => {
     const getHead = useCallback((): string[][] => {
         const head = HEAD.map(row => [...row]);
         if (isBlinking) {
-            head[3][2] = '#c4956a'; head[3][3] = '#c4956a';
-            head[3][4] = '#c4956a'; head[3][5] = '#c4956a';
+            head[3][2] = '#f5d5b8'; head[3][3] = '#f5d5b8';
+            head[3][4] = '#f5d5b8'; head[3][5] = '#f5d5b8';
         } else if (lookDir === 'left') {
-            head[3][2] = '#8b0000'; head[3][3] = '#ffffff';
-            head[3][4] = '#8b0000'; head[3][5] = '#ffffff';
+            head[3][2] = '#0099D6'; head[3][3] = '#ffffff';
+            head[3][4] = '#0099D6'; head[3][5] = '#ffffff';
         } else if (lookDir === 'right') {
-            head[3][2] = '#ffffff'; head[3][3] = '#8b0000';
-            head[3][4] = '#ffffff'; head[3][5] = '#8b0000';
+            head[3][2] = '#ffffff'; head[3][3] = '#0099D6';
+            head[3][4] = '#ffffff'; head[3][5] = '#0099D6';
         }
         return head;
     }, [isBlinking, lookDir]);
@@ -264,7 +264,7 @@ export const FloatingAction: React.FC = () => {
                                 style={{
                                     width: PIXEL * 1.5,
                                     height: PIXEL,
-                                    backgroundColor: i < 2 ? '#d4af37' : '#c4956a',
+                                    backgroundColor: i < 2 ? '#00629B' : '#f5d5b8',
                                 }}
                             />
                         ))}
@@ -283,7 +283,7 @@ export const FloatingAction: React.FC = () => {
                                 style={{
                                     width: PIXEL * 1.5,
                                     height: PIXEL,
-                                    backgroundColor: i < 2 ? '#d4af37' : '#c4956a',
+                                    backgroundColor: i < 2 ? '#00629B' : '#f5d5b8',
                                 }}
                             />
                         ))}

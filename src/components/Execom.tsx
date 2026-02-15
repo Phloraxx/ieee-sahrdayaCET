@@ -194,6 +194,8 @@ const DragCarousel: React.FC = () => {
     const offsetRef = useRef(0);
     const rafRef = useRef<number>(0);
     const sectionRef = useRef<HTMLDivElement>(null);
+    const [isInView, setIsInView] = useState(false);
+    const [hasStartedScrolling, setHasStartedScrolling] = useState(false);
 
     // Physics state
     const physics = useRef({
@@ -210,11 +212,13 @@ const DragCarousel: React.FC = () => {
 
         // Apply momentum when not dragging
         if (!physics.current.isDragging) {
-            physics.current.velocity *= 0.95; // Friction
+            physics.current.velocity *= 0.98; // Smoother friction
             
-            // Auto-scroll if velocity is very low
-            if (Math.abs(physics.current.velocity) < 0.1) {
-                physics.current.velocity = -0.5; // Constant slow scroll
+            // Auto-scroll only if section is in view and has started scrolling
+            if (Math.abs(physics.current.velocity) < 0.05 && isInView && hasStartedScrolling) {
+                // Smoothly accelerate to target speed instead of snapping
+                const targetVelocity = -0.5;
+                physics.current.velocity += (targetVelocity - physics.current.velocity) * 0.1;
             }
         }
 
@@ -233,12 +237,46 @@ const DragCarousel: React.FC = () => {
 
         trackRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
         rafRef.current = requestAnimationFrame(animate);
-    }, []);
+    }, [isInView, hasStartedScrolling]);
 
     useEffect(() => {
         rafRef.current = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(rafRef.current);
     }, [animate]);
+
+    // Intersection Observer to detect when section is fully in view
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                setIsInView(entry.isIntersecting && entry.intersectionRatio >= 0.8);
+            },
+            { threshold: 0.8 }
+        );
+
+        if (sectionRef.current) {
+            observer.observe(sectionRef.current);
+        }
+
+        return () => {
+            if (sectionRef.current) {
+                observer.unobserve(sectionRef.current);
+            }
+        };
+    }, []);
+
+    // Delay auto-scroll by 3 seconds when section comes into view
+    useEffect(() => {
+        if (isInView && !hasStartedScrolling) {
+            const timer = setTimeout(() => {
+                setHasStartedScrolling(true);
+            }, 500); // 3 second delay
+
+            return () => clearTimeout(timer);
+        } else if (!isInView) {
+            // Reset when out of view
+            setHasStartedScrolling(false);
+        }
+    }, [isInView, hasStartedScrolling]);
 
     const onPointerDown = (e: React.PointerEvent) => {
         // Only capture simple left clicks or touches
@@ -264,9 +302,11 @@ const DragCarousel: React.FC = () => {
         // Update offset immediately
         offsetRef.current += deltaX;
         
-        // Calculate velocity for momentum
+        // Calculate velocity for momentum (smoothed)
         if (deltaTime > 0) {
-            physics.current.velocity = deltaX; // Simplified velocity just takes delta
+            const newVelocity = (deltaX / deltaTime) * 16; // Normalize to 60fps
+            // Smooth velocity to prevent jitter
+            physics.current.velocity = physics.current.velocity * 0.8 + newVelocity * 0.2;
         }
 
         physics.current.lastX = e.clientX;

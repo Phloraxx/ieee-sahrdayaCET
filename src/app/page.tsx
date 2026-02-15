@@ -7,6 +7,7 @@ import { FloatingIcons } from '@/components/FloatingIcons';
 import { FloatingAction } from '@/components/FloatingAction';
 import { WhatsHappening } from '@/components/WhatsHappening';
 import { Execom } from '@/components/Execom';
+import { EventsShowcase } from '@/components/EventsShowcase';
 
 export default function Home() {
   return (
@@ -32,7 +33,9 @@ export default function Home() {
       {/* Scrolling Content Layer */}
       <div className="relative z-10 mt-[100dvh]">
         <WhatsHappening />
+        
         <Execom />
+        <EventsShowcase />
         {/* Placeholder About Section */}
         <section id="about" className="py-20 bg-gray-50 text-center">
             <h2 className="text-2xl font-bold text-gray-800">About Us</h2>

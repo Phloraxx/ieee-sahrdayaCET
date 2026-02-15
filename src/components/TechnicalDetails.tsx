@@ -18,8 +18,8 @@ export const TechnicalDetails: React.FC = () => {
                     <Image
                         src="/Ieee.svg"
                         alt="IEEE SB Logo"
-                        width={48}
-                        height={48}
+                        width={128}
+                        height={128}
                         className="opacity-80"
                     />
                 </div>
