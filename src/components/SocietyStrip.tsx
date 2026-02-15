@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 
 interface Society {
@@ -26,10 +27,12 @@ const societies: Society[] = [
 const LogoItem: React.FC<{ society: Society }> = ({ society }) => (
     <div className="flex-shrink-0 flex items-center justify-center group mx-6 md:mx-10">
         <div className="relative flex items-center justify-center h-10 md:h-12 w-auto transition-all duration-300 group-hover:scale-110">
-            <img
+            <Image
                 src={society.logo}
                 alt={society.name}
-                className="h-full w-auto object-contain opacity-40 group-hover:opacity-90 transition-opacity duration-500 grayscale group-hover:grayscale-0"
+                width={60}
+                height={48}
+                className="opacity-40 group-hover:opacity-90 transition-opacity duration-500 grayscale group-hover:grayscale-0"
                 draggable={false}
             />
         </div>

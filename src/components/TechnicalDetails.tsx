@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 
 export const TechnicalDetails: React.FC = () => {
@@ -14,10 +15,12 @@ export const TechnicalDetails: React.FC = () => {
                 className="absolute top-2 left-6 z-10 hidden md:block"
             >
                 <div className="flex items-center gap-3 mb-2">
-                    <img
+                    <Image
                         src="/Ieee.svg"
                         alt="IEEE SB Logo"
-                        className="h-12 w-auto opacity-80"
+                        width={48}
+                        height={48}
+                        className="opacity-80"
                     />
                 </div>
                 <motion.div 
@@ -39,10 +42,12 @@ export const TechnicalDetails: React.FC = () => {
                 className="absolute top-3 right-6 z-10 hidden md:block text-right"
             >
                 <div className="flex flex-col items-end gap-2 mb-2">
-                    <img
+                    <Image
                         src="/emblem.png"
                         alt="Sahrdaya Logo"
-                        className="h-16 w-auto opacity-80"
+                        width={64}
+                        height={64}
+                        className="opacity-80"
                     />
                 </div>
                 <div className="font-mono text-[10px] text-gray-400 leading-tight">

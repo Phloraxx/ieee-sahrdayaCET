@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Users, ArrowUpRight, Linkedin, Mail, GripHorizontal } from 'lucide-react';
+import { Users, ArrowUpRight, Linkedin, Mail } from 'lucide-react';
 
 interface Member {
     name: string;
@@ -193,8 +193,6 @@ const DragCarousel: React.FC = () => {
     const trackRef = useRef<HTMLDivElement>(null);
     const offsetRef = useRef(0);
     const rafRef = useRef<number>(0);
-    const [isDragging, setIsDragging] = useState(false);
-    const [showHint, setShowHint] = useState(false);
     const sectionRef = useRef<HTMLDivElement>(null);
 
     // Physics state
@@ -246,7 +244,6 @@ const DragCarousel: React.FC = () => {
         // Only capture simple left clicks or touches
         if (e.button !== 0) return;
         
-        setIsDragging(true);
         physics.current.isDragging = true;
         physics.current.startX = e.clientX;
         physics.current.lastX = e.clientX;
@@ -276,9 +273,8 @@ const DragCarousel: React.FC = () => {
         physics.current.lastTime = now;
     };
 
-    const onPointerUp = (e: React.PointerEvent) => {
+    const onPointerUp = () => {
         if (!physics.current.isDragging) return;
-        setIsDragging(false);
         physics.current.isDragging = false;
         // e.currentTarget.releasePointerCapture(e.pointerId);
     };
@@ -289,8 +285,6 @@ const DragCarousel: React.FC = () => {
         <div
             ref={sectionRef}
             className="relative w-full select-none"
-            onMouseEnter={() => setShowHint(true)}
-            onMouseLeave={() => setShowHint(false)}
         >
             {/* Carousel track */}
             <div

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Users, Cpu, Zap, Radio, Atom, GraduationCap, Activity, Bolt, Heart, Cog, Wrench, Sparkles, Camera, FileText, MessageSquare, Palette } from 'lucide-react';
 import Link from 'next/link';
@@ -371,11 +372,13 @@ const MemberCard: React.FC<{ member: Member; index: number }> = ({ member, index
                 {/* Image */}
                 <div className="relative aspect-[3/4] bg-gray-50 overflow-hidden">
                     {imageSrc && !imgError ? (
-                        <img
+                        <Image
                             src={imageSrc}
                             alt={member.name}
                             onError={() => setImgError(true)}
-                            className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                            className="object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                            fill
+                            sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
                         />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-100">
@@ -432,7 +435,7 @@ const FullExecom: React.FC = () => {
                     <Link href="/" className="p-2 -ml-2 text-gray-500 hover:text-gray-900">
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
-                    <span className="font-semibold text-gray-900">EXECOM '26</span>
+                    <span className="font-semibold text-gray-900">EXECOM &apos;26</span>
                     <button 
                         onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
                         className="p-2 -mr-2 text-gray-500"

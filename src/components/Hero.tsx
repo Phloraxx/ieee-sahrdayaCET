@@ -20,18 +20,9 @@ export const Hero: React.FC = () => {
             transition: {
                 delay: i * 0.1,
                 duration: 0.8,
-                ease: [0.2, 0.65, 0.3, 0.9],
+                ease: [0.2, 0.65, 0.3, 0.9] as const,
             },
         }),
-    };
-
-    const subtitleVariants = {
-        hidden: { width: 0, opacity: 0 },
-        visible: {
-            width: "auto",
-            opacity: 1,
-            transition: { delay: 1.5, duration: 1 },
-        },
     };
 
     return (

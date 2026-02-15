@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import {
     Grid,
     ArrowRight,
@@ -11,9 +12,6 @@ import {
     Users,
     Code,
     Heart,
-    Calendar,
-    Clock,
-    MapPin,
     ArrowUpRight
 } from 'lucide-react';
 import { SocietyStrip } from './SocietyStrip';
@@ -23,7 +21,7 @@ export const WhatsHappening: React.FC = () => {
         <section id="events" className="container mx-auto px-4 py-20 relative z-20">
             <div className="flex items-center space-x-2 mb-8">
                 <Grid className="w-5 h-5 text-ieee-blue" />
-                <h3 className="font-pixel text-lg md:text-xl text-gray-800">WHAT'S HAPPENING</h3>
+                <h3 className="font-pixel text-lg md:text-xl text-gray-800">WHAT&apos;S HAPPENING</h3>
                 <div className="h-px flex-grow bg-gray-300 ml-4"></div>
             </div>
 
@@ -32,15 +30,18 @@ export const WhatsHappening: React.FC = () => {
                 <div className="col-span-1 md:col-span-3 row-span-1 md:row-span-1 bento-card bg-white rounded-xl overflow-hidden border border-gray-200 relative group shadow-sm transition-all hover:shadow-md hover:border-ieee-blue/30 min-h-[400px] md:min-h-0">
                     <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-transparent to-transparent z-10 opacity-90"></div>
                     <div className="absolute inset-0 bg-blue-900 bg-opacity-20 z-0">
-                        <img
+                        <Image
                             alt="Tech Event"
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                            src="AGM.webp"
+                            src="/AGM.webp"
+                            fill
+                            sizes="(max-width: 768px) 100vw, 75vw"
+                            priority
                         />
                     </div>
                     <div className="relative z-20 p-6 md:p-8 h-full flex flex-col justify-center text-white">
                         <div className="inline-block px-3 py-1 bg-ieee-blue text-white text-[10px] font-mono tracking-wider rounded-sm mb-3 w-max">ANNUAL GENERAL MEETING</div>
-                        <h2 className="font-bold text-3xl md:text-5xl font-sans mb-2 drop-shadow-lg">IEEE AGM '26</h2>
+                        <h2 className="font-bold text-3xl md:text-5xl font-sans mb-2 drop-shadow-lg">IEEE AGM &apos;26</h2>
                         <p className="text-gray-200 text-sm md:text-base mb-6 max-w-md">
                             Join us as we reflect on a year of innovation, elect the new executive committee, and set the vision for the future of IEEE Sahrdaya SB.
                         </p>
@@ -87,7 +88,7 @@ export const WhatsHappening: React.FC = () => {
                                 <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
                             </div>
                             <h5 className="text-xs font-semibold text-gray-700 leading-snug group-hover:text-ieee-blue transition-colors mt-1">
-                                Call for Papers: Int'l Conference on Robotics open now.
+                                Call for Papers: Int&apos;l Conference on Robotics open now.
                             </h5>
                         </div>
                         <div className="group cursor-pointer">
@@ -149,8 +150,7 @@ export const WhatsHappening: React.FC = () => {
                     <div className="flex space-x-4 overflow-x-auto no-scrollbar pb-2 items-center h-full">
                         {/* Project 1 */}
                         <div className="min-w-[180px] w-[220px] bg-gray-50 rounded-lg p-3 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col">
-                            <div className="h-2 bg-gray-200 rounded mb-3 overflow-hidden relative">
-                                <img className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSnfORudAamkOztDEo-kmBCKqt8VLqUHPT4v_lpv87A5M3BaB8lirkLFpjuZWnJ65KAGudHCImY75l9c8beBQXCl-DsqVerWqzeJMWWequNrkimaFEI1m42KMnbXFp_5yoolqje4ONR6GRfocxhLKpxaCtl8HbNa9_is5_yZO3H_eY1jlWsM17JCOXpfaOLbn9z01ZfYyv93ci_SPvwSGUnr2EGyUC4dgccN2d5pfs0H1q2oQqqaqBuA5a1QCfe0dMTCzzwMiPPBw" alt="IoT" />
+                            <div className="h-2 bg-gradient-to-r from-blue-500 to-cyan-400 rounded mb-3 overflow-hidden relative">
                             </div>
                             <h5 className="font-bold text-xs text-gray-800 truncate">Auto-Irrigation IoT</h5>
                             <p className="text-[10px] text-gray-500 mt-1 flex-grow line-clamp-2">Smart farming solution using ESP32.</p>
@@ -163,8 +163,7 @@ export const WhatsHappening: React.FC = () => {
                         </div>
                         {/* Project 2 */}
                         <div className="min-w-[180px] w-[220px] bg-gray-50 rounded-lg p-3 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col">
-                            <div className="h-2 bg-gray-200 rounded mb-3 overflow-hidden relative">
-                                <img className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDh1RImD9cfepQMmsOz0kOHBSFiiOJgrdBqG8w-HFG-L7oIRpm8Z-nZiPyYfpeKRSxryn10WOAIqj2k-Da-gEj4G95TVaCzOJaEe6VUhkynQrgL1VetKNTxeRz-E-S7ritD0Fdqz65iX83SDLSixni2fodf6djedUwZD0QMDLBCKEI5iHbqdvJA8oYVTIw39N8FXETITWoxM-mvzO5I-P9BWyL8zI5TPPRuTh-yQ0G0JkGKRkCZuqVHfalv00NfGcQbwDdn9MSWeK8" alt="Arm" />
+                            <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-400 rounded mb-3 overflow-hidden relative">
                             </div>
                             <h5 className="font-bold text-xs text-gray-800 truncate">Gesture Control Arm</h5>
                             <p className="text-[10px] text-gray-500 mt-1 flex-grow line-clamp-2">Robotic arm controlled by hand signs.</p>
@@ -177,8 +176,7 @@ export const WhatsHappening: React.FC = () => {
                         </div>
                         {/* Project 3 */}
                         <div className="min-w-[180px] w-[220px] bg-gray-50 rounded-lg p-3 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col">
-                            <div className="h-2 bg-gray-200 rounded mb-3 overflow-hidden relative">
-                                <img className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAMhKO6TsEIim6xcMGG-FSs8dz0H2f99oTN5zYkjN6uQok0fB2-E8ZCrAWA3uxF1m3ktCs3jgQfgudthP5mPyHUbOo-T1VCPbDyq_uXs-1zW2ljTxzz87nbEY_I9bGiGbQfO8eLVHAyD0-D4cCyhfqrAu8dIv1Pq7EslhAuf5UxYNUA4o8rXw3ZuezFKzXLUoQC4xiaPD_J9LSJLkwwOmYKSvJ9-M84m1MKCJfiEUSfMeuilA4QBlAobPLTLVsNgxX2GCJXZVUCjUU" alt="Cyber" />
+                            <div className="h-2 bg-gradient-to-r from-green-500 to-emerald-400 rounded mb-3 overflow-hidden relative">
                             </div>
                             <h5 className="font-bold text-xs text-gray-800 truncate">CyberSec Tool</h5>
                             <p className="text-[10px] text-gray-500 mt-1 flex-grow line-clamp-2">Python network scanner script.</p>
@@ -197,7 +195,7 @@ export const WhatsHappening: React.FC = () => {
                     <div className="absolute w-40 h-40 bg-white opacity-10 rounded-full blur-2xl -top-10 -right-10 group-hover:scale-125 transition-transform duration-700"></div>
                     <Users className="w-10 h-10 text-white mb-3 animate-bounce" />
                     <h4 className="font-bold text-white text-lg leading-tight mb-2">Join The Community</h4>
-                    <p className="text-blue-100 text-xs mb-4">Be part of the world's largest technical professional organization.</p>
+                    <p className="text-blue-100 text-xs mb-4">Be part of the world&apos;s largest technical professional organization.</p>
                     <button className="bg-white text-ieee-blue text-xs font-bold py-2 px-6 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all uppercase tracking-wider">
                         Join IEEE
                     </button>
