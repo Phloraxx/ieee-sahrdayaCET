@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { Users, ArrowUpRight, Linkedin, Mail, GripHorizontal } from 'lucide-react';
 
 interface Member {
@@ -20,7 +21,7 @@ const execomMembers: Member[] = [
         name: 'Sneha Prasanth',
         role: 'Chairperson',
         tagline: 'LEADING THE CHARGE',
-        image: '/Execom/Sneha_prasanth.jpg',
+        image: '/Execom/Sneha Prasanth/Sneha Prasanth.JPG',
     },
     {
         name: 'Irene Anto',
@@ -62,13 +63,19 @@ const execomMembers: Member[] = [
         name: 'Alfin Joshi P',
         role: 'ECC',
         tagline: 'ELECTRONIC & COMM',
-        image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&h=750&fit=crop&crop=faces',
+        image: '/Execom/alfin_joshi.jpeg',
     },
     {
         name: 'Midhun P M',
         role: 'Technical Coordinator',
         tagline: 'TECH WIZARD',
         image: '/Execom/Midhun P M/IMG_20240701_173337.jpg',
+    },
+    {
+        name: 'Angelina Victor',
+        role: 'Link Rep',
+        tagline: 'LINKING MINDS',
+        image: '/Execom/Angelina Victor Varghese/eb65501f-0ea7-4a50-be56-0fd854318583.jpg',
     },
 ];
 
@@ -383,13 +390,13 @@ export const Execom: React.FC = () => {
 
                 {/* View Full Execom Button */}
                 <div className="mt-12 flex justify-center">
-                    <a
-                        href="/execom-full" 
+                    <Link
+                        to="/full-execom" 
                         className="group relative inline-flex items-center justify-center px-8 py-3 font-mono text-sm uppercase tracking-widest text-white transition-all duration-300 bg-ieee-blue/90 hover:bg-ieee-blue rounded-full"
                     >
                         <span>View Full Execom</span>
                         <ArrowUpRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
-                    </a>
+                    </Link>
                 </div>
 
                 {/* Bottom CTA */}

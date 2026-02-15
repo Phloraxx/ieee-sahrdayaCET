@@ -10,6 +10,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/1YM-inyGR3A6D0kG7tTG3P6
 
 ## Run Locally
 
+*.csv
+
 **Prerequisites:**  Node.js
 
 

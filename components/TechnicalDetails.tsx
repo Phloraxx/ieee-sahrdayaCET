@@ -54,7 +54,7 @@ export const TechnicalDetails: React.FC = () => {
                 transition={{ delay: 1.2, duration: 0.8 }}
                 className="absolute bottom-6 left-6 z-10 hidden md:block"
             >
-                <p className="font-mono text-[10px] text-gray-400">© 2024 IEEE SAHRDAYA SB</p>
+                <p className="font-mono text-[10px] text-gray-400">© 2026 IEEE SAHRDAYA SB</p>
             </motion.div>
 
             {/* Bottom Right */}
@@ -62,7 +62,7 @@ export const TechnicalDetails: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.2, duration: 0.8 }}
-                className="absolute bottom-6 right-20 z-10 hidden md:block text-right"
+                className="absolute bottom-6 right-6 z-10 hidden md:block text-right"
             >
                 <motion.div 
                     initial={{ opacity: 1 }}
