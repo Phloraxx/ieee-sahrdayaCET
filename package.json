@@ -6,10 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "setup:appwrite": "tsx scripts/setup-appwrite.ts",
+    "import:events": "tsx scripts/import-events.ts",
+    "test:connection": "tsx scripts/test-connection.ts",
+    "setup:execom": "tsx scripts/setup-execom-collection.ts",
+    "migrate:execom": "tsx scripts/migrate-execom-data.ts"
   },
   "dependencies": {
     "@types/papaparse": "^5.5.2",
+    "appwrite": "^22.3.1",
     "framer-motion": "^12.34.0",
     "lucide-react": "^0.563.0",
     "next": "^15.1.6",
@@ -22,10 +28,13 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.5",
     "autoprefixer": "^10.4.20",
+    "dotenv": "^17.3.1",
     "eslint": "^9",
     "eslint-config-next": "^15.1.6",
+    "node-appwrite": "^22.1.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.21.0",
     "typescript": "~5.8.2"
   }
 }

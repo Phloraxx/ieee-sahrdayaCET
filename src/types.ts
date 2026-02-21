@@ -13,3 +13,54 @@ export interface FloatingIconProps {
     y: string;
     delay?: number;
 }
+
+// Appwrite Document Types
+export interface Society {
+    $id: string;
+    $createdAt: string;
+    $updatedAt: string;
+    name: string;
+    slug: string;
+    bio?: string;
+    logo_url: string;
+    banner_url?: string;
+}
+
+export interface Event {
+    $id: string;
+    $createdAt: string;
+    $updatedAt: string;
+    title: string;
+    description?: string;
+    date: string;
+    venue?: string;
+    price: number;
+    banner_url?: string;
+    society_id: string;
+    status: 'draft' | 'published' | 'archived' | 'completed';
+    max_capacity?: number;
+}
+
+export interface User {
+    $id: string;
+    name: string;
+    email: string;
+    prefs?: Record<string, any>;
+}
+
+export interface TeamMembership {
+    $id: string;
+    teamId: string;
+    teamName: string;
+    userId: string;
+}
+
+// Auth Context Types
+export interface AuthContextType {
+    user: User | null;
+    loading: boolean;
+    login: () => Promise<void>;
+    logout: () => Promise<void>;
+    isChairOf: (societySlug: string) => boolean;
+    userTeams: TeamMembership[];
+}

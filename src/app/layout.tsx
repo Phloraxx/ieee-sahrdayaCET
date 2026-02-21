@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Press_Start_2P, Inter } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const pressStart2P = Press_Start_2P({ 
   weight: "400",
@@ -33,7 +34,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${pressStart2P.variable} ${inter.variable} antialiased`}>{children}</body>
+      <body className={`${pressStart2P.variable} ${inter.variable} antialiased`}>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }

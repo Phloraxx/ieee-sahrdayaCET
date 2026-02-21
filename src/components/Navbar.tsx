@@ -3,50 +3,35 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavItem } from '@/types';
 import { motion } from 'framer-motion';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { LogOut, User } from 'lucide-react';
+import LoginModal from './LoginModal';
 
 const navItems: NavItem[] = [
-    { label: 'HOME', href: '#home', isActive: true },
-    { label: 'EVENTS', href: '#events' },
-    { label: 'EXECOM', href: '#execom' },
-    { label: 'ABOUT', href: '#about' },
+    { label: 'HOME', href: '/' },
+    { label: 'EVENTS', href: '/events' },
+    { label: 'SOCIETIES', href: '/societies' },
+    { label: 'EXECOM', href: '/#execom' },
 ];
 
-export const Navbar: React.FC = () => {
+export default function Navbar() {
     const [isVisible, setIsVisible] = useState(true);
-    const [activeSection, setActiveSection] = useState('#home');
+    const [activeSection, setActiveSection] = useState('/');
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [showUserMenu, setShowUserMenu] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const pathname = usePathname();
+    const { user, logout, loading } = useAuth();
+
+    useEffect(() => {
+        setActiveSection(pathname || '/');
+    }, [pathname]);
 
     useEffect(() => {
         const handleScrollEvent = () => {
             setIsVisible(false);
-            
-            const scrollY = window.scrollY;
-            const viewportHeight = window.innerHeight;
-            
-            // Special case for Home/Hero section which occupies the first viewport
-            if (scrollY < viewportHeight * 0.8) {
-                setActiveSection('#home');
-            } else {
-                // Check other sections
-                // We start checking from the bottom up or top down?
-                // Top down check for sections in the document flow
-                ['#events', '#execom', '#about'].forEach(href => {
-                    const id = href.replace('#', '');
-                    const element = document.getElementById(id);
-                    if (element) {
-                        const rect = element.getBoundingClientRect();
-                        const elementTop = rect.top + scrollY;
-                        const elementBottom = elementTop + rect.height;
-                        
-                        // If the middle of the viewport is within this element
-                        const viewMiddle = scrollY + (viewportHeight / 2);
-                        
-                        if (viewMiddle >= elementTop && viewMiddle < elementBottom) {
-                            setActiveSection(href);
-                        }
-                    }
-                });
-            }
 
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
@@ -67,52 +52,111 @@ export const Navbar: React.FC = () => {
     }, []);
 
     const handleScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-        e.preventDefault();
-        const targetId = href.replace('#', '');
-        const element = document.getElementById(targetId);
-        
-        if (element) {
-            // Use native smooth scrolling for better performance and native feel
-            window.scrollTo({
-                top: element.getBoundingClientRect().top + window.scrollY,
-                behavior: 'smooth'
-            });
+        // Only handle smooth scroll for homepage anchor links
+        if (href.startsWith('/#') && pathname === '/') {
+            e.preventDefault();
+            const targetId = href.replace('/#', '');
+            const element = document.getElementById(targetId);
+            
+            if (element) {
+                window.scrollTo({
+                    top: element.getBoundingClientRect().top + window.scrollY,
+                    behavior: 'smooth'
+                });
+            }
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+            setShowUserMenu(false);
+        } catch (error) {
+            console.error('Logout failed:', error);
         }
     };
 
     return (
-        <motion.div 
-            initial={{ y: -100, opacity: 0 }}
-            animate={{ 
-                y: isVisible ? 0 : -100, 
-                opacity: isVisible ? 1 : 0 
-            }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed top-6 left-0 right-0 z-[100] flex justify-center pointer-events-none"
-        >
-            <div className="pointer-events-auto bg-white/70 backdrop-blur-md border border-white/20 shadow-lg shadow-black/5 rounded-full px-1.5 py-1.5 md:px-2 flex items-center gap-0.5 md:gap-1 overflow-x-auto max-w-[95vw] no-scrollbar">
-                {navItems.map((item) => (
-                    <a
-                        key={item.label}
-                        href={item.href}
-                        onClick={(e) => handleScroll(e, item.href)}
-                        className={`relative px-3 md:px-5 py-2 rounded-full text-[10px] md:text-xs font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${
-                            activeSection === item.href 
-                                ? 'text-gray-900 bg-white shadow-sm' 
-                                : 'text-gray-500 hover:text-ieee-blue hover:bg-white/50'
-                        }`}
-                    >
-                        {item.label}
-                    </a>
-                ))}
-                <div className="w-px h-4 bg-gray-300 mx-0.5 md:mx-1 flex-shrink-0" />
-                <a
-                    href="#join"
-                    className="px-3 md:px-5 py-2 rounded-full text-[10px] md:text-xs font-bold tracking-wide text-ieee-blue hover:bg-ieee-blue/10 transition-all duration-300 whitespace-nowrap"
-                >
-                    JOIN
-                </a>
-            </div>
-        </motion.div>
+        <>
+            <motion.div 
+                initial={{ y: -100, opacity: 0 }}
+                animate={{ 
+                    y: isVisible ? 0 : -100, 
+                    opacity: isVisible ? 1 : 0 
+                }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                className="fixed top-6 left-0 right-0 z-[100] flex justify-center pointer-events-none px-4"
+            >
+                <div className="pointer-events-auto bg-white/70 backdrop-blur-md border border-white/20 shadow-lg shadow-black/5 rounded-full px-2 py-1.5 flex items-center gap-1 max-w-[95vw] overflow-x-auto no-scrollbar">
+                    {/* Nav Links */}
+                    {navItems.map((item) => {
+                        const isActive = pathname === item.href || 
+                            (item.href.startsWith('/#') && pathname === '/' && activeSection.includes(item.href.replace('/#', '')));
+                        
+                        return (
+                            <Link
+                                key={item.label}
+                                href={item.href}
+                                onClick={(e) => handleScroll(e, item.href)}
+                                className={`relative px-3 md:px-5 py-2 rounded-full text-[10px] md:text-xs font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${
+                                    isActive
+                                        ? 'text-gray-900 bg-white shadow-sm' 
+                                        : 'text-gray-500 hover:text-blue-600 hover:bg-white/50'
+                                }`}
+                            >
+                                {item.label}
+                            </Link>
+                        );
+                    })}
+                    
+                    <div className="w-px h-4 bg-gray-300 mx-1 flex-shrink-0" />
+                    
+                    {/* Auth Section */}
+                    {!loading && (
+                        user ? (
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowUserMenu(!showUserMenu)}
+                                    className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-full text-[10px] md:text-xs font-bold tracking-wide text-blue-600 hover:bg-white/50 transition-all duration-300 whitespace-nowrap"
+                                >
+                                    <User className="w-3 h-3 md:w-4 md:h-4" />
+                                    <span className="hidden md:inline">{user.name?.split(' ')[0]}</span>
+                                </button>
+                                
+                                {/* User dropdown */}
+                                {showUserMenu && (
+                                    <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[150px]">
+                                        <div className="px-4 py-2 border-b border-gray-200">
+                                            <p className="text-xs font-semibold text-gray-900">{user.name}</p>
+                                            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                        </div>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full px-4 py-2 text-left text-xs text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                        >
+                                            <LogOut className="w-3 h-3" />
+                                            Logout
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => setIsLoginModalOpen(true)}
+                                className="px-3 md:px-5 py-2 rounded-full text-[10px] md:text-xs font-bold tracking-wide text-blue-600 hover:bg-blue-50 transition-all duration-300 whitespace-nowrap"
+                            >
+                                SIGN IN
+                            </button>
+                        )
+                    )}
+                </div>
+            </motion.div>
+
+            {/* Login Modal */}
+            <LoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+            />
+        </>
     );
-};
+}

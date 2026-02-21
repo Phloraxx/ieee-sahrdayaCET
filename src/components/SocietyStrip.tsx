@@ -1,34 +1,17 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
-
-interface Society {
-    name: string;
-    logo: string;
-}
-
-const societies: Society[] = [
-    { name: 'Computer Society', logo: '/Societies/cs.png' },
-    { name: 'Robotics & Automation Society', logo: '/Societies/ras.png' },
-    { name: 'Women in Engineering', logo: '/Societies/wie.png' },
-    { name: 'Industry Applications Society', logo: '/Societies/ias.png' },
-    { name: 'Power & Energy Society', logo: '/Societies/pes.png' },
-    { name: 'SIGHT', logo: '/Societies/sight.png' },
-    { name: 'Engineering in Medicine & Biology', logo: '/Societies/embs.png' },
-    { name: 'Signal Processing Society', logo: '/Societies/sps.png' },
-    { name: 'Circuits and Systems Society', logo: '/Societies/cas.png' },
-    { name: 'Communication Society', logo: '/Societies/css.png' },
-    { name: 'Education Society', logo: '/Societies/edsoc.png' },
-    { name: 'Industrial Electronics Society', logo: '/Societies/ies.png' },
-    { name: 'Nuclear & Plasma Sciences Society', logo: '/Societies/npss.png' },
-    { name: 'Photonics Society', logo: '/Societies/ps.png' },
-];
+import { databases, DATABASE_ID, SOCIETIES_COLLECTION_ID } from '@/lib/appwrite';
+import type { Society } from '@/types';
 
 const LogoItem: React.FC<{ society: Society }> = ({ society }) => (
-    <div className="flex-shrink-0 flex items-center justify-center group mx-6 md:mx-10">
-        <div className="relative flex items-center justify-center h-10 md:h-12 w-auto transition-all duration-300 group-hover:scale-110">
+    <Link href="/societies" className="flex-shrink-0 flex items-center justify-center group mx-6 md:mx-10">
+        <div className="relative flex items-center justify-center h-10 md:h-12 w-auto transition-all duration-300 group-hover:scale-110 cursor-pointer">
             <Image
-                src={society.logo}
+                src={society.logo_url}
                 alt={society.name}
                 width={60}
                 height={48}
@@ -36,10 +19,54 @@ const LogoItem: React.FC<{ society: Society }> = ({ society }) => (
                 draggable={false}
             />
         </div>
-    </div>
+    </Link>
 );
 
 export const SocietyStrip: React.FC = () => {
+    const [societies, setSocieties] = useState<Society[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchSocieties();
+    }, []);
+
+    const fetchSocieties = async () => {
+        try {
+            const response = await databases.listDocuments(
+                DATABASE_ID,
+                SOCIETIES_COLLECTION_ID
+            );
+            setSocieties(response.documents as unknown as Society[]);
+        } catch (error) {
+            console.error('Error fetching societies:', error);
+            // Fallback to some default societies if fetch fails
+            setSocieties([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // If loading or no societies, show placeholder
+    if (loading) {
+        return (
+            <div className="relative mt-12 md:mt-16">
+                <div className="flex items-center gap-3 mb-5 px-4 md:px-0">
+                    <div className="font-mono text-[10px] tracking-[0.3em] text-gray-400 uppercase whitespace-nowrap">
+                        OUR SOCIETIES
+                    </div>
+                    <div className="h-px flex-grow bg-gray-200" />
+                </div>
+                <div className="py-8 text-center text-gray-400 text-sm">
+                    Loading societies...
+                </div>
+            </div>
+        );
+    }
+
+    if (societies.length === 0) {
+        return null; // Don't show section if no societies
+    }
+
     // Duplicate the list for seamless loop (4x for safety on wide screens)
     const repeated = [...societies, ...societies, ...societies, ...societies];
 
@@ -76,7 +103,7 @@ export const SocietyStrip: React.FC = () => {
                     }}
                 >
                     {repeated.map((society, i) => (
-                        <LogoItem key={`${society.name}-${i}`} society={society} />
+                        <LogoItem key={`${society.$id}-${i}`} society={society} />
                     ))}
                 </motion.div>
             </div>

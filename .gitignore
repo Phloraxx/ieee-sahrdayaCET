@@ -11,6 +11,14 @@ node_modules
 /.next/
 /out/
 
+/docs/*
+/docs
+/scripts
+/scripts/*
+
+*.md
+!README.md
+
 # Production
 /build
 /dist
