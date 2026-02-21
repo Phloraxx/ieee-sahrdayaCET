@@ -51,7 +51,7 @@ export interface User {
 export interface TeamMembership {
     $id: string;
     teamId: string;
-    teamName: string;
+    teamName?: string;
     userId: string;
 }
 

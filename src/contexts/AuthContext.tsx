@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Fetch user's team memberships
             const teamsList = await teams.list();
             setUserTeams(teamsList.teams as unknown as TeamMembership[]);
-        } catch (error) {
+        } catch {
             // User not logged in - this is fine for lazy auth
             setUser(null);
             setUserTeams([]);
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Check if user is member of chair_{societySlug} team
         const chairTeamName = `chair_${societySlug}`;
         return userTeams.some(
-            (team) => team.teamId === chairTeamName || team.teamName.toLowerCase().includes(chairTeamName)
+            (team) => team.teamId === chairTeamName || team.teamName?.toLowerCase().includes(chairTeamName)
         );
     };
 

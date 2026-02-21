@@ -11,6 +11,9 @@ node_modules
 /.next/
 /out/
 
+
+*.pdf
+
 /docs/*
 /docs
 /scripts

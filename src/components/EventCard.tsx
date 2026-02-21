@@ -3,7 +3,6 @@
 import React from 'react';
 import { Event, Society } from '@/types';
 import { Calendar, MapPin, IndianRupee } from 'lucide-react';
-import Link from 'next/link';
 
 interface EventCardProps {
     event: Event & { society?: Society };
@@ -26,7 +25,7 @@ export default function EventCard({ event }: EventCardProps) {
         <div className={`group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden transition-all duration-300 ${
             isCompleted 
                 ? 'cursor-default' 
-                : 'hover:border-ieee-blue hover:shadow-2xl hover:transform hover:scale-105 cursor-pointer'
+                : 'hover:border-ieee-blue hover:shadow-2xl hover:transform hover:scale-105'
         }`}>
                 {/* Banner Image - 9:16 aspect ratio */}
                 <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
@@ -120,13 +119,7 @@ export default function EventCard({ event }: EventCardProps) {
             </div>
     );
 
-    if (isCompleted) {
-        return cardContent;
-    }
-
-    return (
-        <Link href={`/event/${event.$id}`}>
-            {cardContent}
-        </Link>
-    );
+    // Note: Event detail page (/event/[id]) not yet implemented
+    // For now, just return the card without linking
+    return cardContent;
 }
