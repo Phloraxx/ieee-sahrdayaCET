@@ -96,7 +96,7 @@ export default function SocietiesPage() {
                 SOCIETIES_COLLECTION_ID
             );
             setSocieties(response.documents as unknown as Society[]);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error fetching societies:', err);
             setError('Failed to load societies. Please try again later.');
         } finally {
@@ -115,7 +115,7 @@ export default function SocietiesPage() {
                 .filter(event => event.society_id === societyId)
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             setSocietyEvents(events);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error fetching events:', err);
         } finally {
             setLoadingEvents(false);
@@ -133,7 +133,7 @@ export default function SocietiesPage() {
                     Query.orderAsc('slNo')
                 ]
             );
-            const members = (response.documents as any[]).map(doc => ({
+            const members = response.documents.map((doc) => ({
                 slNo: doc.slNo,
                 name: doc.name,
                 department: doc.department,
@@ -146,7 +146,7 @@ export default function SocietiesPage() {
                 phone: doc.phone,
             }));
             setSocietyMembers(members);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error fetching members:', err);
             setSocietyMembers([]);
         } finally {
@@ -271,7 +271,7 @@ export default function SocietiesPage() {
                                 }
                             }}
                         >
-                            {societies.map((society, index) => (
+                            {societies.map((society) => (
                                 <motion.div
                                     key={society.$id}
                                     variants={{

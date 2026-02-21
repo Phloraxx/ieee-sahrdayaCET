@@ -45,7 +45,7 @@ export interface User {
     $id: string;
     name: string;
     email: string;
-    prefs?: Record<string, any>;
+    prefs?: Record<string, unknown>;
 }
 
 export interface TeamMembership {

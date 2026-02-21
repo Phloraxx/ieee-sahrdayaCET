@@ -343,16 +343,7 @@ const MemberCard: React.FC<{ member: Member; index: number; onClick: () => void 
     );
 };
 
-const SkeletonCard: React.FC = () => (
-    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden animate-pulse">
-        <div className="aspect-[3/4] bg-gray-200" />
-        <div className="p-4 space-y-2">
-            <div className="h-3 bg-gray-200 rounded w-1/2" />
-            <div className="h-4 bg-gray-200 rounded w-3/4" />
-            <div className="h-3 bg-gray-200 rounded w-2/3" />
-        </div>
-    </div>
-);
+
 
 const FullExecom: React.FC = () => {
     const [sections, setSections] = useState<Section[]>([]);
@@ -376,9 +367,9 @@ const FullExecom: React.FC = () => {
                 const transformedSections = transformToSections(response.documents as unknown as ExecomMemberDoc[]);
                 setSections(transformedSections);
                 setError(null);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('Failed to fetch execom members:', err);
-                setError(err.message || 'Failed to load execom members');
+                setError(err instanceof Error ? err.message : 'Failed to load execom members');
             } finally {
                 setLoading(false);
             }

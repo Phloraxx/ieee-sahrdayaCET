@@ -28,14 +28,14 @@ async function getEvents() {
         );
 
         const societiesMap = new Map(
-            societiesResponse.documents.map((s: any) => [s.$id, s as Society])
+            (societiesResponse.documents as unknown as Society[]).map((s) => [s.$id, s])
         );
 
         // Attach society data to events and filter only published/completed
         // Serialize to plain objects to avoid Next.js serialization errors
         const eventsWithSocieties = eventsResponse.documents
-            .filter((event: any) => event.status === 'published' || event.status === 'completed')
-            .map((event: any) => {
+            .filter((event) => event.status === 'published' || event.status === 'completed')
+            .map((event) => {
                 const society = societiesMap.get(event.society_id);
                 return {
                     $id: event.$id,

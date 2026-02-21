@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Society } from '@/types';
 import { databases, DATABASE_ID, SOCIETIES_COLLECTION_ID } from '@/lib/appwrite';
-import { X, Upload, Loader2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 
 interface EditSocietyModalProps {
     society: Society;
@@ -42,9 +42,9 @@ export default function EditSocietyModal({ society, isOpen, onClose, onUpdate }:
 
             onUpdate(updatedDoc as unknown as Society);
             onClose();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to update society:', err);
-            setError(err.message || 'Failed to update society. Please try again.');
+            setError(err instanceof Error ? err.message : 'Failed to update society. Please try again.');
         } finally {
             setIsLoading(false);
         }
