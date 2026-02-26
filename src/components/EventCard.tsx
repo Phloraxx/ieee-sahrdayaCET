@@ -1,14 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Event, Society } from '@/types';
-import { Calendar, MapPin, IndianRupee } from 'lucide-react';
+import { Calendar, MapPin, IndianRupee, ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface EventCardProps {
     event: Event & { society?: Society };
+    variant?: 'default' | 'compact';
+    onClick?: (event: Event) => void;
+    index?: number;
 }
 
-export default function EventCard({ event }: EventCardProps) {
+const EventCard = memo(function EventCard({ event, variant = 'default', onClick, index = 0 }: EventCardProps) {
     const eventDate = new Date(event.date);
     const formattedDate = eventDate.toLocaleDateString('en-US', {
         month: 'short',
@@ -18,15 +22,90 @@ export default function EventCard({ event }: EventCardProps) {
         hour: 'numeric',
         minute: '2-digit',
     });
+    const year = eventDate.getFullYear();
 
     const isCompleted = event.status === 'completed';
+    const isClickable = !!onClick;
 
-    const cardContent = (
-        <div className={`group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden transition-all duration-300 ${
-            isCompleted 
-                ? 'cursor-default' 
-                : 'hover:border-ieee-blue hover:shadow-2xl hover:transform hover:scale-105'
-        }`}>
+    // Compact variant for carousels
+    if (variant === 'compact') {
+        return (
+            <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ scale: 1.03, y: -4 }}
+                onClick={() => onClick?.(event)}
+                className={`flex-shrink-0 w-[240px] bg-white rounded-xl overflow-hidden border-2 border-gray-200 hover:border-ieee-blue shadow-md hover:shadow-xl transition-all group ${
+                    isClickable ? 'cursor-pointer' : ''
+                }`}
+            >
+                {/* Event Image - 9:16 aspect ratio */}
+                <div className="relative aspect-[9/16] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                    {event.banner_url ? (
+                        <img 
+                            src={event.banner_url} 
+                            alt={event.title}
+                            className="w-full h-full object-cover object-center group-hover:scale-110 transition-transform duration-300"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <Calendar className="w-16 h-16 text-gray-300" />
+                        </div>
+                    )}
+                    
+                    {/* Status Badge */}
+                    <div className="absolute top-2 right-2">
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full shadow-lg ${
+                            event.status === 'completed' ? 'bg-green-500 text-white' :
+                            event.status === 'published' ? 'bg-blue-500 text-white' :
+                            'bg-gray-500 text-white'
+                        }`}>
+                            {event.status}
+                        </span>
+                    </div>
+
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                    
+                    {/* Date Badge */}
+                    <div className="absolute bottom-2 left-2">
+                        <div className="bg-white/90 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                            <div className="text-xs font-bold text-ieee-blue">
+                                {formattedDate}
+                            </div>
+                            <div className="text-[10px] text-gray-600 font-semibold">
+                                {year}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Event Info */}
+                <div className="p-3">
+                    <h4 className="font-bold text-gray-900 text-xs mb-2 line-clamp-2 group-hover:text-ieee-blue transition-colors">
+                        {event.title}
+                    </h4>
+                    
+                    {isClickable && (
+                        <div className="flex items-center gap-1 text-ieee-blue font-semibold text-[10px]">
+                            <span>View Details</span>
+                            <ChevronRight className="w-3 h-3" />
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        );
+    }
+
+    // Default variant for grids
+    return (
+        <div 
+            onClick={() => onClick?.(event)}
+            className={`group relative bg-white border-2 border-gray-200 rounded-xl overflow-hidden transition-all duration-300 hover:border-ieee-blue hover:shadow-2xl hover:transform hover:scale-105 ${
+                isClickable ? 'cursor-pointer' : ''
+            }`}
+        >
                 {/* Banner Image - 9:16 aspect ratio */}
                 <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
                     {event.banner_url ? (
@@ -118,8 +197,6 @@ export default function EventCard({ event }: EventCardProps) {
                 </div>
             </div>
     );
+});
 
-    // Note: Event detail page (/event/[id]) not yet implemented
-    // For now, just return the card without linking
-    return cardContent;
-}
+export default EventCard;

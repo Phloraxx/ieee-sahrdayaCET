@@ -22,12 +22,26 @@ export default function Navbar() {
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const userMenuRef = useRef<HTMLDivElement>(null);
     const pathname = usePathname();
     const { user, logout, loading } = useAuth();
 
     useEffect(() => {
         setActiveSection(pathname || '/');
     }, [pathname]);
+
+    // Close user menu on click outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+                setShowUserMenu(false);
+            }
+        };
+        if (showUserMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showUserMenu]);
 
     useEffect(() => {
         const handleScrollEvent = () => {
@@ -114,7 +128,7 @@ export default function Navbar() {
                     {/* Auth Section */}
                     {!loading && (
                         user ? (
-                            <div className="relative">
+                            <div className="relative" ref={userMenuRef}>
                                 <button
                                     onClick={() => setShowUserMenu(!showUserMenu)}
                                     className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-full text-[10px] md:text-xs font-bold tracking-wide text-blue-600 hover:bg-white/50 transition-all duration-300 whitespace-nowrap"
@@ -125,17 +139,17 @@ export default function Navbar() {
                                 
                                 {/* User dropdown */}
                                 {showUserMenu && (
-                                    <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[150px]">
-                                        <div className="px-4 py-2 border-b border-gray-200">
-                                            <p className="text-xs font-semibold text-gray-900">{user.name}</p>
-                                            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                    <div className="absolute top-full right-0 mt-3 bg-white/90 backdrop-blur-md rounded-xl shadow-lg shadow-black/10 border border-gray-200 min-w-[180px] overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-gray-100">
+                                            <p className="text-xs font-bold text-gray-900">{user.name}</p>
+                                            <p className="text-[10px] font-mono text-gray-400 truncate mt-0.5">{user.email}</p>
                                         </div>
                                         <button
                                             onClick={handleLogout}
-                                            className="w-full px-4 py-2 text-left text-xs text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                            className="w-full px-4 py-2.5 text-left text-xs font-bold text-red-500 hover:bg-red-50 transition-colors flex items-center gap-2 tracking-wide"
                                         >
-                                            <LogOut className="w-3 h-3" />
-                                            Logout
+                                            <LogOut className="w-3.5 h-3.5" />
+                                            Sign Out
                                         </button>
                                     </div>
                                 )}

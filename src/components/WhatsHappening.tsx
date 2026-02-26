@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
     Grid,
     ArrowRight,
@@ -49,25 +50,25 @@ export const WhatsHappening: React.FC = () => {
                         <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
                             <div className="flex space-x-4 font-mono text-sm shadow-inner bg-black/20 p-2 rounded-lg backdrop-blur-sm border border-white/10">
                                 <div className="text-center px-1">
-                                    <span className="block text-2xl font-bold text-white">23</span>
+                                    <span className="block text-2xl font-bold text-white">27</span>
                                     <span className="text-[10px] text-gray-300 tracking-wider">FEB</span>
                                 </div>
                                 <span className="text-2xl font-bold text-gray-400 pb-2">:</span>
                                 <div className="text-center px-1">
-                                    <span className="block text-2xl font-bold text-white">20</span>
-                                    <span className="text-[10px] text-gray-300 tracking-wider">26</span>
+                                    <span className="block text-2xl font-bold text-white">02</span>
+                                    <span className="text-[10px] text-gray-300 tracking-wider">March</span>
                                 </div>
                                 <span className="text-2xl font-bold text-gray-400 pb-2">:</span>
                                 <div className="text-center px-1">
-                                    <span className="block text-2xl font-bold text-white">09</span>
-                                    <span className="text-[10px] text-gray-300 tracking-wider">AM</span>
+                                    <span className="block text-2xl font-bold text-white">02</span>
+                                    <span className="text-[10px] text-gray-300 tracking-wider">PM</span>
                                 </div>
                             </div>
 
-                            <button className="glass-btn bg-white/10 backdrop-blur-sm border border-white/20 px-6 py-2 rounded-lg text-white font-medium text-sm hover:bg-white/20 hover:scale-105 transition-all flex items-center space-x-2 group">
+                            <Link href="/events" className="glass-btn bg-white/10 backdrop-blur-sm border border-white/20 px-6 py-2 rounded-lg text-white font-medium text-sm hover:bg-white/20 hover:scale-105 transition-all flex items-center space-x-2 group">
                                 <span>Register Now</span>
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </button>
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -82,7 +83,7 @@ export const WhatsHappening: React.FC = () => {
                         <span className="text-[10px] font-mono text-gray-400">LIVE FEED</span>
                     </div>
                     <div className="flex-grow overflow-y-auto no-scrollbar space-y-4 pr-1">
-                        <div className="group cursor-pointer">
+                        <a href="https://www.ieee.org/conferences" target="_blank" rel="noopener noreferrer" className="group block">
                             <div className="flex justify-between items-baseline">
                                 <span className="text-[10px] font-mono text-ieee-blue">OCT 14</span>
                                 <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
@@ -90,102 +91,80 @@ export const WhatsHappening: React.FC = () => {
                             <h5 className="text-xs font-semibold text-gray-700 leading-snug group-hover:text-ieee-blue transition-colors mt-1">
                                 Call for Papers: Int&apos;l Conference on Robotics open now.
                             </h5>
-                        </div>
-                        <div className="group cursor-pointer">
+                        </a>
+                        <Link href="/societies#wie" className="group block">
                             <div className="flex justify-between items-baseline">
                                 <span className="text-[10px] font-mono text-gray-400">OCT 10</span>
                             </div>
                             <h5 className="text-xs font-semibold text-gray-700 leading-snug group-hover:text-ieee-blue transition-colors mt-1">
                                 Women in Engineering (WIE) orientation session highlights.
                             </h5>
-                        </div>
-                        <div className="group cursor-pointer">
+                        </Link>
+                        <Link href="/events" className="group block">
                             <div className="flex justify-between items-baseline">
                                 <span className="text-[10px] font-mono text-gray-400">OCT 08</span>
                             </div>
                             <h5 className="text-xs font-semibold text-gray-700 leading-snug group-hover:text-ieee-blue transition-colors mt-1">
                                 Sahrdaya SB wins Outstanding Student Branch Award!
                             </h5>
-                        </div>
+                        </Link>
                     </div>
-                    <a href="#" className="text-[10px] text-gray-400 font-mono mt-3 text-right hover:text-ieee-blue flex items-center justify-end gap-1">
+                    <Link href="/events" className="text-[10px] text-gray-400 font-mono mt-3 text-right hover:text-ieee-blue flex items-center justify-end gap-1">
                         VIEW ARCHIVE <ArrowUpRight className="w-3 h-3" />
-                    </a>
+                    </Link>
                 </div>
 
                 {/* Society Spotlight Card */}
-                <div className="col-span-1 md:col-span-1 row-span-1 bento-card bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 p-5 flex flex-col justify-between shadow-sm relative overflow-hidden group transition-all hover:shadow-md hover:border-ieee-blue/30 min-h-[250px] md:min-h-0">
+                <Link href="/societies" className="col-span-1 md:col-span-1 row-span-1 bento-card bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 p-5 flex flex-col justify-between shadow-sm relative overflow-hidden group transition-all hover:shadow-md hover:border-ieee-blue/30 min-h-[250px] md:min-h-0">
                     <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-ieee-blue opacity-5 rounded-full z-0 group-hover:scale-150 transition-transform duration-500"></div>
                     <div>
                         <div className="text-[10px] font-mono text-gray-400 mb-1 uppercase tracking-wide">Society Spotlight</div>
                         <h4 className="font-bold text-xl text-gray-800 z-10 relative">Computer Society</h4>
                         <div className="w-8 h-1 bg-ieee-blue mt-2 rounded-full"></div>
                     </div>
-                    <div className="flex justify-end mt-4">
+                    <div className="flex justify-end">
                         <div className="w-16 h-16 bg-white rounded-2xl shadow-lg border border-gray-100 flex items-center justify-center transform rotate-3 group-hover:rotate-6 transition-transform">
                             <Code className="w-8 h-8 text-ieee-blue" />
                         </div>
                     </div>
-                    <div className="mt-2 text-xs text-gray-500 line-clamp-2 relative z-10">
+                    <div className=" text-xs text-gray-500 line-clamp-2 relative z-10">
                         Advancing the theory, practice, and application of computer and info systems.
                     </div>
-                </div>
+                </Link>
 
-                {/* Project Showcase Card */}
-                <div className="col-span-1 md:col-span-2 row-span-1 bento-card bg-white rounded-xl border border-gray-200 p-5 flex flex-col shadow-sm transition-all hover:shadow-md hover:border-ieee-blue/30">
-                    <div className="flex justify-between items-center mb-3">
+                {/* IEEE By The Numbers */}
+                <div className="col-span-1 md:col-span-2 row-span-1 bento-card bg-white rounded-xl border border-gray-200 p-5 flex flex-col shadow-sm transition-all hover:shadow-md hover:border-ieee-blue/30 relative overflow-hidden group">
+                    <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-ieee-blue opacity-[0.03] rounded-full z-0 group-hover:scale-150 transition-transform duration-500"></div>
+                    
+                    <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
                         <h4 className="font-bold text-sm text-gray-800 flex items-center gap-2">
-                            <Rocket className="w-4 h-4 text-ieee-blue" />
-                            PROJECT SHOWCASE
+                            <Users className="w-4 h-4 text-ieee-blue" />
+                            BY THE NUMBERS
                         </h4>
-                        <div className="flex space-x-2">
-                            <button className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 text-gray-600">
-                                <ChevronLeft className="w-4 h-4" />
-                            </button>
-                            <button className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 text-gray-600">
-                                <ChevronRight className="w-4 h-4" />
-                            </button>
-                        </div>
+                        <span className="text-[10px] font-mono text-gray-400">EST. 2012</span>
                     </div>
-                    <div className="flex space-x-4 overflow-x-auto no-scrollbar pb-2 items-center h-full">
-                        {/* Project 1 */}
-                        <div className="min-w-[180px] w-[220px] bg-gray-50 rounded-lg p-3 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col">
-                            <div className="h-2 bg-gradient-to-r from-blue-500 to-cyan-400 rounded mb-3 overflow-hidden relative">
-                            </div>
-                            <h5 className="font-bold text-xs text-gray-800 truncate">Auto-Irrigation IoT</h5>
-                            <p className="text-[10px] text-gray-500 mt-1 flex-grow line-clamp-2">Smart farming solution using ESP32.</p>
-                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
-                                <div className="flex items-center text-[10px] text-gray-500 hover:text-red-500 transition-colors">
-                                    <Heart className="w-3 h-3 mr-1" /> 24
-                                </div>
-                                <div className="text-[10px] text-ieee-blue font-medium">VIEW</div>
-                            </div>
+
+                    <div className="flex items-center justify-between h-full relative z-10">
+                        {/* Stat 1 */}
+                        <div className="flex-1 flex flex-col items-center text-center">
+                            <div className="font-pixel text-2xl md:text-4xl text-gray-900  leading-none">1000<span className="text-ieee-blue">+</span></div>
+                            <span className="text-[9px] font-mono text-gray-400 mt-2 tracking-[0.2em] uppercase">Members</span>
                         </div>
-                        {/* Project 2 */}
-                        <div className="min-w-[180px] w-[220px] bg-gray-50 rounded-lg p-3 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col">
-                            <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-400 rounded mb-3 overflow-hidden relative">
-                            </div>
-                            <h5 className="font-bold text-xs text-gray-800 truncate">Gesture Control Arm</h5>
-                            <p className="text-[10px] text-gray-500 mt-1 flex-grow line-clamp-2">Robotic arm controlled by hand signs.</p>
-                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
-                                <div className="flex items-center text-[10px] text-gray-500 hover:text-red-500 transition-colors">
-                                    <Heart className="w-3 h-3 mr-1" /> 42
-                                </div>
-                                <div className="text-[10px] text-ieee-blue font-medium">VIEW</div>
-                            </div>
+
+                        <div className="w-px h-12 bg-gray-200"></div>
+
+                        {/* Stat 2 */}
+                        <div className="flex-1 flex flex-col items-center text-center">
+                            <span className="font-pixel text-2xl md:text-4xl text-gray-900 leading-none">22<span className="text-ieee-blue">+</span></span>
+                            <span className="text-[9px] font-mono text-gray-400 mt-2 tracking-[0.2em] uppercase">Professionals</span>
                         </div>
-                        {/* Project 3 */}
-                        <div className="min-w-[180px] w-[220px] bg-gray-50 rounded-lg p-3 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col">
-                            <div className="h-2 bg-gradient-to-r from-green-500 to-emerald-400 rounded mb-3 overflow-hidden relative">
-                            </div>
-                            <h5 className="font-bold text-xs text-gray-800 truncate">CyberSec Tool</h5>
-                            <p className="text-[10px] text-gray-500 mt-1 flex-grow line-clamp-2">Python network scanner script.</p>
-                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
-                                <div className="flex items-center text-[10px] text-gray-500 hover:text-red-500 transition-colors">
-                                    <Heart className="w-3 h-3 mr-1" /> 18
-                                </div>
-                                <div className="text-[10px] text-ieee-blue font-medium">VIEW</div>
-                            </div>
+
+                        <div className="w-px h-12 bg-gray-200"></div>
+
+                        {/* Stat 3 */}
+                        <div className="flex-1 flex flex-col items-center text-center">
+                            <span className="font-pixel text-2xl md:text-4xl text-gray-900 leading-none">14</span>
+                            <span className="text-[9px] font-mono text-gray-400 mt-2 tracking-[0.2em] uppercase">Years</span>
                         </div>
                     </div>
                 </div>
@@ -196,9 +175,9 @@ export const WhatsHappening: React.FC = () => {
                     <Users className="w-10 h-10 text-white mb-3 animate-bounce" />
                     <h4 className="font-bold text-white text-lg leading-tight mb-2">Join The Community</h4>
                     <p className="text-blue-100 text-xs mb-4">Be part of the world&apos;s largest technical professional organization.</p>
-                    <button className="bg-white text-ieee-blue text-xs font-bold py-2 px-6 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all uppercase tracking-wider">
+                    <a href="https://www.ieee.org/membership" target="_blank" rel="noopener noreferrer" className="bg-white text-ieee-blue text-xs font-bold py-2 px-6 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all uppercase tracking-wider">
                         Join IEEE
-                    </button>
+                    </a>
                 </div>
             </div>
 

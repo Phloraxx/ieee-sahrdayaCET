@@ -11,7 +11,8 @@
     "import:events": "tsx scripts/import-events.ts",
     "test:connection": "tsx scripts/test-connection.ts",
     "setup:execom": "tsx scripts/setup-execom-collection.ts",
-    "migrate:execom": "tsx scripts/migrate-execom-data.ts"
+    "migrate:execom": "tsx scripts/migrate-execom-data.ts",
+    "update:contacts": "tsx scripts/update-execom-contacts.ts"
   },
   "dependencies": {
     "@types/papaparse": "^5.5.2",

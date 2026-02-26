@@ -3,13 +3,18 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Users, ArrowUpRight, Linkedin, Mail } from 'lucide-react';
+import { Users, ArrowUpRight, Linkedin, Mail, Phone } from 'lucide-react';
+import { databases, DATABASE_ID, EXECOM_COLLECTION_ID } from '@/lib/appwrite';
+import { Query } from 'appwrite';
 
 interface Member {
     name: string;
     role: string;
     tagline: string;
     image: string;
+    linkedin?: string;
+    email?: string;
+    phone?: string;
 }
 
 const execomMembers: Member[] = [
@@ -148,19 +153,29 @@ const MemberCard: React.FC<{ member: Member; index: number }> = ({ member, index
                 >
                     <div className="flex gap-2">
                         <a
-                            href="#"
+                            href={member.linkedin || "#"}
+                            target={member.linkedin ? "_blank" : "_self"}
+                            rel="noopener noreferrer"
+                            onClick={(e) => !member.linkedin && e.preventDefault()}
                             className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/40 transition-colors"
                         >
                             <Linkedin className="w-3.5 h-3.5 text-white" />
                         </a>
                         <a
-                            href="#"
+                            href={member.email ? `mailto:${member.email}` : "#"}
+                            onClick={(e) => !member.email && e.preventDefault()}
                             className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/40 transition-colors"
                         >
                             <Mail className="w-3.5 h-3.5 text-white" />
                         </a>
+                        <a
+                            href={member.phone ? `tel:${member.phone}` : "#"}
+                            onClick={(e) => !member.phone && e.preventDefault()}
+                            className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/40 transition-colors"
+                        >
+                            <Phone className="w-3.5 h-3.5 text-white" />
+                        </a>
                     </div>
-                    <ArrowUpRight className="w-5 h-5 text-white" />
                 </motion.div>
 
                 {/* Index number - bottom right corner */}
@@ -187,9 +202,8 @@ const MemberCard: React.FC<{ member: Member; index: number }> = ({ member, index
 const CARD_WIDTH = 270;
 const GAP = 30;
 const ITEM_SIZE = CARD_WIDTH + GAP;
-const SET_WIDTH = ITEM_SIZE * execomMembers.length; // width of one full set
 
-const DragCarousel: React.FC = () => {
+const DragCarousel: React.FC<{ members: Member[] }> = ({ members }) => {
     const trackRef = useRef<HTMLDivElement>(null);
     const offsetRef = useRef(0);
     const rafRef = useRef<number>(0);
@@ -213,7 +227,7 @@ const DragCarousel: React.FC = () => {
         // Apply momentum when not dragging
         if (!physics.current.isDragging) {
             physics.current.velocity *= 0.98; // Smoother friction
-            
+
             // Auto-scroll only if section is in view and has started scrolling
             if (Math.abs(physics.current.velocity) < 0.05 && isInView && hasStartedScrolling) {
                 // Smoothly accelerate to target speed instead of snapping
@@ -225,7 +239,7 @@ const DragCarousel: React.FC = () => {
         offsetRef.current += physics.current.velocity;
 
         // Infinite loop logic
-        const contentWidth = SET_WIDTH; 
+        const contentWidth = ITEM_SIZE * members.length;
         // If we've scrolled past the first set, reset to 0
         if (offsetRef.current <= -contentWidth) {
             offsetRef.current += contentWidth;
@@ -237,7 +251,7 @@ const DragCarousel: React.FC = () => {
 
         trackRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
         rafRef.current = requestAnimationFrame(animate);
-    }, [isInView, hasStartedScrolling]);
+    }, [isInView, hasStartedScrolling, members.length]);
 
     useEffect(() => {
         rafRef.current = requestAnimationFrame(animate);
@@ -281,27 +295,27 @@ const DragCarousel: React.FC = () => {
     const onPointerDown = (e: React.PointerEvent) => {
         // Only capture simple left clicks or touches
         if (e.button !== 0) return;
-        
+
         physics.current.isDragging = true;
         physics.current.startX = e.clientX;
         physics.current.lastX = e.clientX;
         physics.current.lastTime = performance.now();
         physics.current.velocity = 0;
-        
+
         // Important: Stop auto-scroll immediately
         // e.currentTarget.setPointerCapture(e.pointerId); // Optional, sometimes causes issues on mobile scroll
     };
 
     const onPointerMove = (e: React.PointerEvent) => {
         if (!physics.current.isDragging) return;
-        
+
         const now = performance.now();
         const deltaX = e.clientX - physics.current.lastX;
         const deltaTime = now - physics.current.lastTime;
-        
+
         // Update offset immediately
         offsetRef.current += deltaX;
-        
+
         // Calculate velocity for momentum (smoothed)
         if (deltaTime > 0) {
             const newVelocity = (deltaX / deltaTime) * 16; // Normalize to 60fps
@@ -319,7 +333,7 @@ const DragCarousel: React.FC = () => {
         // e.currentTarget.releasePointerCapture(e.pointerId);
     };
 
-    const items = [...execomMembers, ...execomMembers, ...execomMembers];
+    const items = [...members, ...members, ...members];
 
     return (
         <div
@@ -346,7 +360,7 @@ const DragCarousel: React.FC = () => {
                             className="flex-shrink-0 transition-transform duration-300 ease-out hover:-translate-y-2"
                             style={{ width: `${CARD_WIDTH}px` }}
                         >
-                            <MemberCard member={member} index={index % execomMembers.length} />
+                            <MemberCard member={member} index={index % members.length} />
                         </div>
                     ))}
                 </div>
@@ -357,6 +371,40 @@ const DragCarousel: React.FC = () => {
 
 
 export const Execom: React.FC = () => {
+    const [membersList, setMembersList] = useState<Member[]>(execomMembers);
+
+    useEffect(() => {
+        const fetchContacts = async () => {
+            try {
+                const response = await databases.listDocuments(
+                    DATABASE_ID,
+                    EXECOM_COLLECTION_ID,
+                    [Query.limit(100)]
+                );
+
+                const dbDocs = response.documents;
+                const updatedMembers = execomMembers.map(member => {
+                    const dbMatch = dbDocs.find((doc: any) => doc.name.toLowerCase() === member.name.toLowerCase());
+                    if (dbMatch) {
+                        return {
+                            ...member,
+                            linkedin: dbMatch.linkedin || undefined,
+                            email: dbMatch.email || undefined,
+                            phone: dbMatch.phone || undefined
+                        };
+                    }
+                    return member;
+                });
+
+                setMembersList(updatedMembers);
+            } catch (err) {
+                console.error("Failed to fetch execom contacts:", err);
+            }
+        };
+
+        fetchContacts();
+    }, []);
+
     return (
         <section className="bg-white py-20 md:py-32 relative overflow-hidden" id="execom">
             {/* Background decorative elements */}
@@ -422,12 +470,12 @@ export const Execom: React.FC = () => {
                 </motion.div>
 
                 {/* Draggable Carousel */}
-                <DragCarousel />
+                <DragCarousel members={membersList} />
 
                 {/* View Full Execom Button */}
                 <div className="mt-12 flex justify-center">
                     <Link
-                        href="/full-execom" 
+                        href="/full-execom"
                         className="group relative inline-flex items-center justify-center px-8 py-3 font-mono text-sm uppercase tracking-widest text-white transition-all duration-300 bg-ieee-blue/90 hover:bg-ieee-blue rounded-full"
                     >
                         <span>View Full Execom</span>
@@ -448,7 +496,8 @@ export const Execom: React.FC = () => {
                         Want to be part of the team?
                     </p>
                     <a
-                        href="#"
+                        href="https://students.ieee.org/"
+                        target="_blank"
                         className="inline-flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white text-xs font-mono tracking-wider rounded-full hover:bg-ieee-blue transition-colors duration-300 uppercase"
                     >
                         Join IEEE <ArrowUpRight className="w-3.5 h-3.5" />

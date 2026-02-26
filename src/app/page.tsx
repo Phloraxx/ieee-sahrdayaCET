@@ -8,6 +8,7 @@ import { FloatingAction } from '@/components/FloatingAction';
 import { WhatsHappening } from '@/components/WhatsHappening';
 import { Execom } from '@/components/Execom';
 import { EventsShowcase } from '@/components/EventsShowcase';
+import Footer from '@/components/Footer';
 
 export default function Home() {
   return (
@@ -36,11 +37,7 @@ export default function Home() {
         
         <Execom />
         <EventsShowcase />
-        {/* Placeholder About Section */}
-        <section id="about" className="py-20 bg-gray-50 text-center">
-            <h2 className="text-2xl font-bold text-gray-800">About Us</h2>
-            <p className="text-gray-600 mt-4">Learn more about our student branch and mission.</p>
-        </section>
+        <Footer />
       </div>
 
       <FloatingAction />

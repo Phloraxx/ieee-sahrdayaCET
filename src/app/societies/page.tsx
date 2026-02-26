@@ -11,10 +11,12 @@ import Navbar from '@/components/Navbar';
 import { GridBackground } from '@/components/GridBackground';
 import { FloatingIcons } from '@/components/FloatingIcons';
 import { TechnicalDetails } from '@/components/TechnicalDetails';
-import { Loader2, X, Edit, Calendar, Users, Award, ChevronRight, LogIn } from 'lucide-react';
+import { Loader2, X, Edit, Calendar, Users, Award, LogIn } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import EditSocietyModal from '@/components/EditSocietyModal';
 import LoginModal from '@/components/LoginModal';
+import EventCard from '@/components/EventCard';
+import Footer from '@/components/Footer';
 
 // Member Card Component
 const MemberCard = ({ member, idx }: { member: ExecomMember; idx: number }) => {
@@ -109,12 +111,24 @@ export default function SocietiesPage() {
         try {
             const response = await databases.listDocuments(
                 DATABASE_ID,
-                EVENTS_COLLECTION_ID
+                EVENTS_COLLECTION_ID,
+                [
+                    Query.orderDesc('date')
+                ]
             );
+            // Filter for this society and only published/completed events
             const events = (response.documents as unknown as Event[])
-                .filter(event => event.society_id === societyId)
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                .filter(event => 
+                    event.society_id === societyId && 
+                    (event.status === 'published' || event.status === 'completed')
+                );
             setSocietyEvents(events);
+            
+            console.log(`Events for society ${societyId}:`, {
+                total: events.length,
+                published: events.filter(e => e.status === 'published').length,
+                completed: events.filter(e => e.status === 'completed').length
+            });
         } catch (err: unknown) {
             console.error('Error fetching events:', err);
         } finally {
@@ -507,70 +521,13 @@ export default function SocietiesPage() {
                                                     style={{ width: `${societyEvents.length * 260}px` }}
                                                 >
                                                     {societyEvents.map((event, idx) => (
-                                                        <motion.div
+                                                        <EventCard 
                                                             key={event.$id}
-                                                            initial={{ opacity: 0, scale: 0.9 }}
-                                                            animate={{ opacity: 1, scale: 1 }}
-                                                            transition={{ delay: idx * 0.05 }}
-                                                            whileHover={{ scale: 1.03, y: -4 }}
-                                                            onClick={() => setSelectedEvent(event)}
-                                                            className="flex-shrink-0 w-[240px] bg-white rounded-xl overflow-hidden border-2 border-gray-200 hover:border-ieee-blue cursor-pointer shadow-md hover:shadow-xl transition-all group"
-                                                        >
-                                                            {/* Event Image - 9:16 aspect ratio */}
-                                                            <div className="relative aspect-[9/16] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">{event.banner_url ? (
-                                                                    <img 
-                                                                        src={event.banner_url} 
-                                                                        alt={event.title}
-                                                                        className="w-full h-full object-cover object-center group-hover:scale-110 transition-transform duration-300"
-                                                                    />
-                                                                ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center">
-                                                                        <Calendar className="w-16 h-16 text-gray-300" />
-                                                                    </div>
-                                                                )}
-                                                                
-                                                                {/* Status Badge */}
-                                                                <div className="absolute top-2 right-2">
-                                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full shadow-lg ${
-                                                                        event.status === 'completed' ? 'bg-green-500 text-white' :
-                                                                        event.status === 'published' ? 'bg-blue-500 text-white' :
-                                                                        'bg-gray-500 text-white'
-                                                                    }`}>
-                                                                        {event.status}
-                                                                    </span>
-                                                                </div>
-
-                                                                {/* Gradient Overlay */}
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                                                                
-                                                                {/* Date Badge */}
-                                                                <div className="absolute bottom-2 left-2">
-                                                                    <div className="bg-white/90 backdrop-blur-sm rounded-lg px-3 py-1.5">
-                                                                        <div className="text-xs font-bold text-ieee-blue">
-                                                                            {new Date(event.date).toLocaleDateString('en-US', { 
-                                                                                month: 'short', 
-                                                                                day: 'numeric'
-                                                                            })}
-                                                                        </div>
-                                                                        <div className="text-[10px] text-gray-600 font-semibold">
-                                                                            {new Date(event.date).getFullYear()}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Event Info */}
-                                                            <div className="p-3">
-                                                                <h4 className="font-bold text-gray-900 text-xs mb-2 line-clamp-2 group-hover:text-ieee-blue transition-colors">
-                                                                    {event.title}
-                                                                </h4>
-                                                                
-                                                                <div className="flex items-center gap-1 text-ieee-blue font-semibold text-[10px]">
-                                                                    <span>View Details</span>
-                                                                    <ChevronRight className="w-3 h-3" />
-                                                                </div>
-                                                            </div>
-                                                        </motion.div>
+                                                            event={event}
+                                                            variant="compact"
+                                                            onClick={setSelectedEvent}
+                                                            index={idx}
+                                                        />
                                                     ))}
                                                 </motion.div>
                                             </div>
@@ -621,6 +578,9 @@ export default function SocietiesPage() {
                 onClose={() => setIsLoginModalOpen(false)}
                 message="Sign in to edit your society's details"
             />
+
+            {/* Footer */}
+            <Footer />
 
             {/* Event Detail Modal */}
             <AnimatePresence>
