@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Users, ArrowUpRight, Linkedin, Mail, Phone } from 'lucide-react';
 import { databases, DATABASE_ID, EXECOM_COLLECTION_ID } from '@/lib/appwrite';
-import { Query } from 'appwrite';
+import { Query, Models } from 'appwrite';
 
 interface Member {
     name: string;
@@ -260,6 +260,7 @@ const DragCarousel: React.FC<{ members: Member[] }> = ({ members }) => {
 
     // Intersection Observer to detect when section is fully in view
     useEffect(() => {
+        const element = sectionRef.current;
         const observer = new IntersectionObserver(
             ([entry]) => {
                 setIsInView(entry.isIntersecting && entry.intersectionRatio >= 0.8);
@@ -267,13 +268,13 @@ const DragCarousel: React.FC<{ members: Member[] }> = ({ members }) => {
             { threshold: 0.8 }
         );
 
-        if (sectionRef.current) {
-            observer.observe(sectionRef.current);
+        if (element) {
+            observer.observe(element);
         }
 
         return () => {
-            if (sectionRef.current) {
-                observer.unobserve(sectionRef.current);
+            if (element) {
+                observer.unobserve(element);
             }
         };
     }, []);
@@ -383,7 +384,7 @@ export const Execom: React.FC = () => {
                 );
 
                 const dbDocs = response.documents;
-                const updatedMembers = execomMembers.map(member => {
+                const updatedMembers = execomMembers.mModels.Documentmember => {
                     const dbMatch = dbDocs.find((doc: any) => doc.name.toLowerCase() === member.name.toLowerCase());
                     if (dbMatch) {
                         return {
