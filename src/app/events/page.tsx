@@ -92,7 +92,7 @@ export default async function Events1Page({
             <main className="relative z-10 pt-24 pb-32 px-4 md:px-8 max-w-[1400px] mx-auto min-h-screen">
                 <AsymmetricHero flagshipEvent={flagshipEvent} />
 
-                {/* Main Bento Grid Area */}
+                {/* Main Bento Grid Areas */}
                 <div className="mt-32">
                     <div className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-gray-200 pb-8">
                         <div>
