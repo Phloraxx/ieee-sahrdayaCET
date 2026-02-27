@@ -371,6 +371,14 @@ const DragCarousel: React.FC<{ members: Member[] }> = ({ members }) => {
 };
 
 
+// Extend Models.Document to include the properties we need
+type ExecDoc = Models.Document & { 
+    name: string; 
+    linkedin?: string; 
+    email?: string; 
+    phone?: string; 
+};
+
 export const Execom: React.FC = () => {
     const [membersList, setMembersList] = useState<Member[]>(execomMembers);
 
@@ -383,9 +391,9 @@ export const Execom: React.FC = () => {
                     [Query.limit(100)]
                 );
 
-                const dbDocs = response.documents;
+                const dbDocs = response.documents as unknown as ExecDoc[];
                 const updatedMembers = execomMembers.map(member => {
-                    const dbMatch = dbDocs.find((doc: Models.Document) => doc.name.toLowerCase() === member.name.toLowerCase());
+                    const dbMatch = dbDocs.find((doc) => doc.name.toLowerCase() === member.name.toLowerCase());
                     if (dbMatch) {
                         return {
                             ...member,
