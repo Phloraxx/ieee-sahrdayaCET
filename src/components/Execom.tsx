@@ -384,8 +384,8 @@ export const Execom: React.FC = () => {
                 );
 
                 const dbDocs = response.documents;
-                const updatedMembers = execomMembers.mModels.Documentmember => {
-                    const dbMatch = dbDocs.find((doc: any) => doc.name.toLowerCase() === member.name.toLowerCase());
+                const updatedMembers = execomMembers.map(member => {
+                    const dbMatch = dbDocs.find((doc: Models.Document) => doc.name.toLowerCase() === member.name.toLowerCase());
                     if (dbMatch) {
                         return {
                             ...member,
