@@ -46,7 +46,7 @@ export const Hero: React.FC = () => {
                             variants={textVariants}
                             initial="hidden"
                             animate="visible"
-                            className="font-pixel text-5xl md:text-7xl lg:text-9xl text-ieee-blue tracking-tighter"
+                            className="font-pixel text-7xl md:text-8xl lg:text-9xl text-ieee-blue tracking-tighter"
                             style={{ textShadow: '4px 4px 0px rgba(0,0,0,0.1)' }}
                         >
                             IEEE
@@ -56,7 +56,7 @@ export const Hero: React.FC = () => {
                             variants={textVariants}
                             initial="hidden"
                             animate="visible"
-                            className="font-pixel text-3xl md:text-5xl lg:text-7xl text-gray-900 tracking-tighter"
+                            className="font-pixel text-5xl md:text-6xl lg:text-7xl text-gray-900 tracking-tighter"
                             style={{ textShadow: '4px 4px 0px rgba(0,0,0,0.1)' }}
                         >
                             SAHRDAYA

@@ -101,9 +101,10 @@ export default function Navbar() {
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                 className="fixed top-6 left-0 right-0 z-[100] flex justify-center pointer-events-none px-4"
             >
-                <div className="pointer-events-auto bg-white/70 backdrop-blur-md border border-white/20 shadow-lg shadow-black/5 rounded-full px-2 py-1.5 flex items-center gap-1 max-w-[95vw] overflow-x-auto no-scrollbar">
-                    {/* Nav Links */}
-                    {navItems.map((item) => {
+                <div className="pointer-events-auto bg-white/70 backdrop-blur-md border border-white/20 shadow-lg shadow-black/5 rounded-full px-2 py-1.5 flex items-center gap-1 max-w-[95vw]">
+                    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                         {/* Nav Links */}
+                         {navItems.map((item) => {
                         const isActive = pathname === item.href || 
                             (item.href.startsWith('/#') && pathname === '/' && activeSection.includes(item.href.replace('/#', '')));
                         
@@ -122,6 +123,7 @@ export default function Navbar() {
                             </Link>
                         );
                     })}
+                    </div>
                     
                     <div className="w-px h-4 bg-gray-300 mx-1 flex-shrink-0" />
                     
@@ -139,16 +141,16 @@ export default function Navbar() {
                                 
                                 {/* User dropdown */}
                                 {showUserMenu && (
-                                    <div className="absolute top-full right-0 mt-3 bg-white/90 backdrop-blur-md rounded-xl shadow-lg shadow-black/10 border border-gray-200 min-w-[180px] overflow-hidden">
-                                        <div className="px-4 py-3 border-b border-gray-100">
-                                            <p className="text-xs font-bold text-gray-900">{user.name}</p>
-                                            <p className="text-[10px] font-mono text-gray-400 truncate mt-0.5">{user.email}</p>
+                                    <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 min-w-[200px] overflow-hidden z-[1000] pointer-events-auto">
+                                        <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/50">
+                                            <p className="text-sm font-bold text-gray-900">{user.name}</p>
+                                            <p className="text-[10px] font-mono text-gray-500 truncate mt-0.5">{user.email}</p>
                                         </div>
                                         <button
                                             onClick={handleLogout}
-                                            className="w-full px-4 py-2.5 text-left text-xs font-bold text-red-500 hover:bg-red-50 transition-colors flex items-center gap-2 tracking-wide"
+                                            className="w-full px-4 py-3 text-left text-xs font-bold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-3 tracking-wide"
                                         >
-                                            <LogOut className="w-3.5 h-3.5" />
+                                            <LogOut className="w-4 h-4" />
                                             Sign Out
                                         </button>
                                     </div>

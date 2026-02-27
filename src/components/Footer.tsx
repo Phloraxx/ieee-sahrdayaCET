@@ -73,27 +73,32 @@ const Footer: React.FC = () => {
                             </div>
                             <div className="space-y-4">
                                 <a
-                                    href="mailto:ieeesb@sahrdaya.ac.in"
+                                    href="mailto:ieee@sahrdaya.ac.in"
                                     className="flex items-start gap-3 text-sm text-white/60 hover:text-white transition-colors duration-300 group"
                                 >
                                     <Mail className="w-4 h-4 mt-0.5 text-ieee-blue shrink-0" />
                                     <span className="font-sans">ieee@sahrdaya.ac.in</span>
                                 </a>
                                 <a
-                                    href="tel:+919876543210"
+                                    href="tel:+919746222670"
                                     className="flex items-start gap-3 text-sm text-white/60 hover:text-white transition-colors duration-300 group"
                                 >
                                     <Phone className="w-4 h-4 mt-0.5 text-ieee-blue shrink-0" />
-                                    <span className="font-sans">+91 97462 22670</span>
+                                    <span className="font-sans">+91 97462 22670 - Anil Antony</span>
                                 </a>
-                                <div className="flex items-start gap-3 text-sm text-white/60">
+                                <a
+                                    href="https://maps.app.goo.gl/zeFMTMfB3fPeBNHq9"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-start gap-3 text-sm text-white/60 hover:text-white transition-colors duration-300 group"
+                                >
                                     <MapPin className="w-4 h-4 mt-0.5 text-ieee-blue shrink-0" />
                                     <span className="font-sans leading-relaxed">
                                         Sahrdaya College of<br />
                                         Engineering &amp; Technology,<br />
                                         Kodakara, Thrissur, Kerala
                                     </span>
-                                </div>
+                                </a>
                             </div>
                         </div>
                     </div>
