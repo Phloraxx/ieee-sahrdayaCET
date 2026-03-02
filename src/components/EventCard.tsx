@@ -1,6 +1,7 @@
 'use client';
 
 import React, { memo } from 'react';
+import Image from 'next/image';
 import { Event, Society } from '@/types';
 import { Calendar, MapPin, IndianRupee, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -43,10 +44,13 @@ const EventCard = memo(function EventCard({ event, variant = 'default', onClick,
                 {/* Event Image - 9:16 aspect ratio */}
                 <div className="relative aspect-[9/16] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
                     {event.banner_url ? (
-                        <img 
-                            src={event.banner_url} 
+                        <Image
+                            src={event.banner_url}
                             alt={event.title}
-                            className="w-full h-full object-cover object-center group-hover:scale-110 transition-transform duration-300"
+                            fill
+                            sizes="240px"
+                            className="object-cover object-center group-hover:scale-110 transition-transform duration-300"
+                            unoptimized
                         />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -109,10 +113,13 @@ const EventCard = memo(function EventCard({ event, variant = 'default', onClick,
                 {/* Banner Image - 9:16 aspect ratio */}
                 <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
                     {event.banner_url ? (
-                        <img 
-                            src={event.banner_url} 
+                        <Image
+                            src={event.banner_url}
                             alt={event.title}
-                            className="w-full h-full object-cover object-center group-hover:scale-110 transition-transform duration-300"
+                            fill
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            className="object-cover object-center group-hover:scale-110 transition-transform duration-300"
+                            unoptimized
                         />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -130,11 +137,16 @@ const EventCard = memo(function EventCard({ event, variant = 'default', onClick,
                     {/* Society Logo Overlay */}
                     {event.society?.logo_url && (
                         <div className="absolute bottom-3 left-3 bg-white p-2 rounded-lg shadow-lg border border-gray-200">
-                            <img 
-                                src={event.society.logo_url} 
-                                alt={event.society.name}
-                                className="w-8 h-8 object-contain"
-                            />
+                            <div className="relative w-8 h-8">
+                                <Image
+                                    src={event.society.logo_url}
+                                    alt={event.society.name}
+                                    fill
+                                    sizes="32px"
+                                    className="object-contain"
+                                    unoptimized
+                                />
+                            </div>
                         </div>
                     )}
                 </div>

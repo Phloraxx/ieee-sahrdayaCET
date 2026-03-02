@@ -11,7 +11,7 @@ export default function ArchiveCarousel({ children }: { children: React.ReactNod
         let animationFrameId: number;
 
         const scroll = () => {
-            if (scrollContainerRef.current && !isHovered) {
+            if (scrollContainerRef.current && !isHovered && !document.hidden) {
                 // Scroll extremely slowly, using accumulated floats
                 accumulatedScroll.current += 0.3; // Very slow scrolling
 

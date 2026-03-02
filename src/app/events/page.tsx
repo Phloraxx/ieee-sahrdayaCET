@@ -1,5 +1,29 @@
+import type { Metadata } from 'next';
 import React from 'react';
 import { databases, DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/appwrite';
+
+export const metadata: Metadata = {
+  title: 'Events & Workshops',
+  description:
+    'Upcoming IEEE Sahrdaya events — workshops, hackathons, seminars and competitions at Sahrdaya College of Engineering, Thrissur, Kerala.',
+  openGraph: {
+    title: 'Events & Workshops | IEEE Sahrdaya',
+    description:
+      'Explore upcoming IEEE workshops, hackathons and seminars organised by IEEE Sahrdaya Student Branch, Sahrdaya College, Kerala.',
+    url: 'https://ieeesahrdaya.com/events',
+    images: [
+      {
+        url: '/AGM.webp',
+        width: 1200,
+        height: 630,
+        alt: 'IEEE Sahrdaya Events',
+      },
+    ],
+  },
+  alternates: {
+    canonical: 'https://ieeesahrdaya.com/events',
+  },
+};
 import { Event, Society } from '@/types';
 import { Query } from 'appwrite';
 import Navbar from '@/components/Navbar';

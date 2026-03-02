@@ -37,12 +37,14 @@ const ImageStrip = () => {
 
     useEffect(() => {
         const animate = () => {
-            offsetRef.current -= 0.6;
-            if (offsetRef.current <= -setWidth) {
-                offsetRef.current += setWidth;
-            }
-            if (stripRef.current) {
-                stripRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
+            if (!document.hidden) {
+                offsetRef.current -= 0.6;
+                if (offsetRef.current <= -setWidth) {
+                    offsetRef.current += setWidth;
+                }
+                if (stripRef.current) {
+                    stripRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
+                }
             }
             rafRef.current = requestAnimationFrame(animate);
         };
@@ -87,12 +89,14 @@ const TextMarquee = () => {
 
     useEffect(() => {
         const animate = () => {
-            offsetRef.current -= 1.2;
-            if (offsetRef.current <= -setWidth) {
-                offsetRef.current += setWidth;
-            }
-            if (stripRef.current) {
-                stripRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
+            if (!document.hidden) {
+                offsetRef.current -= 1.2;
+                if (offsetRef.current <= -setWidth) {
+                    offsetRef.current += setWidth;
+                }
+                if (stripRef.current) {
+                    stripRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
+                }
             }
             rafRef.current = requestAnimationFrame(animate);
         };

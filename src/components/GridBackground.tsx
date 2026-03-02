@@ -6,18 +6,33 @@ export const GridBackground: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        let rafId: number | null = null;
+        let pendingX = 0;
+        let pendingY = 0;
+
         const handleMouseMove = (e: MouseEvent) => {
-            if (containerRef.current) {
-                const { left, top } = containerRef.current.getBoundingClientRect();
-                const x = e.clientX - left;
-                const y = e.clientY - top;
-                containerRef.current.style.setProperty('--mouse-x', `${x}px`);
-                containerRef.current.style.setProperty('--mouse-y', `${y}px`);
+            if (!containerRef.current) return;
+            const { left, top } = containerRef.current.getBoundingClientRect();
+            pendingX = e.clientX - left;
+            pendingY = e.clientY - top;
+
+            // Only schedule a new RAF if one isn't already queued
+            if (rafId === null) {
+                rafId = requestAnimationFrame(() => {
+                    if (containerRef.current) {
+                        containerRef.current.style.setProperty('--mouse-x', `${pendingX}px`);
+                        containerRef.current.style.setProperty('--mouse-y', `${pendingY}px`);
+                    }
+                    rafId = null;
+                });
             }
         };
 
         window.addEventListener('mousemove', handleMouseMove);
-        return () => window.removeEventListener('mousemove', handleMouseMove);
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            if (rafId !== null) cancelAnimationFrame(rafId);
+        };
     }, []);
 
     return (

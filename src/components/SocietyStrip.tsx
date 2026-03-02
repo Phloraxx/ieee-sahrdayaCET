@@ -15,6 +15,7 @@ const LogoItem: React.FC<{ society: Society }> = ({ society }) => (
                 alt={society.name}
                 width={60}
                 height={48}
+                style={{ width: 'auto', height: '100%' }}
                 className="opacity-40 group-hover:opacity-90 transition-opacity duration-500 grayscale group-hover:grayscale-0"
                 draggable={false}
             />

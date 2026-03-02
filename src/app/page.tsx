@@ -1,5 +1,29 @@
+import type { Metadata } from 'next';
 import React from 'react';
 import Navbar from '@/components/Navbar';
+
+export const metadata: Metadata = {
+  title: 'IEEE Sahrdaya Student Branch — Home',
+  description:
+    'Official home of IEEE Sahrdaya Student Branch. Explore technical events, workshops, hackathons and IEEE societies at Sahrdaya College of Engineering, Kerala.',
+  openGraph: {
+    title: 'IEEE Sahrdaya Student Branch',
+    description:
+      'Explore technical events, workshops, hackathons and IEEE societies at Sahrdaya College of Engineering, Kerala. Official IEEE Sahrdaya Student Branch.',
+    url: 'https://ieeesahrdaya.com',
+    images: [
+      {
+        url: '/web.png',
+        width: 1200,
+        height: 630,
+        alt: 'IEEE Sahrdaya Student Branch',
+      },
+    ],
+  },
+  alternates: {
+    canonical: 'https://ieeesahrdaya.com',
+  },
+};
 import { Hero } from '@/components/Hero';
 import { GridBackground } from '@/components/GridBackground';
 import { TechnicalDetails } from '@/components/TechnicalDetails';

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Users, ArrowUpRight, Linkedin, Mail, Phone } from 'lucide-react';
 import { databases, DATABASE_ID, EXECOM_COLLECTION_ID } from '@/lib/appwrite';
@@ -110,7 +111,7 @@ const MarqueeText: React.FC<{ text: string }> = ({ text }) => {
     );
 };
 
-const MemberCard: React.FC<{ member: Member; index: number }> = ({ member, index }) => {
+const MemberCard: React.FC<{ member: Member; index: number }> = React.memo(({ member, index }) => {
     const [isHovered, setIsHovered] = useState(false);
 
     return (
@@ -129,13 +130,15 @@ const MemberCard: React.FC<{ member: Member; index: number }> = ({ member, index
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                 {/* Image */}
-                <motion.img
-                    src={member.image}
-                    alt={member.name}
-                    className="w-full h-full object-cover"
-                    animate={{ scale: isHovered ? 1.05 : 1 }}
-                    transition={{ duration: 0.6, ease: [0.2, 0.65, 0.3, 0.9] }}
-                />
+                <div className="relative w-full h-full">
+                    <Image
+                        src={member.image}
+                        alt={member.name}
+                        fill
+                        sizes="270px"
+                        className={`object-cover transition-transform duration-[600ms] ease-[cubic-bezier(0.2,0.65,0.3,0.9)] ${isHovered ? 'scale-105' : 'scale-100'}`}
+                    />
+                </div>
 
                 {/* Role badge - top left */}
                 <div className="absolute top-3 left-3 z-20">
@@ -197,7 +200,8 @@ const MemberCard: React.FC<{ member: Member; index: number }> = ({ member, index
             </div>
         </motion.div>
     );
-};
+});
+MemberCard.displayName = 'MemberCard';
 
 const CARD_WIDTH = 270;
 const GAP = 30;
@@ -224,32 +228,35 @@ const DragCarousel: React.FC<{ members: Member[] }> = ({ members }) => {
     const animate = useCallback(() => {
         if (!trackRef.current) return;
 
-        // Apply momentum when not dragging
-        if (!physics.current.isDragging) {
-            physics.current.velocity *= 0.98; // Smoother friction
+        if (!document.hidden) {
+            // Apply momentum when not dragging
+            if (!physics.current.isDragging) {
+                physics.current.velocity *= 0.98; // Smoother friction
 
-            // Auto-scroll only if section is in view and has started scrolling
-            if (Math.abs(physics.current.velocity) < 0.05 && isInView && hasStartedScrolling) {
-                // Smoothly accelerate to target speed instead of snapping
-                const targetVelocity = -0.5;
-                physics.current.velocity += (targetVelocity - physics.current.velocity) * 0.1;
+                // Auto-scroll only if section is in view and has started scrolling
+                if (Math.abs(physics.current.velocity) < 0.05 && isInView && hasStartedScrolling) {
+                    // Smoothly accelerate to target speed instead of snapping
+                    const targetVelocity = -0.5;
+                    physics.current.velocity += (targetVelocity - physics.current.velocity) * 0.1;
+                }
             }
+
+            offsetRef.current += physics.current.velocity;
+
+            // Infinite loop logic
+            const contentWidth = ITEM_SIZE * members.length;
+            // If we've scrolled past the first set, reset to 0
+            if (offsetRef.current <= -contentWidth) {
+                offsetRef.current += contentWidth;
+            }
+            // If we've scrolled past the start (to the right), reset to end
+            if (offsetRef.current > 0) {
+                offsetRef.current -= contentWidth;
+            }
+
+            trackRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
         }
 
-        offsetRef.current += physics.current.velocity;
-
-        // Infinite loop logic
-        const contentWidth = ITEM_SIZE * members.length;
-        // If we've scrolled past the first set, reset to 0
-        if (offsetRef.current <= -contentWidth) {
-            offsetRef.current += contentWidth;
-        }
-        // If we've scrolled past the start (to the right), reset to end
-        if (offsetRef.current > 0) {
-            offsetRef.current -= contentWidth;
-        }
-
-        trackRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
         rafRef.current = requestAnimationFrame(animate);
     }, [isInView, hasStartedScrolling, members.length]);
 
