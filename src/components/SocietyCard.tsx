@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { Society } from '@/types';
 import { Edit, Calendar } from 'lucide-react';
 import Link from 'next/link';
@@ -33,10 +34,13 @@ export default function SocietyCard({ society, onUpdate }: SocietyCardProps) {
                 {/* Banner */}
                 <div className="relative h-40 bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
                     {society.banner_url ? (
-                        <img 
-                            src={society.banner_url} 
+                        <Image
+                            src={society.banner_url}
                             alt={society.name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            fill
+                            sizes="(max-width: 768px) 100vw, 50vw"
+                            className="object-cover group-hover:scale-110 transition-transform duration-300"
+                            unoptimized
                         />
                     ) : (
                         <div className="w-full h-full bg-gradient-to-br from-blue-900/30 to-purple-900/30" />
@@ -59,11 +63,16 @@ export default function SocietyCard({ society, onUpdate }: SocietyCardProps) {
                     {/* Logo */}
                     <div className="flex items-center gap-4 mb-4">
                         <div className="flex-shrink-0 w-16 h-16 bg-white rounded-lg p-2 flex items-center justify-center">
-                            <img 
-                                src={society.logo_url} 
-                                alt={society.name}
-                                className="w-full h-full object-contain"
-                            />
+                            <div className="relative w-full h-full">
+                                <Image
+                                    src={society.logo_url}
+                                    alt={society.name}
+                                    fill
+                                    sizes="64px"
+                                    className="object-contain"
+                                    unoptimized
+                                />
+                            </div>
                         </div>
                         
                         {/* Name */}

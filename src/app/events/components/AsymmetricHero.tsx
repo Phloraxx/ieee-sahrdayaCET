@@ -31,8 +31,9 @@ export default function AsymmetricHero({ flagshipEvent }: AsymmetricHeroProps) {
                     <div className="absolute inset-0 w-full h-full">
                         <img
                             src={flagshipEvent?.banner_url || fallbackImage}
-                            alt="Hero Background"
+                            alt={flagshipEvent ? `${flagshipEvent.title} — IEEE Sahrdaya event banner` : 'IEEE Sahrdaya Events'}
                             className="w-full h-full object-cover"
+                            fetchPriority="high"
                         />
                         {/* Dark Gradients to ensure text legibility overlaying the image */}
                         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />

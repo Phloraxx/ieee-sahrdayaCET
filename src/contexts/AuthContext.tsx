@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { account, teams } from '@/lib/appwrite';
 import { User, TeamMembership, AuthContextType } from '@/types';
 import { OAuthProvider } from 'appwrite';
@@ -18,6 +18,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const checkAuth = async () => {
+        // Skip the network call entirely if no Appwrite session cookie exists.
+        // This prevents a noisy 401 in the browser console for logged-out visitors.
+        const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '';
+        const hasSession = projectId
+            ? document.cookie.includes(`a_session_${projectId}`)
+            : document.cookie.includes('a_session_');
+
+        if (!hasSession) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const currentUser = await account.get();
             setUser(currentUser as unknown as User);
@@ -26,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const teamsList = await teams.list();
             setUserTeams(teamsList.teams as unknown as TeamMembership[]);
         } catch {
-            // User not logged in - this is fine for lazy auth
+            // Session cookie present but invalid/expired — clear it gracefully
             setUser(null);
             setUserTeams([]);
         } finally {
@@ -71,17 +83,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
     };
 
+    const contextValue = useMemo(
+        () => ({ user, loading, login, logout, isChairOf, userTeams }),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [user, loading, userTeams]
+    );
+
     return (
-        <AuthContext.Provider
-            value={{
-                user,
-                loading,
-                login,
-                logout,
-                isChairOf,
-                userTeams,
-            }}
-        >
+        <AuthContext.Provider value={contextValue}>
             {children}
         </AuthContext.Provider>
     );

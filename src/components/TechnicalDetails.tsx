@@ -1,10 +1,52 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import pkg from '../../package.json';
+const { version } = pkg;
+
+function detectPlatform(): string {
+    const ua = navigator.userAgent;
+    if (/iPhone|iPad|iPod/.test(ua)) return 'IOS';
+    if (/Android/.test(ua)) return 'ANDROID';
+    const p = navigator.platform;
+    if (/Win/.test(p)) return 'WIN_OS';
+    if (/Mac/.test(p)) return 'MAC_OS';
+    if (/Linux/.test(p)) return 'LINUX';
+    return 'UNKNOWN';
+}
+
+type ConnStatus = 'CHECKING' | 'READY' | 'NO_SIGNAL';
+
+function statusClass(s: ConnStatus): string | undefined {
+    if (s === 'CHECKING') return 'text-yellow-400';
+    if (s === 'NO_SIGNAL') return 'text-red-400';
+    return undefined; // READY → inherit parent color
+}
 
 export const TechnicalDetails: React.FC = () => {
+    const [platform, setPlatform] = useState('WEB_OS');
+    const [terminal, setTerminal] = useState<ConnStatus>('CHECKING');
+
+    useEffect(() => {
+        setPlatform(detectPlatform());
+    }, []);
+
+    useEffect(() => {
+        const ctrl = new AbortController();
+        const id = setTimeout(() => ctrl.abort(), 8000);
+
+        // no-cors ping — just checks DNS/network reachability, no auth needed
+        fetch('https://backend.ieeesahrdaya.com', {
+            mode: 'no-cors',
+            signal: ctrl.signal,
+        })
+            .then(() => setTerminal('READY'))
+            .catch(() => setTerminal('NO_SIGNAL'));
+
+        return () => { clearTimeout(id); ctrl.abort(); };
+    }, []);
     return (
         <>
             {/* Top Left */}
@@ -29,8 +71,8 @@ export const TechnicalDetails: React.FC = () => {
                     transition={{ delay: 5, duration: 2 }}
                     className="font-mono text-[10px] text-gray-400 leading-tight"
                 >
-                    <p>BUILD_VER: 2.1.0.RC</p>
-                    <p>PLATFORM: WEB_OS</p>
+                    <p>BUILD_VER: {version}</p>
+                    <p>PLATFORM: {platform}</p>
                 </motion.div>
             </motion.div>
 
@@ -77,8 +119,9 @@ export const TechnicalDetails: React.FC = () => {
                     transition={{ delay: 5, duration: 2 }}
                     className="font-mono text-[10px] text-gray-400 leading-tight"
                 >
-                    <p>TERMINAL: READY</p>
-                    <p>LINK: ESTABLISHED</p>
+                    <p>
+                        TERMINAL: <span className={statusClass(terminal)}>{terminal}</span>
+                    </p>
                 </motion.div>
             </motion.div>
         </>

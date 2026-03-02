@@ -1,7 +1,7 @@
 {
   "name": "ieee-sahrdaya-modern",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.3.5",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
