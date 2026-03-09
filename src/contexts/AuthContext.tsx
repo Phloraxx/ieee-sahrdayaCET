@@ -18,22 +18,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const checkAuth = async () => {
-        // Skip the network call entirely if no Appwrite session cookie exists.
-        // This prevents a noisy 401 in the browser console for logged-out visitors.
-        const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '';
-        const hasSession = projectId
-            ? document.cookie.includes(`a_session_${projectId}`)
-            : document.cookie.includes('a_session_');
-
-        if (!hasSession) {
-            setLoading(false);
-            return;
-        }
-
         try {
             const currentUser = await account.get();
             setUser(currentUser as unknown as User);
-            
+
             // Fetch user's team memberships
             const teamsList = await teams.list();
             setUserTeams(teamsList.teams as unknown as TeamMembership[]);
@@ -75,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const isChairOf = (societySlug: string): boolean => {
         if (!user || !userTeams.length) return false;
-        
+
         // Check if user is member of chair_{societySlug} team
         const chairTeamName = `chair_${societySlug}`;
         return userTeams.some(

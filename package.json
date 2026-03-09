@@ -3,7 +3,7 @@
   "private": true,
   "version": "2.3.5",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --experimental-https",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

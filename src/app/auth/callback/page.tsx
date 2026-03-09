@@ -11,10 +11,10 @@ export default function AuthCallback() {
         // Redirect back to the page they came from or homepage
         const returnTo = sessionStorage.getItem('auth_return_url') || '/';
         sessionStorage.removeItem('auth_return_url');
-        
+
         // Small delay to ensure session is established
         setTimeout(() => {
-            router.push(returnTo);
+            router.replace(returnTo);
         }, 500);
     }, [router]);
 

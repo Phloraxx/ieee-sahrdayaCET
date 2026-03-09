@@ -36,6 +36,7 @@ export interface Event {
     venue?: string;
     price: number;
     banner_url?: string;
+    registration_url?: string;
     society_id: string;
     status: 'draft' | 'published' | 'archived' | 'completed';
     max_capacity?: number;
