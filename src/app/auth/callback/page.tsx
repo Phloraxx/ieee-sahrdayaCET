@@ -2,20 +2,37 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { account, databases, DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/appwrite';
+import { Query } from 'appwrite';
 
 export default function AuthCallback() {
     const router = useRouter();
 
     useEffect(() => {
-        // After OAuth redirect, user is authenticated
-        // Redirect back to the page they came from or homepage
-        const returnTo = sessionStorage.getItem('auth_return_url') || '/';
-        sessionStorage.removeItem('auth_return_url');
-        
-        // Small delay to ensure session is established
-        setTimeout(() => {
-            router.push(returnTo);
-        }, 500);
+        const handleCallback = async () => {
+            try {
+                const currentUser = await account.get();
+                const res = await databases.listDocuments(DATABASE_ID, MEMBERS_COLLECTION_ID, [
+                    Query.equal('userID', currentUser.$id),
+                    Query.limit(1),
+                ]);
+
+                if (res.documents.length > 0 && res.documents[0].profileCompleted === true) {
+                    const returnTo = sessionStorage.getItem('auth_return_url') || '/';
+                    sessionStorage.removeItem('auth_return_url');
+                    router.replace(returnTo);
+                } else {
+                    sessionStorage.removeItem('auth_return_url');
+                    router.replace('/setup-profile');
+                }
+            } catch {
+                // If we can't verify, send to home and let AuthContext handle it
+                router.replace('/');
+            }
+        };
+
+        // Small delay to ensure Appwrite session is established
+        setTimeout(handleCallback, 500);
     }, [router]);
 
     return (
