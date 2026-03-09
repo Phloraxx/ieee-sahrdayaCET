@@ -16,7 +16,7 @@ export default function AuthCallback() {
 
         // Small delay to ensure session is established
         setTimeout(() => {
-            router.push(returnTo);
+            router.replace(returnTo);
         }, 500);
     }, [router]);
 

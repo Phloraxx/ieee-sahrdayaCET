@@ -36,18 +36,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const checkAuth = async () => {
-        // Skip the network call entirely if no Appwrite session cookie exists.
-        // This prevents a noisy 401 in the browser console for logged-out visitors.
-        const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '';
-        const hasSession = projectId
-            ? document.cookie.includes(`a_session_${projectId}`)
-            : document.cookie.includes('a_session_');
-
-        if (!hasSession) {
-            setLoading(false);
-            return;
-        }
-
         try {
             const currentUser = await account.get();
             setUser(currentUser as unknown as User);
