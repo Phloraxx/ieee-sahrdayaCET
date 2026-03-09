@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { account, databases, DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/appwrite';
+import { Query } from 'appwrite';
 
 export default function AuthCallback() {
     const router = useRouter();
@@ -14,7 +16,7 @@ export default function AuthCallback() {
 
         // Small delay to ensure session is established
         setTimeout(() => {
-            router.replace(returnTo);
+            router.push(returnTo);
         }, 500);
     }, [router]);
 
