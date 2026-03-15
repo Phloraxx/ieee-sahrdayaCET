@@ -124,12 +124,6 @@ export default function SocietiesClient() {
                     (event.status === 'published' || event.status === 'completed')
                 );
             setSocietyEvents(events);
-            
-            console.log(`Events for society ${societyId}:`, {
-                total: events.length,
-                published: events.filter(e => e.status === 'published').length,
-                completed: events.filter(e => e.status === 'completed').length
-            });
         } catch (err: unknown) {
             console.error('Error fetching events:', err);
         } finally {
