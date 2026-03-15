@@ -9,191 +9,58 @@ import { Event, Society } from '@/types';
 import { Query } from 'appwrite';
 import { ArrowRight, Loader2, Calendar, MapPin, Clock, Users, ArrowUpRight } from 'lucide-react';
 import Navbar from '@/components/Navbar';
-import { useScrollLock } from '@/hooks/useScrollLock';
+import { GridBackground } from '@/components/GridBackground';
+import { TechnicalDetails } from '@/components/TechnicalDetails';
+import BentoLayout from './components/BentoLayout';
+import AsymmetricHero from './components/AsymmetricHero';
+import BentoEventCard from './components/BentoEventCard';
+import ArchiveCarousel from './components/ArchiveCarousel';
 
-type EventWithSociety = Event & { society?: Society };
+async function getEvents() {
+    try {
+        const eventsResponse = await databases.listDocuments(
+            DATABASE_ID,
+            EVENTS_COLLECTION_ID,
+            [Query.orderDesc('date'), Query.limit(100)]
+        );
 
-const scrollingText = [
-  'CONFERENCES',
-  'LECTURES',
-  'WORKSHOPS',
-  'HACKATHONS',
-  'SEMINARS',
-  'WEBINARS',
-  'TECH TALKS',
-  'BOOTCAMPS',
-];
+        const societiesResponse = await databases.listDocuments(
+            DATABASE_ID,
+            SOCIETIES_COLLECTION_ID
+        );
 
-const TextMarquee = () => {
-  const stripRef = useRef<HTMLDivElement>(null);
-  const offsetRef = useRef(0);
-  const rafRef = useRef<number>(0);
+        const societiesMap = new Map(
+            (societiesResponse.documents as unknown as Society[]).map((s) => [s.$id, s])
+        );
 
-  const tripled = [...scrollingText, ...scrollingText, ...scrollingText];
-  const charWidth = 350;
-  const setWidth = scrollingText.length * charWidth;
-
-  useEffect(() => {
-    const animate = () => {
-      if (!document.hidden) {
-        offsetRef.current -= 1.2;
-        if (offsetRef.current <= -setWidth) {
-          offsetRef.current += setWidth;
-        }
-        if (stripRef.current) {
-          stripRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
-        }
-      }
-      rafRef.current = requestAnimationFrame(animate);
-    };
-    rafRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [setWidth]);
-
-  return (
-    <div className="overflow-hidden w-full bg-[#111] py-5 my-8 rounded-full flex flex-col justify-center border-4 border-gray-100 shadow-xl relative group">
-      <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black z-10 opacity-20 pointer-events-none rounded-full" />
-      <div
-        ref={stripRef}
-        className="flex items-center will-change-transform whitespace-nowrap"
-        style={{ width: `${tripled.length * charWidth}px` }}
-      >
-        {tripled.map((text, i) => (
-          <span key={i} className="flex items-center flex-shrink-0">
-            <span className="text-2xl lg:text-3xl font-black text-white tracking-widest uppercase italic pr-8">
-              {text}
-            </span>
-            <span className="text-[#f4f6c5] text-2xl lg:text-3xl pr-8 font-bold">
-              ★
-            </span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-function EventBottomSheet({ event, onClose }: { event: EventWithSociety; onClose: () => void }) {
-  useScrollLock(true);
-  const y = useMotionValue(0);
-  const backdropOpacity = useTransform(y, [0, 400], [1, 0]);
-  const handleDragEnd = useCallback(
-    (_: unknown, info: { offset: { y: number }; velocity: { y: number } }) => {
-      if (info.offset.y > 120 || info.velocity.y > 800) onClose();
-    },
-    [onClose]
-  );
-
-  const eventDate = new Date(event.date);
-  const isUpcoming = eventDate > new Date();
-  const dayNum = eventDate.getDate();
-  const monthShort = eventDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-  const timeStr = eventDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-50 flex items-end justify-center"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      >
-        <motion.div
-          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          style={{ opacity: backdropOpacity }}
-          onClick={onClose}
-        />
-        <motion.div
-          className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-[40px] shadow-2xl overflow-hidden"
-          style={{ y }}
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={{ top: 0, bottom: 0.3 }}
-          onDragEnd={handleDragEnd}
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-        >
-          <div className="flex justify-center pt-4 pb-2">
-            <div className="w-12 h-1.5 rounded-full bg-gray-200" />
-          </div>
-
-          {/* Banner */}
-          <div className="relative h-48 bg-gray-100 overflow-hidden mx-4 rounded-3xl mt-2">
-            {event.banner_url ? (
-              <Image src={event.banner_url} alt={event.title} fill className="object-cover" />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-yellow-100 flex items-center justify-center">
-                <Calendar className="w-12 h-12 text-black/20" />
-              </div>
-            )}
-            {event.society?.logo_url && (
-              <div className="absolute bottom-3 left-4 bg-white rounded-xl p-2 shadow-md">
-                <Image src={event.society.logo_url} alt={event.society.name} width={24} height={24} className="object-contain" />
-              </div>
-            )}
-            <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest ${isUpcoming ? 'bg-black text-white' : 'bg-gray-200 text-black'}`}>
-              {isUpcoming ? 'OPEN' : 'ENDED'}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="px-6 pt-6 pb-2">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold tracking-widest text-black/50 uppercase mb-2">{event.society?.name ?? 'IEEE'}</p>
-                <h2 className="text-2xl font-black text-black leading-tight tracking-tight uppercase">{event.title}</h2>
-              </div>
-              <div className="flex-shrink-0 text-center bg-[#f4f6c5] border-2 border-black text-black rounded-2xl px-4 py-3 min-w-[64px] shadow-sm">
-                <p className="text-2xl font-black leading-none">{dayNum}</p>
-                <p className="text-[10px] font-bold tracking-widest mt-1">{monthShort}</p>
-              </div>
-            </div>
-
-            {/* Info grid */}
-            <div className="grid grid-cols-2 gap-4 my-6">
-              {[
-                { icon: Clock, label: timeStr },
-                { icon: MapPin, label: event.venue ?? 'TBA' },
-                ...(event.max_capacity ? [{ icon: Users, label: `${event.max_capacity} seats` }] : []),
-              ].map(({ icon: Icon, label }, idx) => (
-                <div key={idx} className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 border border-gray-100">
-                    <Icon className="w-4 h-4 text-black" />
-                  </div>
-                  <span className="truncate text-sm font-bold text-black">{label}</span>
-                </div>
-              ))}
-            </div>
-
-            {event.description && (
-              <p className="text-sm font-medium text-black/70 leading-relaxed mb-6">{event.description}</p>
-            )}
-          </div>
-
-          <div className="px-6 pb-8 pt-2 flex gap-4">
-            {event.registration_url && isUpcoming ? (
-              <a
-                href={event.registration_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-2 bg-[#f4f6c5] border-2 border-black text-black hover:bg-black hover:text-[#f4f6c5] font-black py-4 rounded-full transition-all duration-300 text-sm tracking-widest uppercase shadow-md active:scale-95 hover:shadow-xl"
-              >
-                Register Now <ArrowUpRight className="w-4 h-4" />
-              </a>
-            ) : null}
-            <button
-              onClick={onClose}
-              className="flex-1 border-2 border-black hover:bg-gray-50 text-black font-black uppercase py-4 rounded-full text-sm tracking-widest transition-colors active:scale-95"
-            >
-              Close
-            </button>
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
+        return eventsResponse.documents
+            .filter((event) => event.status === 'published' || event.status === 'completed')
+            .map((event) => {
+                const society = societiesMap.get(event.society_id);
+                return {
+                    $id: event.$id,
+                    $createdAt: event.$createdAt,
+                    $updatedAt: event.$updatedAt,
+                    title: event.title,
+                    description: event.description,
+                    date: event.date,
+                    venue: event.venue,
+                    price: event.price,
+                    banner_url: event.banner_url,
+                    society_id: event.society_id,
+                    status: event.status,
+                    max_capacity: event.max_capacity,
+                    society: society ? {
+                        $id: society.$id,
+                        name: society.name,
+                        logo_url: society.logo_url,
+                    } : undefined,
+                } as Event & { society?: Society };
+            });
+    } catch (error: any) {
+        console.error('Error fetching events:', error?.message || 'Unknown error');
+        return [];
+    }
 }
 
 export default function EventsPage() {

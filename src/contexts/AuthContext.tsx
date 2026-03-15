@@ -65,8 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 redirectUrl,
                 redirectUrl
             );
-        } catch (error) {
-            console.error('Login failed:', error);
+        } catch (error: any) {
+            console.error('Login failed:', error?.message || 'Unknown error');
             throw error;
         }
     };

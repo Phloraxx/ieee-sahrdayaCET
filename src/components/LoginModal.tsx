@@ -55,8 +55,8 @@ export default function LoginModal({ isOpen, onClose, message }: LoginModalProps
         setIsLoading(true);
         try {
             await login();
-        } catch (error) {
-            console.error('Login error:', error);
+        } catch (error: any) {
+            console.error('Login error:', error?.message || 'Unknown error');
             setIsLoading(false);
         }
     };
