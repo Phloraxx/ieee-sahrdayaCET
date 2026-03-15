@@ -7,12 +7,8 @@ import {
     Grid,
     ArrowRight,
     Newspaper,
-    Rocket,
-    ChevronLeft,
-    ChevronRight,
     Users,
     Code,
-    Heart,
     ArrowUpRight
 } from 'lucide-react';
 import { SocietyStrip } from './SocietyStrip';

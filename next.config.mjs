@@ -21,6 +21,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'backend.mulearnscet.in',
       },
+      {
+        protocol: 'https',
+        hostname: 'backend.ieeesahrdaya.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.ibb.co',
+      },
     ],
   },
   async headers() {
