@@ -76,3 +76,5 @@ next-env.d.ts
 
 # CSV data files
 *.csv
+
+certificates

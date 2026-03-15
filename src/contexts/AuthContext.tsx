@@ -1,9 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
-import { account, teams } from '@/lib/appwrite';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
+import { account, teams, databases, DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/appwrite';
 import { User, TeamMembership, AuthContextType } from '@/types';
-import { OAuthProvider } from 'appwrite';
+import { OAuthProvider, Query } from 'appwrite';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -11,32 +11,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [userTeams, setUserTeams] = useState<TeamMembership[]>([]);
     const [loading, setLoading] = useState(true);
+    const [profileCompleted, setProfileCompleted] = useState<boolean | null>(null);
+    const [profileLoading, setProfileLoading] = useState(false);
+
+    const checkProfile = useCallback(async (userId: string) => {
+        setProfileLoading(true);
+        try {
+            const res = await databases.listDocuments(DATABASE_ID, MEMBERS_COLLECTION_ID, [
+                Query.equal('userID', userId),
+                Query.limit(1),
+            ]);
+            setProfileCompleted(res.documents.length > 0 && res.documents[0].profileCompleted === true);
+        } catch {
+            setProfileCompleted(false);
+        } finally {
+            setProfileLoading(false);
+        }
+    }, []);
 
     // Check if user is already logged in on mount
     useEffect(() => {
         checkAuth();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const checkAuth = async () => {
-        // Skip the network call entirely if no Appwrite session cookie exists.
-        // This prevents a noisy 401 in the browser console for logged-out visitors.
-        const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '';
-        const hasSession = projectId
-            ? document.cookie.includes(`a_session_${projectId}`)
-            : document.cookie.includes('a_session_');
-
-        if (!hasSession) {
-            setLoading(false);
-            return;
-        }
-
         try {
             const currentUser = await account.get();
             setUser(currentUser as unknown as User);
-            
+
             // Fetch user's team memberships
             const teamsList = await teams.list();
             setUserTeams(teamsList.teams as unknown as TeamMembership[]);
+
+            // Check if profile exists
+            await checkProfile(currentUser.$id);
         } catch {
             // Session cookie present but invalid/expired — clear it gracefully
             setUser(null);
@@ -67,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await account.deleteSession('current');
             setUser(null);
             setUserTeams([]);
+            setProfileCompleted(null);
         } catch (error) {
             console.error('Logout failed:', error);
             throw error;
@@ -75,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const isChairOf = (societySlug: string): boolean => {
         if (!user || !userTeams.length) return false;
-        
+
         // Check if user is member of chair_{societySlug} team
         const chairTeamName = `chair_${societySlug}`;
         return userTeams.some(
@@ -84,9 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const contextValue = useMemo(
-        () => ({ user, loading, login, logout, isChairOf, userTeams }),
+        () => ({ user, loading, profileCompleted, profileLoading, login, logout, isChairOf, userTeams }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [user, loading, userTeams]
+        [user, loading, profileCompleted, profileLoading, userTeams]
     );
 
     return (

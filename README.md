@@ -4,30 +4,75 @@
 
 # IEEE Sahrdaya Student Branch Website
 
+Official website of IEEE Sahrdaya Student Branch — event discovery, society showcase, and execom directory.
 
 ## Tech Stack
 
-- **Framework**: Next.js 15
+- **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
 - **Animations**: Framer Motion
+- **Backend**: Appwrite
+- **Auth**: Google OAuth (via Appwrite)
 - **Icons**: Lucide React
 - **Fonts**: Press Start 2P (pixel), Inter (body)
-
 
 ## Project Structure
 
 ```
 ├── src/
-│   ├── app/              # Next.js App Router
-│   │   ├── layout.tsx    # Root layout
-│   │   ├── page.tsx      # Home page
-│   │   ├── globals.css   # Global styles
-│   │   └── full-execom/  # Full execom page
-│   ├── components/       # React components
-│   └── types.ts         # TypeScript types
-├── public/              # Static assets
-└── tailwind.config.ts   # Tailwind configuration
+│   ├── app/
+│   │   ├── layout.tsx          # Root layout with metadata
+│   │   ├── page.tsx            # Home page
+│   │   ├── globals.css         # Global styles
+│   │   ├── events/             # Events discovery hub
+│   │   ├── societies/          # Societies showcase
+│   │   ├── full-execom/        # Full execom directory
+│   │   └── auth/callback/      # Google OAuth callback
+│   ├── components/             # Reusable UI components
+│   ├── contexts/
+│   │   └── AuthContext.tsx     # Auth state & team management
+│   ├── lib/
+│   │   ├── appwrite.ts         # Appwrite client
+│   │   └── execomData.ts       # Execom photo mapping
+│   └── types.ts                # TypeScript interfaces
+├── public/                     # Static assets
+│   ├── Events/                 # Event images
+│   ├── Execom/                 # Member photos
+│   └── Societies/              # Society images
+└── scripts/                    # Appwrite setup & migration scripts
+```
+
+## Getting Started
+
+1. Clone the repo and install dependencies:
+
+```bash
+npm install
+```
+
+2. Copy the environment variables and fill in your Appwrite project details:
+
+```bash
+cp .env.example .env.local
+```
+
+3. Start the development server:
+
+```bash
+npm run dev
+```
+
+## Environment Variables
+
+```env
+NEXT_PUBLIC_APPWRITE_ENDPOINT=
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=
+NEXT_PUBLIC_APPWRITE_DATABASE_ID=
+NEXT_PUBLIC_APPWRITE_SOCIETIES_COLLECTION_ID=
+NEXT_PUBLIC_APPWRITE_EVENTS_COLLECTION_ID=
+NEXT_PUBLIC_APPWRITE_EXECOM_COLLECTION_ID=
+NEXT_PUBLIC_APPWRITE_SOCIETY_IMAGES_BUCKET_ID=
 ```
 
 ## Build for Production

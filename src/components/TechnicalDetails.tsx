@@ -38,7 +38,7 @@ export const TechnicalDetails: React.FC = () => {
         const id = setTimeout(() => ctrl.abort(), 8000);
 
         // no-cors ping — just checks DNS/network reachability, no auth needed
-        fetch('https://backend.ieeesahrdaya.com', {
+        fetch('https://backend.mulearnscet.in', {
             mode: 'no-cors',
             signal: ctrl.signal,
         })
@@ -65,7 +65,7 @@ export const TechnicalDetails: React.FC = () => {
                         className="opacity-80"
                     />
                 </div>
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 1 }}
                     animate={{ opacity: 0 }}
                     transition={{ delay: 5, duration: 2 }}
@@ -113,7 +113,7 @@ export const TechnicalDetails: React.FC = () => {
                 transition={{ delay: 1.2, duration: 0.8 }}
                 className="absolute bottom-6 right-6 z-10 hidden md:block text-right"
             >
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 1 }}
                     animate={{ opacity: 0 }}
                     transition={{ delay: 5, duration: 2 }}
