@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Event, Society } from '@/types';
 import EventCard from '@/components/EventCard';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,15 +14,6 @@ interface EventsPageClientProps {
 
 export default function EventsPageClient({ upcomingEvents, pastEvents, hasSocietyFilter }: EventsPageClientProps) {
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-
-    // Memoized event counts for debugging
-    const eventCounts = useMemo(() => ({
-        upcoming: upcomingEvents.length,
-        past: pastEvents.length,
-        total: upcomingEvents.length + pastEvents.length
-    }), [upcomingEvents.length, pastEvents.length]);
-
-    console.log('Event counts:', eventCounts);
 
     return (
         <>
