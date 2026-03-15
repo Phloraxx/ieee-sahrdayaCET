@@ -368,8 +368,8 @@ const FullExecom: React.FC = () => {
                 const transformedSections = transformToSections(response.documents as unknown as ExecomMemberDoc[]);
                 setSections(transformedSections);
                 setError(null);
-            } catch (err: any) {
-                console.error('Failed to fetch execom members:', err?.message || 'Unknown error');
+            } catch (err: unknown) {
+                console.error('Failed to fetch execom members:', err);
                 setError(err instanceof Error ? err.message : 'Failed to load execom members');
             } finally {
                 setLoading(false);

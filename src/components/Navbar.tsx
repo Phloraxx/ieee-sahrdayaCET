@@ -85,8 +85,8 @@ export default function Navbar() {
         try {
             await logout();
             setShowUserMenu(false);
-        } catch (error: any) {
-            console.error('Logout failed:', error?.message || 'Unknown error');
+        } catch (error) {
+            console.error('Logout failed:', error);
         }
     };
 

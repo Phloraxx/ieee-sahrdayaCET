@@ -42,8 +42,8 @@ export default function EditSocietyModal({ society, isOpen, onClose, onUpdate }:
 
             onUpdate(updatedDoc as unknown as Society);
             onClose();
-        } catch (err: any) {
-            console.error('Failed to update society:', err?.message || 'Unknown error');
+        } catch (err: unknown) {
+            console.error('Failed to update society:', err);
             setError(err instanceof Error ? err.message : 'Failed to update society. Please try again.');
         } finally {
             setIsLoading(false);

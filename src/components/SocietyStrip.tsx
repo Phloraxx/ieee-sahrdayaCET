@@ -38,8 +38,8 @@ export const SocietyStrip: React.FC = () => {
                 SOCIETIES_COLLECTION_ID
             );
             setSocieties(response.documents as unknown as Society[]);
-        } catch (error: any) {
-            console.error('Error fetching societies:', error?.message || 'Unknown error');
+        } catch (error) {
+            console.error('Error fetching societies:', error);
             // Fallback to some default societies if fetch fails
             setSocieties([]);
         } finally {
