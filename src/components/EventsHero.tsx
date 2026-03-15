@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Event, Society } from '@/types';
 import { Calendar, MapPin, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -70,10 +71,13 @@ export default function EventsHero({ flagshipEvent }: EventsHeroProps) {
                         transition={{ delay: 0.3, type: 'spring' }}
                     >
                         {flagshipEvent.society.logo_url && (
-                            <img 
+                            <Image
                                 src={flagshipEvent.society.logo_url} 
                                 alt={flagshipEvent.society.name}
                                 className="w-5 h-5 object-contain"
+                                width={20}
+                                height={20}
+                                unoptimized={true}
                             />
                         )}
                         <span className="text-ieee-blue text-sm font-bold">
