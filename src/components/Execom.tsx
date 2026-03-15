@@ -399,8 +399,10 @@ export const Execom: React.FC = () => {
                 );
 
                 const dbDocs = response.documents as unknown as ExecDoc[];
+                const dbDocsMap = new Map(dbDocs.map(doc => [doc.name.toLowerCase(), doc]));
+
                 const updatedMembers = execomMembers.map(member => {
-                    const dbMatch = dbDocs.find((doc) => doc.name.toLowerCase() === member.name.toLowerCase());
+                    const dbMatch = dbDocsMap.get(member.name.toLowerCase());
                     if (dbMatch) {
                         return {
                             ...member,
