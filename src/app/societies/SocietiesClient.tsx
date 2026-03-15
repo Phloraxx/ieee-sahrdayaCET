@@ -99,8 +99,8 @@ export default function SocietiesClient() {
                 SOCIETIES_COLLECTION_ID
             );
             setSocieties(response.documents as unknown as Society[]);
-        } catch (err: unknown) {
-            console.error('Error fetching societies:', err);
+        } catch (err: any) {
+            console.error('Error fetching societies:', err?.message || 'Unknown error');
             setError('Failed to load societies. Please try again later.');
         } finally {
             setLoading(false);
@@ -130,8 +130,8 @@ export default function SocietiesClient() {
                 published: events.filter(e => e.status === 'published').length,
                 completed: events.filter(e => e.status === 'completed').length
             });
-        } catch (err: unknown) {
-            console.error('Error fetching events:', err);
+        } catch (err: any) {
+            console.error('Error fetching events:', err?.message || 'Unknown error');
         } finally {
             setLoadingEvents(false);
         }
@@ -161,8 +161,8 @@ export default function SocietiesClient() {
                 phone: doc.phone,
             }));
             setSocietyMembers(members);
-        } catch (err: unknown) {
-            console.error('Error fetching members:', err);
+        } catch (err: any) {
+            console.error('Error fetching members:', err?.message || 'Unknown error');
             setSocietyMembers([]);
         } finally {
             setLoadingMembers(false);

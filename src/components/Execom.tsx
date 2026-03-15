@@ -413,8 +413,8 @@ export const Execom: React.FC = () => {
                 });
 
                 setMembersList(updatedMembers);
-            } catch (err) {
-                console.error("Failed to fetch execom contacts:", err);
+            } catch (err: any) {
+                console.error("Failed to fetch execom contacts:", err?.message || 'Unknown error');
             }
         };
 

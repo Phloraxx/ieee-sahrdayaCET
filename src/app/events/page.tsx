@@ -75,8 +75,8 @@ async function getEvents() {
                     } : undefined,
                 } as Event & { society?: Society };
             });
-    } catch (error) {
-        console.error('Error fetching events:', error);
+    } catch (error: any) {
+        console.error('Error fetching events:', error?.message || 'Unknown error');
         return [];
     }
 }

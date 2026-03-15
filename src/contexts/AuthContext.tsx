@@ -56,8 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 redirectUrl,
                 redirectUrl
             );
-        } catch (error) {
-            console.error('Login failed:', error);
+        } catch (error: any) {
+            console.error('Login failed:', error?.message || 'Unknown error');
             throw error;
         }
     };
@@ -67,8 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await account.deleteSession('current');
             setUser(null);
             setUserTeams([]);
-        } catch (error) {
-            console.error('Logout failed:', error);
+        } catch (error: any) {
+            console.error('Logout failed:', error?.message || 'Unknown error');
             throw error;
         }
     };
