@@ -10,9 +10,6 @@
 
 export type SvgStyle = 'waves' | 'slash' | 'blobs' | 'zigzag' | 'sine' | 'step';
 
-// Helper: a full-rect path (no wave) as fallback
-const full = 'M0,0 L1440,0 L1440,540 L0,540 Z';
-
 export const SVG_PATHS: Record<SvgStyle, string[]> = {
   // ── Smooth horizontal waves (Home / default — blue) ─────────────────────────
   waves: [

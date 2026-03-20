@@ -65,22 +65,6 @@ export default function Navbar() {
         };
     }, []);
 
-    const handleScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-        // Only handle smooth scroll for homepage anchor links
-        if (href.startsWith('/#') && pathname === '/') {
-            e.preventDefault();
-            const targetId = href.replace('/#', '');
-            const element = document.getElementById(targetId);
-            
-            if (element) {
-                window.scrollTo({
-                    top: element.getBoundingClientRect().top + window.scrollY,
-                    behavior: 'smooth'
-                });
-            }
-        }
-    };
-
     const handleLogout = async () => {
         try {
             await logout();
