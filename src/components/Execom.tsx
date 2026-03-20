@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import Link from 'next/link';
+import TransitionLink from '@/components/PageTransition/TransitionLink';
 import { Users, ArrowUpRight, Linkedin, Mail, Phone } from 'lucide-react';
 import { databases, DATABASE_ID, EXECOM_COLLECTION_ID } from '@/lib/appwrite';
 import { Query, Models } from 'appwrite';
@@ -492,13 +492,13 @@ export const Execom: React.FC = () => {
 
                 {/* View Full Execom Button */}
                 <div className="mt-12 flex justify-center">
-                    <Link
+                    <TransitionLink
                         href="/full-execom"
                         className="group relative inline-flex items-center justify-center px-8 py-3 font-mono text-sm uppercase tracking-widest text-white transition-all duration-300 bg-ieee-blue/90 hover:bg-ieee-blue rounded-full"
                     >
                         <span>View Full Execom</span>
                         <ArrowUpRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
-                    </Link>
+                    </TransitionLink>
                 </div>
 
                 {/* Bottom CTA */}

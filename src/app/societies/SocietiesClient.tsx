@@ -215,8 +215,8 @@ export default function SocietiesClient() {
             {/* Navbar - Hidden when society detail or event modal is active */}
             {!selectedSociety && !selectedEvent && <Navbar />}
 
-            {/* Subtle Society Chair Sign In Button - Top Right */}
-            {!user && !selectedSociety && !selectedEvent && (
+            {/* Subtle Society Chair Sign In Button - Top Right (visible even when Appwrite user exists) */}
+            {!selectedSociety && !selectedEvent && (
                 <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}

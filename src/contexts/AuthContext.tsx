@@ -31,11 +31,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Check if user is already logged in on mount
     useEffect(() => {
-        checkAuth();
+        refresh();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const checkAuth = async () => {
+    const refresh = async () => {
         try {
             const currentUser = await account.get();
             setUser(currentUser as unknown as User);
@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const contextValue = useMemo(
-        () => ({ user, loading, profileCompleted, profileLoading, login, logout, isChairOf, userTeams }),
+        () => ({ user, loading, profileCompleted, profileLoading, login, logout, refresh, isChairOf, userTeams }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [user, loading, profileCompleted, profileLoading, userTeams]
     );

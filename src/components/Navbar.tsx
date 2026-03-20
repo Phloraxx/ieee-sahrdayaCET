@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { NavItem } from '@/types';
 import { motion } from 'framer-motion';
 import { usePathname } from 'next/navigation';
-import Link from 'next/link';
+import TransitionLink from './PageTransition/TransitionLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { LogOut, User } from 'lucide-react';
 import LoginModal from './LoginModal';
@@ -109,10 +109,9 @@ export default function Navbar() {
                             (item.href.startsWith('/#') && pathname === '/' && activeSection.includes(item.href.replace('/#', '')));
                         
                         return (
-                            <Link
+                            <TransitionLink
                                 key={item.label}
                                 href={item.href}
-                                onClick={(e) => handleScroll(e, item.href)}
                                 className={`relative px-3 md:px-5 py-2 rounded-full text-[10px] md:text-xs font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${
                                     isActive
                                         ? 'text-gray-900 bg-white shadow-sm' 
@@ -120,7 +119,7 @@ export default function Navbar() {
                                 }`}
                             >
                                 {item.label}
-                            </Link>
+                            </TransitionLink>
                         );
                     })}
                     </div>

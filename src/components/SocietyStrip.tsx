@@ -2,13 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
+import TransitionLink from '@/components/PageTransition/TransitionLink';
 import { motion } from 'framer-motion';
 import { databases, DATABASE_ID, SOCIETIES_COLLECTION_ID } from '@/lib/appwrite';
 import type { Society } from '@/types';
 
 const LogoItem: React.FC<{ society: Society }> = ({ society }) => (
-    <Link href="/societies" className="flex-shrink-0 flex items-center justify-center group mx-6 md:mx-10">
+    <TransitionLink href="/societies" className="flex-shrink-0 flex items-center justify-center group mx-6 md:mx-10">
         <div className="relative flex items-center justify-center h-10 md:h-12 w-auto transition-all duration-300 group-hover:scale-110 cursor-pointer">
             <Image
                 src={society.logo_url}
@@ -20,7 +20,7 @@ const LogoItem: React.FC<{ society: Society }> = ({ society }) => (
                 draggable={false}
             />
         </div>
-    </Link>
+    </TransitionLink>
 );
 
 export const SocietyStrip: React.FC = () => {

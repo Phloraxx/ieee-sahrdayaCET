@@ -56,21 +56,6 @@ export interface TeamMembership {
     userId: string;
 }
 
-export interface MemberProfile {
-    $id: string;
-    userID: string;
-    fullName: string;
-    semester: string;
-    class: string;
-    course: string;
-    foodPreference: string;
-    residence: string;
-    sahrdayaEmail: string;
-    personalEmail: string;
-    phone: string;
-    profileCompleted: boolean;
-}
-
 // Auth Context Types
 export interface AuthContextType {
     user: User | null;
@@ -79,6 +64,7 @@ export interface AuthContextType {
     profileLoading: boolean;
     login: () => Promise<void>;
     logout: () => Promise<void>;
+    refresh: () => Promise<void>;
     isChairOf: (societySlug: string) => boolean;
     userTeams: TeamMembership[];
 }

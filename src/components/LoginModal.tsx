@@ -1,8 +1,12 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { account } from '@/lib/appwrite';
 import { X } from 'lucide-react';
+import { startAuthentication } from '@simplewebauthn/browser';
+import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
+import AnimatedTick from '@/components/AnimatedTick';
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -46,8 +50,88 @@ const PixelGrid: React.FC<{ grid: string[][]; size: number }> = ({ grid, size })
 );
 
 export default function LoginModal({ isOpen, onClose, message }: LoginModalProps) {
-    const { login } = useAuth();
+    const { login, refresh } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
+    const [isBioAvailable, setIsBioAvailable] = useState<boolean>(false);
+    const [isBioLoading, setIsBioLoading] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [passkeyError, setPasskeyError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const secure = (window.isSecureContext === true) || location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname);
+        if (!secure) {
+            setIsBioAvailable(false);
+            return;
+        }
+
+        const hasPublicKey = !!(window.PublicKeyCredential);
+        if (!hasPublicKey) {
+            setIsBioAvailable(false);
+            return;
+        }
+
+        // If the browser supports WebAuthn APIs in a secure context, enable the passkey flow.
+        setIsBioAvailable(true);
+    }, []);
+
+    const handlePasskeys = async () => {
+        if (typeof window === 'undefined') return;
+
+        setPasskeyError(null);
+        setIsLoading(true);
+        setIsBioLoading(true);
+
+        try {
+            const loginStartRes = await fetch('/api/passkeys/login/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            }); 
+
+            if (!loginStartRes.ok) {
+                throw new Error(`Passkey login start failed: ${loginStartRes.status}`);
+            }
+
+            const loginStartBody = await loginStartRes.json() as {
+                challengeId: string;
+                options: PublicKeyCredentialRequestOptionsJSON;
+            };
+            const authentication = await startAuthentication({ optionsJSON: loginStartBody.options });
+
+            const loginFinishRes = await fetch('/api/passkeys/login/finish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ challengeId: loginStartBody.challengeId, authentication }),
+            });
+
+            if (!loginFinishRes.ok) {
+                throw new Error(`Passkey login finish failed: ${loginFinishRes.status}`);
+            }
+
+            const loginFinishBody = await loginFinishRes.json() as { userId: string; secret: string };
+            await account.createSession(loginFinishBody.userId, loginFinishBody.secret);
+
+            // Refresh AuthContext so chair permissions update instantly.
+            await refresh();
+
+            setShowSuccess(true);
+            setTimeout(() => {
+                setIsBioLoading(false);
+                setIsLoading(false);
+                setShowSuccess(false);
+                setPasskeyError(null);
+                onClose();
+            }, 900);
+        } catch (err) {
+            console.error('Passkey auth error:', err);
+            setPasskeyError('Passkey login failed. Use your registered passkey or sign in with Google first.');
+            setIsBioLoading(false);
+            setIsLoading(false);
+            setShowSuccess(false);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -140,6 +224,36 @@ export default function LoginModal({ isOpen, onClose, message }: LoginModalProps
                         )}
                     </button>
 
+                    <button
+                        onClick={handlePasskeys}
+                        disabled={!isBioAvailable || isBioLoading}
+                        className="w-full mt-4 bg-white border border-gray-200 text-gray-800 font-sans text-sm py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                    >
+                        {isBioLoading ? (
+                            <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+                        ) : (
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 1C7 1 3 5 3 10v4c0 5 4 9 9 9s9-4 9-9v-4c0-5-4-9-9-9z" stroke="#111827" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M8 13l2.5 2L16 10" stroke="#111827" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                        )}
+                        <span>{isBioLoading ? 'Authenticating...' : 'Login with passkeys'}</span>
+                    </button>
+
+                    {passkeyError && (
+                        <p className="mt-2 text-xs text-red-600 font-sans" role="alert">
+                            {passkeyError}
+                        </p>
+                    )}
+
+                    {/* Success tick */}
+                    {showSuccess && (
+                        <div className="mt-6 flex flex-col items-center justify-center gap-3">
+                            <AnimatedTick size={96} />
+                            <div className="text-sm font-semibold text-green-600">Authenticated</div>
+                        </div>
+                    )}
+
                     {/* Divider */}
                     <div className="flex items-center gap-3 my-5">
                         <div className="h-px flex-grow bg-gray-200" />
@@ -149,7 +263,7 @@ export default function LoginModal({ isOpen, onClose, message }: LoginModalProps
 
                     {/* Privacy note */}
                     <p className="text-[10px] text-gray-400 font-mono tracking-wider">
-                        Secured with OAuth 2.0
+                        Secured with OAuth 2.0 / Passkeys
                     </p>
                 </div>
             </div>
