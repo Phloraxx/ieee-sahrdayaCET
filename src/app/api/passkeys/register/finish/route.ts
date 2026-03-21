@@ -7,6 +7,7 @@ import {
   deleteChallenge,
   getChallenge,
   addCredential,
+  getSignedInUserFromRequest,
 } from '@/lib/passkeys/passkeyStore';
 
 export const runtime = 'nodejs';
@@ -22,6 +23,11 @@ function getExpectedOrigin(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const signedInUser = await getSignedInUserFromRequest(req);
+    if (!signedInUser) {
+      return NextResponse.json({ error: 'NOT_SIGNED_IN' }, { status: 401 });
+    }
+
     const { challengeId, registration } = await req.json() as {
       challengeId?: string;
       registration?: RegistrationResponseJSON;
@@ -36,6 +42,9 @@ export async function POST(req: NextRequest) {
 
     const challenge = await getChallenge(challengeId);
     const userId = challenge.userId as string;
+    if (signedInUser.$id !== userId) {
+      return NextResponse.json({ error: 'NOT_ALLOWED' }, { status: 403 });
+    }
 
     const verification = await SimpleWebAuthnServer.verifyRegistrationResponse({
       response: registration,

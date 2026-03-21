@@ -1,5 +1,6 @@
-import { Client, Databases, Users, Query, ID } from 'node-appwrite';
+import { Client, Databases, Users, Query, ID, Account } from 'node-appwrite';
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/browser';
+import type { NextRequest } from 'next/server';
 
 const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'ieee_sahrdaya_db';
 
@@ -12,17 +13,66 @@ function requireEnv(name: string) {
   return value;
 }
 
-function getAdminClient() {
+function getBaseClient() {
   const endpoint = requireEnv('NEXT_PUBLIC_APPWRITE_ENDPOINT');
   const projectId = requireEnv('NEXT_PUBLIC_APPWRITE_PROJECT_ID');
+  return new Client().setEndpoint(endpoint).setProject(projectId);
+}
+
+function getAdminClient() {
   const apiKey = requireEnv('APPWRITE_API_KEY');
 
-  const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
+  const client = getBaseClient().setKey(apiKey);
   return {
     client,
     databases: new Databases(client),
     users: new Users(client),
   };
+}
+
+function getSessionCookieFromRequest(req: NextRequest) {
+  const nonLegacy = req.cookies
+    .getAll()
+    .find((cookie) => cookie.name.startsWith('a_session_') && !cookie.name.endsWith('_legacy'));
+
+  if (nonLegacy?.value) return nonLegacy.value;
+
+  const legacy = req.cookies
+    .getAll()
+    .find((cookie) => cookie.name.startsWith('a_session_') && cookie.name.endsWith('_legacy'));
+
+  return legacy?.value ?? null;
+}
+
+export async function getSignedInUserFromRequest(req: NextRequest) {
+  const mapAccount = async (client: Client) => {
+    const account = new Account(client);
+    const user = await account.get();
+
+    return {
+      $id: user.$id,
+      email: user.email,
+      name: user.name,
+    };
+  };
+
+  const jwt = req.headers.get('x-appwrite-jwt');
+  if (jwt) {
+    try {
+      return await mapAccount(getBaseClient().setJWT(jwt));
+    } catch {
+      // Fall back to cookie-based session check.
+    }
+  }
+
+  const session = getSessionCookieFromRequest(req);
+  if (!session) return null;
+
+  try {
+    return await mapAccount(getBaseClient().setSession(session));
+  } catch {
+    return null;
+  }
 }
 
 export type StoredCredential = {

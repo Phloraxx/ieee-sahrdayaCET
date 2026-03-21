@@ -4,8 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { account } from '@/lib/appwrite';
 import { X } from 'lucide-react';
-import { startAuthentication } from '@simplewebauthn/browser';
-import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
+import {
+    authenticateWithPasskey,
+    isPasskeySupported,
+    PasskeyClientError,
+} from '@/lib/passkeys/client';
 import AnimatedTick from '@/components/AnimatedTick';
 
 interface LoginModalProps {
@@ -50,7 +53,7 @@ const PixelGrid: React.FC<{ grid: string[][]; size: number }> = ({ grid, size })
 );
 
 export default function LoginModal({ isOpen, onClose, message }: LoginModalProps) {
-    const { login, refresh } = useAuth();
+    const { login, refresh, user } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [isBioAvailable, setIsBioAvailable] = useState<boolean>(false);
     const [isBioLoading, setIsBioLoading] = useState(false);
@@ -58,23 +61,16 @@ export default function LoginModal({ isOpen, onClose, message }: LoginModalProps
     const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-
-        const secure = (window.isSecureContext === true) || location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname);
-        if (!secure) {
-            setIsBioAvailable(false);
-            return;
-        }
-
-        const hasPublicKey = !!(window.PublicKeyCredential);
-        if (!hasPublicKey) {
-            setIsBioAvailable(false);
-            return;
-        }
-
-        // If the browser supports WebAuthn APIs in a secure context, enable the passkey flow.
-        setIsBioAvailable(true);
+        setIsBioAvailable(isPasskeySupported());
     }, []);
+
+    const isActiveSessionError = (err: unknown) => {
+        if (!err || typeof err !== 'object') return false;
+        const maybeMessage = (err as { message?: unknown }).message;
+        if (typeof maybeMessage !== 'string') return false;
+        const messageLower = maybeMessage.toLowerCase();
+        return messageLower.includes('session is active') || messageLower.includes('session is prohibited');
+    };
 
     const handlePasskeys = async () => {
         if (typeof window === 'undefined') return;
@@ -84,34 +80,18 @@ export default function LoginModal({ isOpen, onClose, message }: LoginModalProps
         setIsBioLoading(true);
 
         try {
-            const loginStartRes = await fetch('/api/passkeys/login/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({}),
-            }); 
-
-            if (!loginStartRes.ok) {
-                throw new Error(`Passkey login start failed: ${loginStartRes.status}`);
+            if (user) {
+                await authenticateWithPasskey('reauth');
+            } else {
+                const loginFinishBody = await authenticateWithPasskey('login');
+                try {
+                    await account.createSession(loginFinishBody.userId, loginFinishBody.secret);
+                } catch (sessionErr) {
+                    if (!isActiveSessionError(sessionErr)) {
+                        throw sessionErr;
+                    }
+                }
             }
-
-            const loginStartBody = await loginStartRes.json() as {
-                challengeId: string;
-                options: PublicKeyCredentialRequestOptionsJSON;
-            };
-            const authentication = await startAuthentication({ optionsJSON: loginStartBody.options });
-
-            const loginFinishRes = await fetch('/api/passkeys/login/finish', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ challengeId: loginStartBody.challengeId, authentication }),
-            });
-
-            if (!loginFinishRes.ok) {
-                throw new Error(`Passkey login finish failed: ${loginFinishRes.status}`);
-            }
-
-            const loginFinishBody = await loginFinishRes.json() as { userId: string; secret: string };
-            await account.createSession(loginFinishBody.userId, loginFinishBody.secret);
 
             // Refresh AuthContext so chair permissions update instantly.
             await refresh();
@@ -126,7 +106,19 @@ export default function LoginModal({ isOpen, onClose, message }: LoginModalProps
             }, 900);
         } catch (err) {
             console.error('Passkey auth error:', err);
-            setPasskeyError('Passkey login failed. Use your registered passkey or sign in with Google first.');
+            if (err instanceof PasskeyClientError) {
+                if (err.code === 'NO_PASSKEY') {
+                    setPasskeyError('No passkey found. Sign in with Google and create one first.');
+                } else if (err.code === 'NOT_SIGNED_IN') {
+                    setPasskeyError('Sign in with Google first, then use passkey login.');
+                } else if (err.code === 'ABORTED') {
+                    setPasskeyError('Passkey request cancelled.');
+                } else {
+                    setPasskeyError('Passkey login failed. Try again.');
+                }
+            } else {
+                setPasskeyError('Passkey login failed. Use your registered passkey or sign in with Google first.');
+            }
             setIsBioLoading(false);
             setIsLoading(false);
             setShowSuccess(false);
@@ -237,7 +229,7 @@ export default function LoginModal({ isOpen, onClose, message }: LoginModalProps
                                 <path d="M8 13l2.5 2L16 10" stroke="#111827" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                         )}
-                        <span>{isBioLoading ? 'Authenticating...' : 'Login with passkeys'}</span>
+                        <span>{isBioLoading ? 'Authenticating...' : user ? 'Verify with passkey' : 'Login with passkeys'}</span>
                     </button>
 
                     {passkeyError && (

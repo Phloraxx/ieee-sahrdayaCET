@@ -8,6 +8,7 @@ import {
   createSessionToken,
   findUserIdByCredentialId,
   getCredentials,
+  getSignedInUserFromRequest,
   updateCredentialCounter,
 } from '@/lib/passkeys/passkeyStore';
 
@@ -27,6 +28,8 @@ type SignedChallenge = {
   rpID: string;
   expectedOrigin: string;
   iat: number;
+  intent: 'login' | 'reauth';
+  userId?: string;
 };
 
 function requireChallengeSecret() {
@@ -43,12 +46,37 @@ function parseChallenge(challengeId: string): SignedChallenge | null {
   const [payloadBase64, signature] = challengeId.split('.');
   if (!payloadBase64 || !signature) return null;
 
-  const payload = Buffer.from(payloadBase64, 'base64url').toString('utf8');
-  const expected = signPayload(payload);
-  if (signature !== expected) return null;
+  let payload: string;
+  try {
+    payload = Buffer.from(payloadBase64, 'base64url').toString('utf8');
+  } catch {
+    return null;
+  }
 
-  const parsed = JSON.parse(payload) as SignedChallenge;
-  if (!parsed.challenge || !parsed.rpID || !parsed.expectedOrigin || typeof parsed.iat !== 'number') {
+  const expected = signPayload(payload);
+  const signatureBytes = Buffer.from(signature);
+  const expectedBytes = Buffer.from(expected);
+  if (signatureBytes.length !== expectedBytes.length) return null;
+  if (!crypto.timingSafeEqual(signatureBytes, expectedBytes)) return null;
+
+  let parsed: SignedChallenge;
+  try {
+    parsed = JSON.parse(payload) as SignedChallenge;
+  } catch {
+    return null;
+  }
+
+  if (
+    !parsed.challenge ||
+    !parsed.rpID ||
+    !parsed.expectedOrigin ||
+    typeof parsed.iat !== 'number' ||
+    (parsed.intent !== 'login' && parsed.intent !== 'reauth')
+  ) {
+    return null;
+  }
+
+  if (parsed.intent === 'reauth' && typeof parsed.userId !== 'string') {
     return null;
   }
 
@@ -91,10 +119,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'ORIGIN_MISMATCH' }, { status: 400 });
     }
 
+    const signedInUser =
+      parsedChallenge.intent === 'reauth' ? await getSignedInUserFromRequest(req) : null;
+    if (parsedChallenge.intent === 'reauth' && !signedInUser) {
+      return NextResponse.json({ error: 'NOT_SIGNED_IN' }, { status: 401 });
+    }
+
     const userIdFromHandle = userHandleToUserId(authentication.response.userHandle);
     const userId = userIdFromHandle ?? await findUserIdByCredentialId(authentication.id);
     if (!userId) {
       return NextResponse.json({ error: 'USER_NOT_FOUND' }, { status: 404 });
+    }
+
+    if (parsedChallenge.intent === 'reauth') {
+      if (userId !== parsedChallenge.userId || signedInUser?.$id !== userId) {
+        return NextResponse.json({ error: 'NOT_ALLOWED' }, { status: 403 });
+      }
     }
 
     const credentials = await getCredentials(userId);
@@ -136,6 +176,14 @@ export async function POST(req: NextRequest) {
 
     // Update the stored counter to prevent replay.
     await updateCredentialCounter(userId, matchedCredential.credentialID, authenticationInfo.newCounter);
+
+    if (parsedChallenge.intent === 'reauth') {
+      return NextResponse.json({
+        ok: true,
+        userId,
+        reauthenticatedAt: Date.now(),
+      });
+    }
 
     const token = await createSessionToken(userId);
 

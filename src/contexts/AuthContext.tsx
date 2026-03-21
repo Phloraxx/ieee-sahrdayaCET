@@ -58,6 +58,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const login = async () => {
         try {
             // Trigger Google OAuth
+            const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            sessionStorage.setItem('auth_return_url', returnTo || '/');
+
             // Redirect to current page after login
             const redirectUrl = `${window.location.origin}/auth/callback`;
             await account.createOAuth2Session(
