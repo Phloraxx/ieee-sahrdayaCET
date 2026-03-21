@@ -45,6 +45,12 @@ type RegisterFinishResponse = {
   ok: true;
 };
 
+type AuthBootstrapResponse = {
+  ok: true;
+  memberId: string;
+  userId: string;
+};
+
 export class PasskeyClientError extends Error {
   code: string;
   status?: number;
@@ -93,6 +99,20 @@ export function isPasskeySupported() {
     location.protocol === 'https:' ||
     ['localhost', '127.0.0.1'].includes(location.hostname);
   return secure && !!window.PublicKeyCredential;
+}
+
+export async function bootstrapSignedInUserMember() {
+  const res = await fetch('/api/auth/bootstrap', {
+    method: 'POST',
+    headers: await withAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({}),
+  });
+
+  if (!res.ok) {
+    await parseError(res);
+  }
+
+  return (await res.json()) as AuthBootstrapResponse;
 }
 
 export async function getPasskeyStatus() {

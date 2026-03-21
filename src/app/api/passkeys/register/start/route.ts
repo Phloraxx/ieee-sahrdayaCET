@@ -6,6 +6,7 @@ import {
   createChallenge,
   getCredentials,
   getSignedInUserFromRequest,
+  upsertMemberFromSignedInUser,
 } from '@/lib/passkeys/passkeyStore';
 
 export const runtime = 'nodejs';
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    await upsertMemberFromSignedInUser(signedInUser);
     const existingCredentials = await getCredentials(signedInUser.$id);
 
     return NextResponse.json({
@@ -49,6 +51,8 @@ export async function POST(req: NextRequest) {
     if (!signedInUser) {
       return NextResponse.json({ error: 'NOT_SIGNED_IN' }, { status: 401 });
     }
+
+    await upsertMemberFromSignedInUser(signedInUser);
 
     const rpID = getRpId(req);
     const existingCredentials = await getCredentials(signedInUser.$id);

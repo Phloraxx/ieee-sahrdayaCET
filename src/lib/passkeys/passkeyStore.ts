@@ -108,6 +108,12 @@ type MemberDoc = {
   [key: string]: unknown;
 };
 
+type SignedInUser = {
+  $id: string;
+  email?: string;
+  name?: string;
+};
+
 function parseStoredCredentials(raw: unknown): StoredCredential[] {
   if (typeof raw !== 'string' || !raw) return [];
 
@@ -125,12 +131,12 @@ function base64UrlToHex(value: string) {
   return Buffer.from(padded, 'base64').toString('hex');
 }
 
-function getDefaultForAttribute(attr: { key: string; type: string }) {
+function getDefaultForAttribute(attr: { key: string; type: string }, user?: SignedInUser) {
   // Provide safe defaults for required attributes on `members`.
   // We also key off common attribute names used by `setup-profile`.
   switch (attr.key) {
     case 'fullName':
-      return 'Passkey User';
+      return user?.name || 'Passkey User';
     case 'semester':
       return '1';
     case 'class':
@@ -142,9 +148,12 @@ function getDefaultForAttribute(attr: { key: string; type: string }) {
     case 'residence':
       return 'N/A';
     case 'sahrdayaEmail':
-      return 'passkey@local';
+      if (user?.email?.toLowerCase().endsWith('@sahrdaya.ac.in')) {
+        return user.email;
+      }
+      return user?.email || 'passkey@local';
     case 'personalEmail':
-      return 'passkey@local';
+      return user?.email || 'passkey@local';
     case 'phone':
       return '0000000000';
     case 'profileCompleted':
@@ -173,13 +182,47 @@ async function getMemberDoc(userId: string): Promise<MemberDoc | null> {
   return (res.documents?.[0] as unknown as MemberDoc) ?? null;
 }
 
-async function ensureMemberDoc(userId: string): Promise<MemberDoc> {
+const PROFILE_PLACEHOLDERS = new Set(['', 'unknown', 'Passkey User', 'passkey@local']);
+
+function isPlaceholder(value: unknown) {
+  return typeof value === 'string' && PROFILE_PLACEHOLDERS.has(value);
+}
+
+async function ensureMemberDoc(userId: string, user?: SignedInUser): Promise<MemberDoc> {
   const { databases } = getAdminClient();
+  const attrList = await databases.listAttributes(DATABASE_ID, MEMBERS_COLLECTION_ID);
+  const attrKeys = new Set(attrList.attributes.map((attr) => String((attr as { key?: unknown }).key ?? '')));
 
   const existing = await getMemberDoc(userId);
-  if (existing) return existing;
+  if (existing) {
+    const patch: Record<string, unknown> = {};
 
-  const attrList = await databases.listAttributes(DATABASE_ID, MEMBERS_COLLECTION_ID);
+    if (user?.name && attrKeys.has('fullName') && isPlaceholder(existing.fullName)) {
+      patch.fullName = user.name;
+    }
+
+    if (user?.email) {
+      if (attrKeys.has('personalEmail') && isPlaceholder(existing.personalEmail)) {
+        patch.personalEmail = user.email;
+      }
+
+      if (
+        attrKeys.has('sahrdayaEmail') &&
+        isPlaceholder(existing.sahrdayaEmail) &&
+        user.email.toLowerCase().endsWith('@sahrdaya.ac.in')
+      ) {
+        patch.sahrdayaEmail = user.email;
+      }
+    }
+
+    if (Object.keys(patch).length > 0) {
+      const updated = await databases.updateDocument(DATABASE_ID, MEMBERS_COLLECTION_ID, existing.$id, patch);
+      return updated as unknown as MemberDoc;
+    }
+
+    return existing;
+  }
+
   const requiredAttrs = attrList.attributes.filter((a) => Boolean((a as { required?: boolean }).required)) as Array<{
     key: string;
     type: string;
@@ -195,7 +238,19 @@ async function ensureMemberDoc(userId: string): Promise<MemberDoc> {
     }
 
     // Populate required fields so we can create the member doc.
-    data[key] = getDefaultForAttribute({ key, type: String(attr.type) });
+    data[key] = getDefaultForAttribute({ key, type: String(attr.type) }, user);
+  }
+
+  if (user) {
+    if (attrKeys.has('fullName') && user.name) {
+      data.fullName = user.name;
+    }
+    if (attrKeys.has('personalEmail') && user.email) {
+      data.personalEmail = user.email;
+    }
+    if (attrKeys.has('sahrdayaEmail') && user.email?.toLowerCase().endsWith('@sahrdaya.ac.in')) {
+      data.sahrdayaEmail = user.email;
+    }
   }
 
   // Create placeholder member doc. Document-level permissions are handled by Appwrite server SDK (API key).
@@ -207,6 +262,10 @@ async function ensureMemberDoc(userId: string): Promise<MemberDoc> {
   );
 
   return created as unknown as MemberDoc;
+}
+
+export async function upsertMemberFromSignedInUser(user: SignedInUser) {
+  return ensureMemberDoc(user.$id, user);
 }
 
 export async function getCredentials(userId: string): Promise<StoredCredential[]> {

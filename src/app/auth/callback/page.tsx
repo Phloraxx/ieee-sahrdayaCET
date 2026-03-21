@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { account } from '@/lib/appwrite';
 import {
+    authenticateWithPasskey,
+    bootstrapSignedInUserMember,
     createPasskeyForSignedInUser,
     getPasskeyStatus,
     isPasskeySupported,
@@ -14,6 +16,7 @@ export default function AuthCallback() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
+    const [verifying, setVerifying] = useState(false);
     const [needsPasskeySetup, setNeedsPasskeySetup] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const returnToRef = useRef('/');
@@ -52,6 +55,19 @@ export default function AuthCallback() {
         }
     }, [goBack]);
 
+    const verifyExistingPasskey = useCallback(async () => {
+        setVerifying(true);
+        try {
+            await authenticateWithPasskey('reauth');
+            return true;
+        } catch (err) {
+            console.error('Passkey verification after Google sign-in failed:', err);
+            return false;
+        } finally {
+            setVerifying(false);
+        }
+    }, []);
+
     useEffect(() => {
         const returnTo = sessionStorage.getItem('auth_return_url') || '/';
         sessionStorage.removeItem('auth_return_url');
@@ -73,15 +89,31 @@ export default function AuthCallback() {
             }
 
             try {
+                await bootstrapSignedInUserMember();
+            } catch (err) {
+                // Continue passkey flow even if profile bootstrap fails temporarily.
+                console.error('Member bootstrap after Google sign-in failed:', err);
+            }
+
+            try {
                 const status = await getPasskeyStatus();
                 if (!status.signedIn) {
                     goBack();
                     return;
                 }
 
-                if (status.hasPasskey) {
-                    goBack();
-                    return;
+                if (status.passkeyCount > 0) {
+                    const verified = await verifyExistingPasskey();
+                    if (verified) {
+                        goBack();
+                        return;
+                    }
+
+                    if (!isCancelled) {
+                        setError('Could not verify passkey on this device. Creating a new one now.');
+                    }
+                } else if (!isCancelled) {
+                    setError('No passkey found yet. Creating one now.');
                 }
 
                 if (!isCancelled) {
@@ -91,8 +123,9 @@ export default function AuthCallback() {
             } catch (err) {
                 console.error('Passkey status check error:', err);
                 if (!isCancelled) {
-                    setLoading(false);
                     setNeedsPasskeySetup(true);
+                    setLoading(false);
+                    setError('Could not check passkeys. You can create one now.');
                 }
             }
         };
@@ -102,7 +135,7 @@ export default function AuthCallback() {
         return () => {
             isCancelled = true;
         };
-    }, [goBack]);
+    }, [goBack, verifyExistingPasskey]);
 
     useEffect(() => {
         if (!needsPasskeySetup || loading || creating || autoPromptedRef.current) return;
@@ -114,23 +147,31 @@ export default function AuthCallback() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-black px-4">
             <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-7 text-center backdrop-blur-sm">
-                {(loading || creating) && (
+                {(loading || creating || verifying) && (
                     <>
                         <div className="w-14 h-14 mx-auto mb-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
                         <p className="text-white text-lg font-semibold">
-                            {creating ? 'Creating your passkey...' : 'Completing sign in...'}
+                            {creating
+                                ? 'Creating your passkey...'
+                                : verifying
+                                    ? 'Verifying passkey...'
+                                    : 'Completing sign in...'}
                         </p>
                         <p className="text-white/70 text-sm mt-2">
-                            {creating ? 'This keeps future sign-ins and payments more secure.' : 'Just a moment.'}
+                            {creating
+                                ? 'This keeps future sign-ins and payments more secure.'
+                                : verifying
+                                    ? 'We are checking your existing passkey first.'
+                                    : 'Just a moment.'}
                         </p>
                     </>
                 )}
 
-                {!loading && !creating && needsPasskeySetup && (
+                {!loading && !creating && !verifying && needsPasskeySetup && (
                     <>
                         <h1 className="text-white text-xl font-semibold">Secure your account with a passkey</h1>
                         <p className="text-white/70 text-sm mt-3">
-                            You just signed in with Google. Create a passkey for faster, safer sign-ins and payment verification.
+                            We could not use a passkey on this device yet. Create one now for fast, secure verification.
                         </p>
 
                         {error && (
@@ -150,7 +191,7 @@ export default function AuthCallback() {
                                 onClick={goBack}
                                 className="w-full rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
                             >
-                                Skip for now
+                                Continue for now
                             </button>
                         </div>
                     </>
