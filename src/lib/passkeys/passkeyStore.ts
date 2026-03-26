@@ -1,11 +1,7 @@
 import { Client, Databases, Users, Query, ID, Account } from 'node-appwrite';
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/browser';
 import type { NextRequest } from 'next/server';
-
-const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'ieee_sahrdaya_db';
-
-// Existing collection used by AuthContext + setup-profile.
-const MEMBERS_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_MEMBERS_COLLECTION_ID || 'members';
+import { DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/constants/collections';
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -56,21 +52,36 @@ export async function getSignedInUserFromRequest(req: NextRequest) {
     };
   };
 
-  const jwt = req.headers.get('x-appwrite-jwt');
+  // Check x-appwrite-jwt header (legacy format)
+  let jwt = req.headers.get('x-appwrite-jwt');
+  
+  // Also check Authorization: Bearer header (standard format)
+  if (!jwt) {
+    const authHeader = req.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      jwt = authHeader.slice(7);
+    }
+  }
+  
   if (jwt) {
     try {
       return await mapAccount(getBaseClient().setJWT(jwt));
-    } catch {
+    } catch (error) {
+      console.warn('JWT validation failed:', error instanceof Error ? error.message : String(error));
       // Fall back to cookie-based session check.
     }
   }
 
   const session = getSessionCookieFromRequest(req);
-  if (!session) return null;
+  if (!session) {
+    console.warn('No session cookie found');
+    return null;
+  }
 
   try {
     return await mapAccount(getBaseClient().setSession(session));
-  } catch {
+  } catch (error) {
+    console.warn('Session validation failed:', error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -190,24 +201,28 @@ function isPlaceholder(value: unknown) {
 
 async function ensureMemberDoc(userId: string, user?: SignedInUser): Promise<MemberDoc> {
   const { databases } = getAdminClient();
-  const attrList = await databases.listAttributes(DATABASE_ID, MEMBERS_COLLECTION_ID);
-  const attrKeys = new Set(attrList.attributes.map((attr) => String((attr as { key?: unknown }).key ?? '')));
+  
+  // Known attributes for members collection - avoid calling listAttributes which requires special permissions
+  const knownAttrs = new Set([
+    'userID', 'fullName', 'personalEmail', 'sahrdayaEmail', 'phone', 
+    'profileCompleted', 'passkeyCredentials', 'passkeyLastUsed'
+  ]);
 
   const existing = await getMemberDoc(userId);
   if (existing) {
     const patch: Record<string, unknown> = {};
 
-    if (user?.name && attrKeys.has('fullName') && isPlaceholder(existing.fullName)) {
+    if (user?.name && knownAttrs.has('fullName') && isPlaceholder(existing.fullName)) {
       patch.fullName = user.name;
     }
 
     if (user?.email) {
-      if (attrKeys.has('personalEmail') && isPlaceholder(existing.personalEmail)) {
+      if (knownAttrs.has('personalEmail') && isPlaceholder(existing.personalEmail)) {
         patch.personalEmail = user.email;
       }
 
       if (
-        attrKeys.has('sahrdayaEmail') &&
+        knownAttrs.has('sahrdayaEmail') &&
         isPlaceholder(existing.sahrdayaEmail) &&
         user.email.toLowerCase().endsWith('@sahrdaya.ac.in')
       ) {
@@ -216,52 +231,53 @@ async function ensureMemberDoc(userId: string, user?: SignedInUser): Promise<Mem
     }
 
     if (Object.keys(patch).length > 0) {
-      const updated = await databases.updateDocument(DATABASE_ID, MEMBERS_COLLECTION_ID, existing.$id, patch);
-      return updated as unknown as MemberDoc;
+      try {
+        const updated = await databases.updateDocument(DATABASE_ID, MEMBERS_COLLECTION_ID, existing.$id, patch);
+        return updated as unknown as MemberDoc;
+      } catch (error) {
+        console.error('Error updating member doc:', error);
+        return existing;
+      }
     }
 
     return existing;
   }
 
-  const requiredAttrs = attrList.attributes.filter((a) => Boolean((a as { required?: boolean }).required)) as Array<{
-    key: string;
-    type: string;
-    required: boolean;
-  }>;
+  // Create new member document with minimal required fields
+  const data: Record<string, unknown> = {
+    userID: userId,
+    fullName: user?.name || 'Passkey User',
+    personalEmail: user?.email || 'passkey@local',
+    phone: '0000000000',
+    profileCompleted: false,
+  };
 
-  const data: Record<string, unknown> = {};
-  for (const attr of requiredAttrs) {
-    const key = String(attr.key);
-    if (key === 'userID') {
-      data.userID = userId;
-      continue;
-    }
-
-    // Populate required fields so we can create the member doc.
-    data[key] = getDefaultForAttribute({ key, type: String(attr.type) }, user);
+  // Add sahrdaya email if applicable
+  if (user?.email?.toLowerCase().endsWith('@sahrdaya.ac.in')) {
+    data.sahrdayaEmail = user.email;
   }
 
-  if (user) {
-    if (attrKeys.has('fullName') && user.name) {
-      data.fullName = user.name;
-    }
-    if (attrKeys.has('personalEmail') && user.email) {
-      data.personalEmail = user.email;
-    }
-    if (attrKeys.has('sahrdayaEmail') && user.email?.toLowerCase().endsWith('@sahrdaya.ac.in')) {
-      data.sahrdayaEmail = user.email;
-    }
+  try {
+    // Create placeholder member doc. Document-level permissions are handled by Appwrite server SDK (API key).
+    const created = await databases.createDocument(
+      DATABASE_ID,
+      MEMBERS_COLLECTION_ID,
+      ID.unique(),
+      data
+    );
+
+    return created as unknown as MemberDoc;
+  } catch (error) {
+    console.error('Error creating member doc:', error);
+    // Return a minimal placeholder if creation fails
+    return {
+      $id: userId,
+      userID: userId,
+      fullName: user?.name || 'Passkey User',
+      personalEmail: user?.email || 'passkey@local',
+      profileCompleted: false,
+    } as MemberDoc;
   }
-
-  // Create placeholder member doc. Document-level permissions are handled by Appwrite server SDK (API key).
-  const created = await databases.createDocument(
-    DATABASE_ID,
-    MEMBERS_COLLECTION_ID,
-    ID.unique(),
-    data
-  );
-
-  return created as unknown as MemberDoc;
 }
 
 export async function upsertMemberFromSignedInUser(user: SignedInUser) {
@@ -370,8 +386,8 @@ export async function deleteChallenge(challengeId: string) {
 export async function createSessionToken(userId: string) {
   const { users } = getAdminClient();
 
-  // length=64, ttl=60 seconds, matching the community implementation.
-  const token = await users.createToken(userId, 64, 60);
+  // length=64, ttl=300 seconds (5 minutes).
+  const token = await users.createToken(userId, 64, 300);
   return token;
 }
 

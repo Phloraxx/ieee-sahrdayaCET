@@ -1,18 +1,31 @@
 /**
  * Payment Webhook Handler
  * 
- * Handles payment confirmation webhooks from the payment gateway.
- * This endpoint is called when a payment is completed.
+ * Handles payment confirmation webhooks from the payment gateway
+ * (https://payment-api.nerdpixel.workers.dev/api).
+ * 
+ * This endpoint is called when a payment is completed via the external
+ * payment gateway. The payment gateway monitors bank SMS/emails and
+ * detects payments using Dynamic Decimal Matching (DDM).
  * 
  * Flow:
- * 1. Verify webhook signature/secret
+ * 1. Verify webhook signature/secret (timing-safe comparison)
  * 2. Parse payment data from the webhook payload
- * 3. Find registration by ticket_id or registration_id
- * 4. Update registration: payment_status = 'completed', registration_status = 'confirmed'
- * 5. Convert reservation to confirmed registration (decrement reserved_slots, increment current_registrations)
- * 6. Generate ticket and QR code
- * 7. Send confirmation email
- * 8. Return 200 OK
+ * 3. Find registration by ticket_id (payment gateway ticket ID stored during registration)
+ * 4. Verify amount matches (prevent underpayment attacks)
+ * 5. Check for duplicate webhooks (idempotency)
+ * 6. Update registration: payment_status = 'completed', registration_status = 'confirmed'
+ * 7. Confirm registration and increment current_registrations
+ * 8. Generate ticket and QR code
+ * 9. Send confirmation email
+ * 10. Return 200 OK
+ * 
+ * Webhook URL to configure in payment gateway:
+ *   POST https://your-domain.com/api/webhook/payment?secret=YOUR_WEBHOOK_SECRET
+ * 
+ * Headers expected:
+ *   Content-Type: application/json
+ *   X-Webhook-Secret: YOUR_WEBHOOK_SECRET (optional, can use query param)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -22,61 +35,83 @@ import {
   DATABASE_ID, 
   REGISTRATIONS_COLLECTION_ID,
   EVENTS_COLLECTION_ID,
-  SLOT_RESERVATIONS_COLLECTION_ID,
-  TICKETS_COLLECTION_ID,
   Query,
-  ID,
 } from '@/lib/api/appwrite-admin';
 import { logger } from '@/lib/api/logger';
 import { queuePaymentEmail } from '@/lib/emailQueue';
 import QRCode from 'qrcode';
+import { randomUUID, timingSafeEqual as cryptoTimingSafeEqual } from 'crypto';
 
 export const runtime = 'nodejs';
 
-// Webhook payload types based on the payment docs
+// Webhook payload types based on the payment gateway docs
 interface PaymentWebhookPayload {
   // Standard fields from payment gateway
   ticketId?: string;         // Human-readable ticket ID (e.g., TICKET1709123456789)
-  registration_id?: string;  // Internal registration ID
-  amount: number;
-  status: 'paid' | 'failed' | 'pending';
-  senderName?: string;
-  paidAt?: string;
-  transactionId?: string;
+  registration_id?: string;  // Internal registration ID (optional, for direct lookups)
+  amount: number;            // Paid amount (with decimal, e.g., 100.03)
+  status: 'paid' | 'failed' | 'pending' | 'cancelled';
+  senderName?: string;       // UPI sender name
+  paidAt?: string;           // ISO timestamp of payment
+  transactionId?: string;    // Bank transaction reference
+  rrn?: string;              // UPI Reference Number
+  upiId?: string;            // Payer's UPI ID
   
   // SMS-based payment detection (legacy format)
   sms?: string;
   body?: string;
   message?: string;
+  
+  // Webhook secret (can be in body as well)
+  secret_key?: string;
+}
+
+/**
+ * Timing-safe string comparison to prevent timing attacks
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    // Still do a comparison to maintain constant time
+    const dummy = Buffer.from(a);
+    const dummyB = Buffer.from(a);
+    cryptoTimingSafeEqual(dummy, dummyB);
+    return false;
+  }
+  return cryptoTimingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
 /**
  * Verify webhook secret for security
  */
-function verifyWebhookSecret(request: NextRequest): boolean {
+function verifyWebhookSecret(request: NextRequest, body?: PaymentWebhookPayload): boolean {
   const webhookSecret = process.env.WEBHOOK_SECRET;
   if (!webhookSecret) {
-    logger.warn('WEBHOOK_SECRET not configured');
+    logger.warn('WEBHOOK_SECRET not configured - rejecting all webhooks');
     return false;
   }
 
   // Check query param
   const url = new URL(request.url);
   const querySecret = url.searchParams.get('secret');
-  if (querySecret === webhookSecret) {
+  if (querySecret && timingSafeEqual(querySecret, webhookSecret)) {
     return true;
   }
 
-  // Check header
+  // Check header (X-Webhook-Secret)
   const headerSecret = request.headers.get('x-webhook-secret');
-  if (headerSecret === webhookSecret) {
+  if (headerSecret && timingSafeEqual(headerSecret, webhookSecret)) {
     return true;
   }
 
-  // Check authorization header
+  // Check authorization header (Bearer token)
   const authHeader = request.headers.get('authorization');
   const bearerToken = authHeader?.replace('Bearer ', '');
-  if (bearerToken === webhookSecret) {
+  if (bearerToken && timingSafeEqual(bearerToken, webhookSecret)) {
+    return true;
+  }
+
+  // Check body field (for payment gateway compatibility)
+  if (body?.secret_key && timingSafeEqual(body.secret_key, webhookSecret)) {
     return true;
   }
 
@@ -130,8 +165,17 @@ async function generateQRCode(ticketId: string, registrationId: string, eventId:
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   
-  // Verify webhook secret
-  if (!verifyWebhookSecret(request)) {
+  let payload: PaymentWebhookPayload;
+  
+  try {
+    payload = await request.json();
+  } catch (error) {
+    logger.warn('Invalid JSON in webhook payload');
+    return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+  }
+  
+  // Verify webhook secret (pass body for secret_key check)
+  if (!verifyWebhookSecret(request, payload)) {
     logger.warn('Unauthorized webhook attempt', {
       ip: request.headers.get('x-forwarded-for') || 'unknown',
     });
@@ -139,13 +183,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const payload: PaymentWebhookPayload = await request.json();
-    
     logger.info('Payment webhook received', {
       ticketId: payload.ticketId || 'N/A',
       registrationId: payload.registration_id || 'N/A',
       status: payload.status,
       amount: String(payload.amount),
+      rrn: payload.rrn || 'N/A',
     });
 
     // Handle SMS-based payment detection (legacy format)
@@ -212,29 +255,10 @@ export async function POST(request: NextRequest) {
       );
       
       if (result.documents.length === 0) {
-        // Also check in tickets collection
-        const ticketResult = await db.listDocuments(
-          DATABASE_ID,
-          TICKETS_COLLECTION_ID,
-          [
-            Query.equal('$id', ticketId),
-            Query.limit(1),
-          ]
+        return NextResponse.json(
+          { error: 'Registration not found for ticket' },
+          { status: 404 }
         );
-        
-        if (ticketResult.documents.length > 0) {
-          const ticket = ticketResult.documents[0];
-          registration = await db.getDocument(
-            DATABASE_ID,
-            REGISTRATIONS_COLLECTION_ID,
-            ticket.registration_id as string
-          );
-        } else {
-          return NextResponse.json(
-            { error: 'Registration not found for ticket' },
-            { status: 404 }
-          );
-        }
       } else {
         registration = result.documents[0];
       }
@@ -276,100 +300,44 @@ export async function POST(request: NextRequest) {
       eventId,
     });
 
-    // Convert any active reservation to confirmed
-    const reservations = await db.listDocuments(
+    // Increment current registrations on event
+    const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
+    const currentRegistrations = (event.current_registrations as number) || 0;
+    
+    await db.updateDocument(
       DATABASE_ID,
-      SLOT_RESERVATIONS_COLLECTION_ID,
-      [
-        Query.equal('event_id', eventId),
-        Query.equal('user_id', userId),
-        Query.equal('status', 'active'),
-        Query.limit(1),
-      ]
+      EVENTS_COLLECTION_ID,
+      eventId,
+      { current_registrations: currentRegistrations + 1 }
     );
 
-    if (reservations.documents.length > 0) {
-      const reservation = reservations.documents[0];
-      
-      // Mark reservation as converted
-      await db.updateDocument(
-        DATABASE_ID,
-        SLOT_RESERVATIONS_COLLECTION_ID,
-        reservation.$id,
-        { status: 'converted' }
-      );
-      
-      // Update event counters: decrement reserved_slots, increment current_registrations
-      const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-      const currentReserved = (event.reserved_slots as number) || 0;
-      const currentRegistrations = (event.current_registrations as number) || 0;
-      
-      await db.updateDocument(
-        DATABASE_ID,
-        EVENTS_COLLECTION_ID,
-        eventId,
-        {
-          reserved_slots: Math.max(0, currentReserved - 1),
-          current_registrations: currentRegistrations + 1,
-        }
-      );
-      
-      logger.info('Reservation converted and counters updated', {
-        reservationId: reservation.$id,
-        eventId,
-      });
-    } else {
-      // No reservation found, just increment current_registrations
-      const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-      const currentRegistrations = (event.current_registrations as number) || 0;
-      
-      await db.updateDocument(
-        DATABASE_ID,
-        EVENTS_COLLECTION_ID,
-        eventId,
-        { current_registrations: currentRegistrations + 1 }
-      );
-    }
-
-    // Generate ticket and QR code if not already exists
-    let ticketDoc = registration.ticket_id 
-      ? await db.getDocument(DATABASE_ID, TICKETS_COLLECTION_ID, registration.ticket_id as string).catch(() => null)
-      : null;
-
-    if (!ticketDoc) {
-      const newTicketId = ID.unique();
-      const qrCodeBase64 = await generateQRCode(newTicketId, registration.$id, eventId);
-      
+    // Ensure registration has ticket_id (ticket payload should already be embedded)
+    let ticketIdForResponse = registration.ticket_id as string | undefined;
+    if (!ticketIdForResponse) {
+      ticketIdForResponse = randomUUID();
       const qrData = JSON.stringify({
-        ticket_id: newTicketId,
+        ticket_id: ticketIdForResponse,
         registration_id: registration.$id,
         event_id: eventId,
         timestamp: new Date().toISOString(),
       });
-      
-      ticketDoc = await db.createDocument(
-        DATABASE_ID,
-        TICKETS_COLLECTION_ID,
-        newTicketId,
-        {
-          registration_id: registration.$id,
-          user_id: userId,
-          event_id: eventId,
-          qr_data: qrData,
-          qr_code_base64: qrCodeBase64,
-          is_scanned: false,
-        }
-      );
-      
-      // Update registration with ticket_id
       await db.updateDocument(
         DATABASE_ID,
         REGISTRATIONS_COLLECTION_ID,
         registration.$id,
-        { ticket_id: newTicketId }
+        {
+          ticket_id: ticketIdForResponse,
+          ticket: JSON.stringify({
+            ticket_id: ticketIdForResponse,
+            ticket_code: `TKT-${ticketIdForResponse.slice(0, 8).toUpperCase()}`,
+            qr_code: qrData,
+            qr_data: qrData,
+            issued_at: new Date().toISOString(),
+            is_scanned: false,
+          }),
+        }
       );
-      
-      logger.info('Ticket created', { ticketId: newTicketId, registrationId: registration.$id });
+      logger.info('Embedded ticket created on webhook', { ticketId: ticketIdForResponse, registrationId: registration.$id });
     }
 
     // Send confirmation email
@@ -395,10 +363,12 @@ export async function POST(request: NextRequest) {
             minute: '2-digit',
           }),
           event_venue: (event.venue as string) || 'TBA',
-          ticket_id: ticketDoc.$id,
-          ticket_url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/ticket/${ticketDoc.$id}`,
+          ticket_id: ticketIdForResponse,
+          ticket_url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/ticket/${ticketIdForResponse}`,
           amount_paid: amount || (event.price as number) || 0,
-          transaction_id: payload.transactionId || 'N/A',
+          transaction_id: payload.transactionId || payload.rrn || 'N/A',
+          payment_reference: payload.rrn || payload.transactionId || ticketId || 'N/A',
+          sender_name: payload.senderName || 'N/A',
         };
         
         queuePaymentEmail(
@@ -421,18 +391,18 @@ export async function POST(request: NextRequest) {
 
     const duration = Date.now() - startTime;
     
-    logger.info('Payment webhook processed successfully', {
-      registrationId: registration.$id,
-      ticketId: ticketDoc.$id,
-      duration: String(duration),
-    });
+      logger.info('Payment webhook processed successfully', {
+        registrationId: registration.$id,
+        ticketId: ticketIdForResponse,
+        duration: String(duration),
+      });
 
     return NextResponse.json({
-      success: true,
-      registration_id: registration.$id,
-      ticket_id: ticketDoc.$id,
-      status: 'confirmed',
-    });
+        success: true,
+        registration_id: registration.$id,
+        ticket_id: ticketIdForResponse,
+        status: 'confirmed',
+      });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

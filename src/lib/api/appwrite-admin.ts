@@ -1,4 +1,11 @@
 import { Client, Databases, Users, ID, Query } from "node-appwrite";
+import {
+  DATABASE_ID as CANONICAL_DATABASE_ID,
+  EVENTS_COLLECTION_ID as CANONICAL_EVENTS_COLLECTION_ID,
+  REGISTRATIONS_COLLECTION_ID as CANONICAL_REGISTRATIONS_COLLECTION_ID,
+  EMAIL_TEMPLATES_COLLECTION_ID as CANONICAL_EMAIL_TEMPLATES_COLLECTION_ID,
+  SOCIETIES_COLLECTION_ID as CANONICAL_SOCIETIES_COLLECTION_ID,
+} from "@/lib/constants/collections";
 
 // Environment variables
 const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "";
@@ -6,25 +13,16 @@ const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || "";
 const API_KEY = process.env.APPWRITE_API_KEY || "";
 
 // Database and collection IDs
-export const DATABASE_ID =
-  process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || "ieee_sahrdaya_db";
-export const EVENTS_COLLECTION_ID =
-  process.env.NEXT_PUBLIC_APPWRITE_EVENTS_COLLECTION_ID || "events";
-export const REGISTRATIONS_COLLECTION_ID =
-  process.env.NEXT_PUBLIC_APPWRITE_REGISTRATIONS_COLLECTION_ID ||
-  "registrations";
-export const EVENT_REGISTRATIONS_COLLECTION_ID = REGISTRATIONS_COLLECTION_ID; // Alias for backwards compatibility
-export const TICKETS_COLLECTION_ID =
-  process.env.NEXT_PUBLIC_APPWRITE_TICKETS_COLLECTION_ID || "tickets";
-export const SLOT_RESERVATIONS_COLLECTION_ID =
-  process.env.NEXT_PUBLIC_APPWRITE_SLOT_RESERVATIONS_COLLECTION_ID ||
-  "slot_reservations";
-export const EMAIL_TEMPLATES_COLLECTION_ID =
-  process.env.NEXT_PUBLIC_APPWRITE_EMAIL_TEMPLATES_COLLECTION_ID ||
-  "email_templates";
-export const EVENT_METADATA_COLLECTION_ID =
-  process.env.NEXT_PUBLIC_APPWRITE_EVENT_METADATA_COLLECTION_ID ||
-  "event_metadata";
+export const DATABASE_ID = CANONICAL_DATABASE_ID;
+
+// Core collections (post-migration)
+export const EVENTS_COLLECTION_ID = CANONICAL_EVENTS_COLLECTION_ID;
+export const REGISTRATIONS_COLLECTION_ID = CANONICAL_REGISTRATIONS_COLLECTION_ID;
+export const EMAIL_TEMPLATES_COLLECTION_ID = CANONICAL_EMAIL_TEMPLATES_COLLECTION_ID;
+export const SOCIETIES_COLLECTION_ID = CANONICAL_SOCIETIES_COLLECTION_ID;
+
+// Backwards compatibility aliases
+export const EVENT_REGISTRATIONS_COLLECTION_ID = REGISTRATIONS_COLLECTION_ID;
 
 // Singleton admin client
 let adminClient: Client | null = null;
@@ -54,11 +52,17 @@ export function getUsers(): Users {
 
 export { ID, Query };
 
-// Event document type
+// ============================================================================
+// Consolidated Event Document Type (post-migration)
+// Includes fields merged from event_metadata
+// ============================================================================
+
 export interface EventDocument {
   $id: string;
   $createdAt: string;
   $updatedAt: string;
+  
+  // Basic info
   title: string;
   description?: string;
   date: string;
@@ -66,72 +70,151 @@ export interface EventDocument {
   price: number;
   banner_url?: string;
   society_id: string;
-  status: "draft" | "published" | "archived" | "completed";
+  status: "draft" | "published" | "archived" | "completed" | "cancelled";
+  
+  // Capacity (consolidated)
   max_capacity?: number;
+  registered_count?: number; // Renamed from current_registrations
+  checked_in_count?: number; // Renamed from total_checked_in
+  
+  // Legacy fields (for backwards compatibility)
   current_registrations?: number;
-  reserved_slots?: number;
-  registration_deadline?: string;
-  form_template?: string; // JSON string of form questions
-}
-
-// Event metadata document type (stored in separate collection)
-export interface EventMetadataDocument {
-  $id: string;
-  $createdAt: string;
-  $updatedAt: string;
-  event_id: string;
+  
+  // Registration settings (merged from event_metadata)
   registration_start?: string;
   registration_deadline?: string;
   registration_open?: boolean;
-  max_capacity?: number;
-  current_registrations?: number;
-  reserved_slots?: number;
-  total_registrations?: number;
-  total_checked_in?: number;
-  enable_waitlist?: boolean;
-  waitlist_limit?: number;
-  waitlist_count?: number;
-  price?: number;
-  requires_payment?: boolean;
+  form_template?: string;
+  form_template_id?: string;
+  
+  // Pricing (merged from event_metadata)
+  is_paid?: boolean; // Renamed from requires_payment
+  requires_payment?: boolean; // Legacy
+  ieee_member_price?: number;
+  non_member_price?: number;
   early_bird_price?: number;
   early_bird_deadline?: string;
   pricing_tiers?: string;
-  form_template_id?: string;
+  currency?: string;
+  
+  // Waitlist (merged from event_metadata)
+  enable_waitlist?: boolean;
+  allow_waitlist?: boolean; // Alias
+  waitlist_limit?: number;
+  waitlist_count?: number;
+  
+  // Timing (merged from event_metadata)
   end_date?: string;
+  timezone?: string;
+  
+  // Check-in settings (merged from event_metadata)
   check_in_enabled?: boolean;
   self_check_in?: boolean;
+  
+  // Contact (merged from event_metadata)
   contact_email?: string;
   contact_phone?: string;
-  tags?: string;
   external_link?: string;
+  
+  // Content (merged from event_metadata)
+  tags?: string;
+  category?: string;
+  speakers?: string; // JSON string
+  schedule?: string; // JSON string
+  faqs?: string; // JSON string
+  
+  // Soft delete
   is_deleted?: boolean;
   deleted_at?: string;
 }
 
-// Combined event with metadata
-export interface EventWithMetadata extends EventDocument {
-  metadata?: EventMetadataDocument;
+// ============================================================================
+// Embedded Ticket Type (replaces separate tickets collection)
+// ============================================================================
+
+export interface EmbeddedTicket {
+  ticket_id: string;
+  ticket_code: string;
+  qr_code: string;
+  qr_data?: string;
+  issued_at: string;
+  expires_at?: string;
+  is_scanned?: boolean;
+  scanned_at?: string;
 }
 
-// Registration document type
+// ============================================================================
+// Consolidated Registration Document Type (post-migration)
+// Includes embedded ticket
+// ============================================================================
+
 export interface RegistrationDocument {
   $id: string;
   $createdAt: string;
   $updatedAt: string;
   user_id: string;
   event_id: string;
-  form_data: string; // JSON string
-  payment_status: "pending" | "completed" | "failed" | "refunded";
-  registration_status: "reserved" | "confirmed" | "cancelled" | "expired";
-  ticket_id?: string;
-  reservation_expires_at?: string;
-  // Check-in fields
+  
+  // User info (denormalized)
+  user_name?: string;
+  user_email?: string;
+  user_phone?: string;
+  
+  // Form data - supports both old and new field names
+  form_responses: string; // JSON string (new schema)
+  form_data?: string; // JSON string (legacy alias for backward compatibility)
+  
+  // Status
+  payment_status: "pending" | "paid" | "completed" | "failed" | "refunded" | "not_required";
+  registration_status: "pending" | "confirmed" | "cancelled" | "expired" | "waitlisted";
+  
+  // Embedded ticket (NEW - merged from tickets collection)
+  ticket?: string; // JSON string of EmbeddedTicket
+  ticket_id?: string; // Legacy reference, now points to embedded ticket ID
+  
+  registration_date?: string;
+  
+  // Check-in fields (all check-in state stored here, no separate check_in_logs)
   checked_in?: boolean;
   checked_in_at?: string;
   checked_in_by?: string;
+  last_check_in_location?: string; // Optional; only if collection has this attribute
+  
+  /** Legacy check-in timestamp field available in current production schema. */
+  check_in_time?: string;
+  
+  /**
+   * JSON string storing multi-location check-in timeline.
+   * Format: CheckInHistoryEntry[] serialized as JSON.
+   * Enables tracking check-ins at different locations (entrance, food-court-1, workshop-1, etc.)
+   */
+  check_in_history?: string;
+  
+  // Payment details
+  payment_ticket_id?: string;
 }
 
-// Ticket document type
+/**
+ * Normalized ticket shape for consistent consumption
+ * Works regardless of whether ticket is embedded or from legacy collection
+ */
+export interface NormalizedTicket {
+  id: string;
+  code: string;
+  qr_data: string;
+  registration_id: string;
+  user_id: string;
+  event_id: string;
+  issued_at: string;
+  expires_at?: string;
+  is_scanned: boolean;
+  scanned_at?: string;
+  source: 'embedded';
+}
+
+/**
+ * @deprecated Tickets are now embedded in RegistrationDocument as 'ticket' field
+ */
 export interface TicketDocument {
   $id: string;
   $createdAt: string;
@@ -139,20 +222,12 @@ export interface TicketDocument {
   registration_id: string;
   user_id: string;
   event_id: string;
+  ticket_code?: string;
   qr_data: string;
-  qr_code_base64?: string; // Base64 PNG image
+  qr_code_base64?: string;
   is_scanned: boolean;
   scanned_at?: string;
-}
-
-// Slot reservation document type
-export interface SlotReservationDocument {
-  $id: string;
-  $createdAt: string;
-  event_id: string;
-  user_id: string;
-  expires_at: string;
-  status: "active" | "converted" | "expired";
+  issued_at?: string;
 }
 
 /**
@@ -248,17 +323,29 @@ export async function createRegistration(data: {
   event_id: string;
   form_data: Record<string, unknown>;
   payment_status: "pending" | "completed";
-  registration_status: "reserved" | "confirmed";
-  reservation_expires_at?: string;
+  registration_status: "pending" | "confirmed";
 }): Promise<RegistrationDocument> {
   const db = getDatabases();
+  
+  // Map form_data API payload to Appwrite schema fields
+  const userName = String(data.form_data.name || "Unknown");
+  const userEmail = String(data.form_data.email || "");
+  const userPhone = String(data.form_data.phone || "");
+  
   const doc = await db.createDocument(
     DATABASE_ID,
     REGISTRATIONS_COLLECTION_ID,
     ID.unique(),
     {
-      ...data,
-      form_data: JSON.stringify(data.form_data),
+      user_id: data.user_id,
+      event_id: data.event_id,
+      user_name: userName,
+      user_email: userEmail,
+      user_phone: userPhone,
+      form_responses: JSON.stringify(data.form_data), // Use form_responses to match schema
+      payment_status: data.payment_status === "completed" ? "paid" : "pending",
+      registration_status: data.registration_status,
+      registration_date: new Date().toISOString()
     },
   );
 
@@ -275,14 +362,15 @@ export async function updateRegistration(
     payment_status: string;
     registration_status: string;
     ticket_id: string;
-    reservation_expires_at: string;
+    payment_ticket_id: string;
   }>,
 ): Promise<RegistrationDocument> {
   const db = getDatabases();
   const updateData: Record<string, unknown> = { ...data };
 
   if (data.form_data) {
-    updateData.form_data = JSON.stringify(data.form_data);
+    updateData.form_responses = JSON.stringify(data.form_data); // Use form_responses to match schema
+    delete updateData.form_data; // Remove form_data from update payload
   }
 
   const doc = await db.updateDocument(
@@ -297,12 +385,13 @@ export async function updateRegistration(
 
 /**
  * Create ticket for a registration
+ * Post-migration: Embeds ticket in registration only (no legacy collection)
  */
 export async function createTicket(data: {
   registration_id: string;
   user_id: string;
   event_id: string;
-  qr_code_base64?: string;
+  qr_code_base64?: string; // Not stored in DB - generated on-demand
 }): Promise<TicketDocument> {
   const db = getDatabases();
   const ticketId = ID.unique();
@@ -315,48 +404,117 @@ export async function createTicket(data: {
     timestamp: new Date().toISOString(),
   });
 
-  const doc = await db.createDocument(
+  // Generate a random 8-character ticket code
+  const ticketCode = "TKT-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+  const issuedAt = new Date().toISOString();
+
+  // Create embedded ticket object for registration
+  const embeddedTicket: EmbeddedTicket = {
+    ticket_id: ticketId,
+    ticket_code: ticketCode,
+    qr_code: qrData,
+    qr_data: qrData,
+    issued_at: issuedAt,
+    is_scanned: false,
+  };
+
+  // Embed ticket in registration (simplified schema - only source of truth)
+  await db.updateDocument(
     DATABASE_ID,
-    TICKETS_COLLECTION_ID,
-    ticketId,
+    REGISTRATIONS_COLLECTION_ID,
+    data.registration_id,
     {
-      registration_id: data.registration_id,
-      user_id: data.user_id,
-      event_id: data.event_id,
-      qr_data: qrData,
-      qr_code_base64: data.qr_code_base64 || "",
-      is_scanned: false,
-    },
+      ticket: JSON.stringify(embeddedTicket),
+      ticket_id: ticketId,
+    }
   );
 
-  return doc as unknown as TicketDocument;
+  // Return TicketDocument-compatible shape from embedded data
+  return {
+    $id: ticketId,
+    $createdAt: issuedAt,
+    $updatedAt: issuedAt,
+    registration_id: data.registration_id,
+    user_id: data.user_id,
+    event_id: data.event_id,
+    ticket_code: ticketCode,
+    qr_data: qrData,
+    is_scanned: false,
+    issued_at: issuedAt,
+  };
 }
 
 /**
  * Get ticket by registration ID
+ * Post-migration: Reads from registration.ticket only (no legacy fallback)
  */
 export async function getTicketByRegistration(
   registrationId: string,
 ): Promise<TicketDocument | null> {
   const db = getDatabases();
-  const result = await db.listDocuments(DATABASE_ID, TICKETS_COLLECTION_ID, [
-    Query.equal("registration_id", registrationId),
-    Query.limit(1),
-  ]);
+  
+  // Get embedded ticket from registration (only source)
+  try {
+    const registration = await db.getDocument(
+      DATABASE_ID,
+      REGISTRATIONS_COLLECTION_ID,
+      registrationId
+    );
+    
+    const ticketJson = registration.ticket as string | undefined;
+    if (ticketJson) {
+      const embedded = JSON.parse(ticketJson) as EmbeddedTicket;
+      // Convert embedded ticket to TicketDocument format
+      return {
+        $id: embedded.ticket_id,
+        $createdAt: embedded.issued_at,
+        $updatedAt: embedded.issued_at,
+        registration_id: registrationId,
+        user_id: registration.user_id as string,
+        event_id: registration.event_id as string,
+        ticket_code: embedded.ticket_code,
+        qr_data: embedded.qr_code,
+        is_scanned: embedded.is_scanned || false,
+        scanned_at: embedded.scanned_at,
+        issued_at: embedded.issued_at,
+      };
+    }
 
-  return result.documents.length > 0
-    ? (result.documents[0] as unknown as TicketDocument)
-    : null;
+    // Legacy fallback: registration may only have denormalized ticket_id
+    const legacyTicketId = registration.ticket_id as string | undefined;
+    if (legacyTicketId) {
+      const issuedAt = (registration.registration_date as string | undefined) || registration.$createdAt;
+      const ticketCode = `TKT-${legacyTicketId.slice(-8).toUpperCase()}`;
+      return {
+        $id: legacyTicketId,
+        $createdAt: issuedAt,
+        $updatedAt: issuedAt,
+        registration_id: registrationId,
+        user_id: registration.user_id as string,
+        event_id: registration.event_id as string,
+        ticket_code: ticketCode,
+        qr_data: legacyTicketId,
+        is_scanned: Boolean(registration.checked_in),
+        scanned_at: registration.checked_in_at || registration.check_in_time || undefined,
+        issued_at: issuedAt,
+      };
+    }
+  } catch (error) {
+    const appwriteError = error as { code?: number };
+    if (appwriteError.code !== 404) {
+      throw error;
+    }
+  }
+  
+  return null;
 }
 
 /**
  * Get available capacity for an event
- * Takes into account current registrations and active slot reservations
  */
 export async function getEventCapacity(event: EventDocument): Promise<{
   max_capacity: number;
   current_registrations: number;
-  reserved_slots: number;
   available: number;
   is_full: boolean;
 }> {
@@ -367,7 +525,6 @@ export async function getEventCapacity(event: EventDocument): Promise<{
     return {
       max_capacity: 0,
       current_registrations: event.current_registrations || 0,
-      reserved_slots: 0,
       available: Infinity,
       is_full: false,
     };
@@ -387,161 +544,14 @@ export async function getEventCapacity(event: EventDocument): Promise<{
   );
   const currentRegistrations = registrationsResult.total;
 
-  // Count active slot reservations (not expired)
-  const now = new Date().toISOString();
-  const reservationsResult = await db.listDocuments(
-    DATABASE_ID,
-    SLOT_RESERVATIONS_COLLECTION_ID,
-    [
-      Query.equal("event_id", event.$id),
-      Query.equal("status", "active"),
-      Query.greaterThan("expires_at", now),
-      Query.limit(1),
-    ],
-  );
-  const reservedSlots = reservationsResult.total;
-
-  const available = maxCapacity - currentRegistrations - reservedSlots;
+  const available = maxCapacity - currentRegistrations;
 
   return {
     max_capacity: maxCapacity,
     current_registrations: currentRegistrations,
-    reserved_slots: reservedSlots,
     available: Math.max(0, available),
     is_full: available <= 0,
   };
-}
-
-/**
- * Reserve a slot for an event (with optimistic locking to prevent race conditions)
- * Uses retry mechanism if concurrent modification is detected
- * Returns the reservation document if successful
- */
-export async function reserveSlot(
-  eventId: string,
-  userId: string,
-  expiresInMinutes: number = 5,
-  maxRetries: number = 3,
-): Promise<SlotReservationDocument | null> {
-  const db = getDatabases();
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + expiresInMinutes * 60 * 1000);
-
-  // Check for existing active reservation
-  const existingResult = await db.listDocuments(
-    DATABASE_ID,
-    SLOT_RESERVATIONS_COLLECTION_ID,
-    [
-      Query.equal("event_id", eventId),
-      Query.equal("user_id", userId),
-      Query.equal("status", "active"),
-      Query.greaterThan("expires_at", now.toISOString()),
-      Query.limit(1),
-    ],
-  );
-
-  if (existingResult.documents.length > 0) {
-    return existingResult.documents[0] as unknown as SlotReservationDocument;
-  }
-
-  // Get event to check capacity - capture current reserved_slots for optimistic locking
-  const event = await getEvent(eventId);
-  if (!event) return null;
-
-  const capacity = await getEventCapacity(event);
-  if (capacity.is_full) return null;
-
-  // Store the current reserved_slots value for optimistic locking
-  const expectedReservedSlots = event.reserved_slots || 0;
-
-  try {
-    // Atomically increment reserved_slots on the event with optimistic locking
-    // This ensures we don't create a reservation if another request modified the count
-    const updatedEvent = await db.updateDocument(
-      DATABASE_ID,
-      EVENTS_COLLECTION_ID,
-      eventId,
-      {
-        reserved_slots: expectedReservedSlots + 1,
-      },
-    );
-
-    // Verify the update was successful (reserved_slots should be what we set)
-    if ((updatedEvent.reserved_slots as number) !== expectedReservedSlots + 1) {
-      // Concurrent modification detected, retry
-      if (maxRetries > 0) {
-        // Small delay before retry to reduce contention
-        await new Promise((resolve) =>
-          setTimeout(resolve, 50 + Math.random() * 100),
-        );
-        return reserveSlot(eventId, userId, expiresInMinutes, maxRetries - 1);
-      }
-      return null; // Max retries exceeded
-    }
-
-    // Create reservation document
-    const doc = await db.createDocument(
-      DATABASE_ID,
-      SLOT_RESERVATIONS_COLLECTION_ID,
-      ID.unique(),
-      {
-        event_id: eventId,
-        user_id: userId,
-        expires_at: expiresAt.toISOString(),
-        status: "active",
-      },
-    );
-
-    return doc as unknown as SlotReservationDocument;
-  } catch (error) {
-    // If update failed due to concurrent modification or other error, retry
-    const appwriteError = error as { code?: number; message?: string };
-
-    // Check if it's a conflict error or document was modified
-    if (
-      maxRetries > 0 &&
-      (appwriteError.code === 409 ||
-        appwriteError.message?.includes("conflict"))
-    ) {
-      // Small delay before retry to reduce contention
-      await new Promise((resolve) =>
-        setTimeout(resolve, 50 + Math.random() * 100),
-      );
-      return reserveSlot(eventId, userId, expiresInMinutes, maxRetries - 1);
-    }
-
-    throw error;
-  }
-}
-
-/**
- * Convert a slot reservation to confirmed registration
- */
-export async function convertReservation(reservationId: string): Promise<void> {
-  const db = getDatabases();
-  await db.updateDocument(
-    DATABASE_ID,
-    SLOT_RESERVATIONS_COLLECTION_ID,
-    reservationId,
-    {
-      status: "converted",
-    },
-  );
-}
-
-/**
- * Expire a slot reservation
- */
-export async function expireReservation(reservationId: string): Promise<void> {
-  const db = getDatabases();
-  await db.updateDocument(
-    DATABASE_ID,
-    SLOT_RESERVATIONS_COLLECTION_ID,
-    reservationId,
-    {
-      status: "expired",
-    },
-  );
 }
 
 /**
@@ -553,12 +563,9 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
     const memberships = await users.listMemberships(userId);
     return memberships.memberships.some(
       (m) => m.teamId === "admins" || m.teamName?.toLowerCase() === "admins",
-      console.log("Appwrite Error:", memberships),
     );
-  } catch {
-    const users = getUsers();
-    const memberships = await users.listMemberships(userId);
-    console.log("Appwrite Error:", memberships.memberships);
+  } catch (error) {
+    console.error("Error checking admin status:", error);
     return false;
   }
 }
@@ -569,205 +576,544 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
 export async function getTicket(
   ticketId: string,
 ): Promise<TicketDocument | null> {
-  try {
-    const db = getDatabases();
-    const doc = await db.getDocument(
-      DATABASE_ID,
-      TICKETS_COLLECTION_ID,
-      ticketId,
-    );
-    return doc as unknown as TicketDocument;
-  } catch (error) {
-    const appwriteError = error as { code?: number };
-    if (appwriteError.code === 404) {
-      return null;
-    }
-    throw error;
-  }
-}
+  const result = await getNormalizedTicketById(ticketId);
+  if (!result) return null;
 
-/**
- * Get event metadata by event ID
- */
-export async function getEventMetadata(
-  eventId: string,
-): Promise<EventMetadataDocument | null> {
-  try {
-    const db = getDatabases();
-    const result = await db.listDocuments(
-      DATABASE_ID,
-      EVENT_METADATA_COLLECTION_ID,
-      [Query.equal("event_id", eventId), Query.limit(1)],
-    );
-
-    return result.documents.length > 0
-      ? (result.documents[0] as unknown as EventMetadataDocument)
-      : null;
-  } catch (error) {
-    const appwriteError = error as { code?: number };
-    if (appwriteError.code === 404) {
-      return null;
-    }
-    throw error;
-  }
-}
-
-/**
- * Get event with metadata combined
- * Fetches both the event document and its metadata, merging them
- */
-export async function getEventWithMetadata(
-  eventId: string,
-): Promise<EventWithMetadata | null> {
-  const event = await getEvent(eventId);
-  if (!event) return null;
-
-  const metadata = await getEventMetadata(eventId);
-
-  // Merge event with metadata, using metadata values where they exist
+  const { ticket, registration } = result;
   return {
-    ...event,
-    metadata: metadata || undefined,
-    // Override event fields with metadata if available
-    max_capacity: metadata?.max_capacity ?? event.max_capacity,
-    current_registrations:
-      metadata?.current_registrations ?? event.current_registrations,
-    reserved_slots: metadata?.reserved_slots ?? event.reserved_slots,
-    registration_deadline:
-      metadata?.registration_deadline ?? event.registration_deadline,
-    price: metadata?.price ?? event.price,
+    $id: ticket.id,
+    $createdAt: ticket.issued_at,
+    $updatedAt: ticket.scanned_at || ticket.issued_at,
+    registration_id: registration.$id,
+    user_id: ticket.user_id,
+    event_id: ticket.event_id,
+    ticket_code: ticket.code,
+    qr_data: ticket.qr_data,
+    is_scanned: ticket.is_scanned,
+    scanned_at: ticket.scanned_at,
+    issued_at: ticket.issued_at,
   };
 }
 
-/**
- * Create event metadata
- */
-export async function createEventMetadata(data: {
-  event_id: string;
-  registration_deadline?: string;
-  max_capacity?: number;
-  current_registrations?: number;
-  reserved_slots?: number;
-  price?: number;
-  requires_payment?: boolean;
-  enable_waitlist?: boolean;
-  waitlist_limit?: number;
-  form_template_id?: string;
-  check_in_enabled?: boolean;
-  self_check_in?: boolean;
-  contact_email?: string;
-  contact_phone?: string;
-  tags?: string;
-  external_link?: string;
-}): Promise<EventMetadataDocument> {
-  const db = getDatabases();
-  const doc = await db.createDocument(
-    DATABASE_ID,
-    EVENT_METADATA_COLLECTION_ID,
-    ID.unique(),
-    data,
-  );
+// ============================================================================
+// New Consolidated Schema Helper Functions (Post-Migration)
+// ============================================================================
 
-  return doc as unknown as EventMetadataDocument;
+/**
+ * Parse embedded ticket from registration document
+ */
+export function parseEmbeddedTicket(registration: RegistrationDocument): EmbeddedTicket | null {
+  if (!registration.ticket) return null;
+  try {
+    return JSON.parse(registration.ticket) as EmbeddedTicket;
+  } catch {
+    return null;
+  }
+}
+
+// ============================================================================
+// Check-in History Helpers (multi-location timeline support)
+// ============================================================================
+
+/**
+ * Single check-in entry in the timeline
+ */
+export interface CheckInHistoryEntry {
+  location: string;
+  checked_in_at: string;
+  checked_in_by?: string;
 }
 
 /**
- * Update event metadata
+ * Location recency metadata for UI display
  */
-export async function updateEventMetadata(
-  eventId: string,
-  data: Partial<
-    Omit<
-      EventMetadataDocument,
-      "$id" | "$createdAt" | "$updatedAt" | "event_id"
-    >
-  >,
-): Promise<EventMetadataDocument | null> {
-  const db = getDatabases();
+export interface LocationRecencyInfo {
+  location: string;
+  checkedInAt: string;
+  timeAgo: string;
+}
 
-  // Find existing metadata
-  const existing = await getEventMetadata(eventId);
-
-  if (existing) {
-    // Update existing
-    const doc = await db.updateDocument(
-      DATABASE_ID,
-      EVENT_METADATA_COLLECTION_ID,
-      existing.$id,
-      data,
+/**
+ * Parse check-in history from registration
+ * Returns empty array if missing or malformed
+ */
+export function parseCheckInHistory(registration: RegistrationDocument): CheckInHistoryEntry[] {
+  if (!registration.check_in_history) return [];
+  try {
+    const parsed = JSON.parse(registration.check_in_history);
+    if (!Array.isArray(parsed)) return [];
+    // Validate entries have required fields
+    return parsed.filter(
+      (entry): entry is CheckInHistoryEntry =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        typeof entry.location === 'string' &&
+        typeof entry.checked_in_at === 'string'
     );
-    return doc as unknown as EventMetadataDocument;
-  } else {
-    // Create new metadata if doesn't exist
-    return createEventMetadata({ event_id: eventId, ...data });
+  } catch {
+    return [];
   }
 }
 
 /**
- * Get event capacity using metadata collection
- * Takes into account current registrations and active slot reservations
+ * Serialize check-in history to JSON string for storage
  */
-export async function getEventCapacityWithMetadata(
-  event: EventWithMetadata,
-): Promise<{
-  max_capacity: number;
-  current_registrations: number;
-  reserved_slots: number;
-  available: number;
-  is_full: boolean;
-}> {
-  // Prefer metadata values over event values
-  const maxCapacity = event.metadata?.max_capacity ?? event.max_capacity ?? 0;
+export function serializeCheckInHistory(history: CheckInHistoryEntry[]): string {
+  return JSON.stringify(history);
+}
 
-  // Unlimited capacity
-  if (maxCapacity === 0) {
-    return {
-      max_capacity: 0,
-      current_registrations:
-        event.metadata?.current_registrations ??
-        event.current_registrations ??
-        0,
-      reserved_slots: 0,
-      available: Infinity,
-      is_full: false,
-    };
+/**
+ * Append a new check-in entry to history
+ * Safe: handles missing/malformed existing history
+ */
+export function appendCheckInHistory(
+  existingHistoryJson: string | undefined,
+  newEntry: CheckInHistoryEntry
+): string {
+  let history: CheckInHistoryEntry[] = [];
+  
+  if (existingHistoryJson) {
+    try {
+      const parsed = JSON.parse(existingHistoryJson);
+      if (Array.isArray(parsed)) {
+        history = parsed.filter(
+          (entry): entry is CheckInHistoryEntry =>
+            typeof entry === 'object' &&
+            entry !== null &&
+            typeof entry.location === 'string' &&
+            typeof entry.checked_in_at === 'string'
+        );
+      }
+    } catch {
+      // Start fresh if malformed
+    }
+  }
+  
+  history.push(newEntry);
+  return JSON.stringify(history);
+}
+
+/**
+ * Format time ago string for human-readable display
+ */
+export function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const secondsAgo = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (secondsAgo < 60) {
+    return `${secondsAgo} second${secondsAgo !== 1 ? 's' : ''} ago`;
+  } else if (secondsAgo < 3600) {
+    const minutes = Math.floor(secondsAgo / 60);
+    return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+  } else {
+    const hours = Math.floor(secondsAgo / 3600);
+    return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+  }
+}
+
+/**
+ * Get location recency info from check-in history
+ * Returns per-location latest check-in timestamp with human-readable time
+ */
+export function getLocationRecency(
+  registration: RegistrationDocument
+): LocationRecencyInfo[] {
+  const history = parseCheckInHistory(registration);
+  
+  // Build map of latest check-in per location
+  const locationMap = new Map<string, string>();
+  for (const entry of history) {
+    const existing = locationMap.get(entry.location);
+    if (!existing || entry.checked_in_at > existing) {
+      locationMap.set(entry.location, entry.checked_in_at);
+    }
+  }
+  
+  // Convert to recency info array sorted by most recent first
+  const result: LocationRecencyInfo[] = [];
+  Array.from(locationMap.entries()).forEach(([location, checkedInAt]) => {
+    result.push({
+      location,
+      checkedInAt,
+      timeAgo: formatTimeAgo(new Date(checkedInAt)),
+    });
+  });
+  
+  return result.sort((a, b) => b.checkedInAt.localeCompare(a.checkedInAt));
+}
+
+/**
+ * Build schema-safe check-in update payload
+ * Includes history append with fallback if attribute doesn't exist
+ */
+export function buildCheckInUpdatePayload(
+  registration: RegistrationDocument,
+  location: string,
+  checkedInBy: string
+): Record<string, unknown> {
+  const now = new Date().toISOString();
+  const effectiveLocation = location?.trim() || 'entrance';
+  
+  // Always-safe fields from current schema
+  const payload: Record<string, unknown> = {
+    checked_in: true,
+    check_in_time: now,
+    checked_in_by: checkedInBy,
+    last_check_in_location: effectiveLocation,
+  };
+  
+  // Build new history entry
+  const newEntry: CheckInHistoryEntry = {
+    location: effectiveLocation,
+    checked_in_at: now,
+    checked_in_by: checkedInBy,
+  };
+  
+  // Append to existing history (safe even if field doesn't exist in schema)
+  payload.check_in_history = appendCheckInHistory(registration.check_in_history, newEntry);
+  
+  return payload;
+}
+
+/**
+ * Increment event registration count (denormalized counter)
+ */
+export async function incrementEventRegistrationCount(eventId: string): Promise<void> {
+  const db = getDatabases();
+  const event = await getEvent(eventId);
+  if (!event) return;
+  const eventRecord = event as unknown as Record<string, unknown>;
+
+  if ('current_registrations' in eventRecord) {
+    const currentCount = Number(eventRecord.current_registrations || 0);
+    await db.updateDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId, {
+      current_registrations: currentCount + 1,
+    });
+    return;
   }
 
-  const db = getDatabases();
+  if ('registered_count' in eventRecord) {
+    const currentCount = Number(eventRecord.registered_count || 0);
+    await db.updateDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId, {
+      registered_count: currentCount + 1,
+    });
+  }
+}
 
-  // Count confirmed registrations
-  const registrationsResult = await db.listDocuments(
+/**
+ * Increment event check-in count (denormalized counter)
+ */
+export async function incrementEventCheckInCount(eventId: string): Promise<void> {
+  const db = getDatabases();
+  const event = await getEvent(eventId);
+  if (!event) return;
+  const eventRecord = event as unknown as Record<string, unknown>;
+
+  if ('checked_in_count' in eventRecord) {
+    const currentCount = Number(eventRecord.checked_in_count || 0);
+    await db.updateDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId, {
+      checked_in_count: currentCount + 1,
+    });
+    return;
+  }
+
+  if ('total_checked_in' in eventRecord) {
+    const currentCount = Number(eventRecord.total_checked_in || 0);
+    await db.updateDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId, {
+      total_checked_in: currentCount + 1,
+    });
+  }
+}
+
+/**
+ * Mark registration as checked in
+ * All check-in state is stored in the registration document (no separate check_in_logs)
+ */
+export async function markRegistrationCheckedIn(
+  registrationId: string,
+  performedBy: { userId: string; name?: string; method?: 'qr_scan' | 'manual' },
+  _options?: { location?: string; notes?: string }
+): Promise<RegistrationDocument> {
+  const db = getDatabases();
+  const now = new Date().toISOString();
+
+  // Build update payload
+  const updatePayload: Record<string, unknown> = {
+    checked_in: true,
+    check_in_time: now,
+    checked_in_by: performedBy.userId,
+  };
+
+  // Update registration with all check-in state
+  const registration = await db.updateDocument(
     DATABASE_ID,
     REGISTRATIONS_COLLECTION_ID,
-    [
-      Query.equal("event_id", event.$id),
-      Query.equal("registration_status", "confirmed"),
-      Query.limit(1),
-    ],
-  );
-  const currentRegistrations = registrationsResult.total;
+    registrationId,
+    updatePayload
+  ) as unknown as RegistrationDocument;
 
-  // Count active slot reservations (not expired)
+  // No check-in log creation - all state in registration
+
+  // Increment event counter
+  await incrementEventCheckInCount(registration.event_id);
+
+  return registration;
+}
+
+// ============================================================================
+// Ticket Normalization Helpers
+// ============================================================================
+
+/**
+ * Get normalized ticket from registration
+ * Reads from embedded registration ticket only
+ */
+export async function getNormalizedTicket(
+  registrationId: string
+): Promise<NormalizedTicket | null> {
+  const db = getDatabases();
+  
+  // First try embedded ticket from registration
+  try {
+    const registration = await db.getDocument(
+      DATABASE_ID,
+      REGISTRATIONS_COLLECTION_ID,
+      registrationId
+    ) as unknown as RegistrationDocument;
+    
+    const embedded = parseEmbeddedTicket(registration);
+    if (embedded) {
+      return {
+        id: embedded.ticket_id,
+        code: embedded.ticket_code,
+        qr_data: embedded.qr_data || embedded.qr_code,
+        registration_id: registrationId,
+        user_id: registration.user_id,
+        event_id: registration.event_id,
+        issued_at: embedded.issued_at,
+        expires_at: embedded.expires_at,
+        is_scanned: embedded.is_scanned || false,
+        scanned_at: embedded.scanned_at,
+        source: 'embedded',
+      };
+    }
+  } catch {
+    // Registration not found or unreadable
+  }
+  
+  return null;
+}
+
+/**
+ * Get normalized ticket by ticket ID
+ * Searches embedded tickets via registrations
+ */
+export async function getNormalizedTicketById(
+  ticketId: string
+): Promise<{ ticket: NormalizedTicket; registration: RegistrationDocument } | null> {
+  const db = getDatabases();
+  
+  // Search registrations for embedded ticket with this ID
+  try {
+    // Query registrations by denormalized ticket_id field
+    const result = await db.listDocuments(
+      DATABASE_ID,
+      REGISTRATIONS_COLLECTION_ID,
+      [
+        Query.equal('ticket_id', ticketId),
+        Query.limit(1),
+      ]
+    );
+    
+    if (result.documents.length > 0) {
+      const registration = result.documents[0] as unknown as RegistrationDocument;
+      const embedded = parseEmbeddedTicket(registration);
+      
+      if (embedded && embedded.ticket_id === ticketId) {
+        return {
+          ticket: {
+            id: embedded.ticket_id,
+            code: embedded.ticket_code,
+            qr_data: embedded.qr_data || embedded.qr_code,
+            registration_id: registration.$id,
+            user_id: registration.user_id,
+            event_id: registration.event_id,
+            issued_at: embedded.issued_at,
+            expires_at: embedded.expires_at,
+            is_scanned: embedded.is_scanned || false,
+            scanned_at: embedded.scanned_at,
+            source: 'embedded',
+          },
+          registration,
+        };
+      }
+
+      // Legacy fallback: ticket exists only as registration.ticket_id
+      if ((registration.ticket_id as string | undefined) === ticketId) {
+        const issuedAt = (registration.registration_date as string | undefined) || registration.$createdAt;
+        return {
+          ticket: {
+            id: ticketId,
+            code: `TKT-${ticketId.slice(-8).toUpperCase()}`,
+            qr_data: ticketId,
+            registration_id: registration.$id,
+            user_id: registration.user_id,
+            event_id: registration.event_id,
+            issued_at: issuedAt,
+            is_scanned: Boolean(registration.checked_in),
+            scanned_at: registration.check_in_time || registration.checked_in_at || undefined,
+            source: 'embedded',
+          },
+          registration,
+        };
+      }
+    }
+  } catch {
+    // Query failed
+  }
+
+  // Fallback: QR may contain registration ID (legacy/alternate payloads)
+  try {
+    const registration = await db.getDocument(
+      DATABASE_ID,
+      REGISTRATIONS_COLLECTION_ID,
+      ticketId
+    ) as unknown as RegistrationDocument;
+
+    const embedded = parseEmbeddedTicket(registration);
+    if (embedded) {
+      return {
+        ticket: {
+          id: embedded.ticket_id,
+          code: embedded.ticket_code,
+          qr_data: embedded.qr_data || embedded.qr_code,
+          registration_id: registration.$id,
+          user_id: registration.user_id,
+          event_id: registration.event_id,
+          issued_at: embedded.issued_at,
+          expires_at: embedded.expires_at,
+          is_scanned: embedded.is_scanned || false,
+          scanned_at: embedded.scanned_at,
+          source: 'embedded',
+        },
+        registration,
+      };
+    }
+  } catch {
+    // Not a registration ID
+  }
+  
+  return null;
+}
+
+/**
+ * Mark ticket as scanned on embedded registration ticket
+ */
+export async function markTicketScanned(
+  registrationId: string,
+  ticketId: string
+): Promise<void> {
+  void ticketId;
+  const db = getDatabases();
   const now = new Date().toISOString();
-  const reservationsResult = await db.listDocuments(
+  
+  // Update embedded ticket in registration
+  try {
+    const registration = await getRegistration(registrationId);
+    if (registration?.ticket) {
+      const embedded = parseEmbeddedTicket(registration);
+      if (embedded) {
+        embedded.is_scanned = true;
+        embedded.scanned_at = now;
+        await db.updateDocument(
+          DATABASE_ID,
+          REGISTRATIONS_COLLECTION_ID,
+          registrationId,
+          { ticket: JSON.stringify(embedded) }
+        );
+      }
+    }
+  } catch {
+    // Ignore scan update failure
+  }
+}
+
+// ============================================================================
+// Session-Less Check-In Helpers
+// ============================================================================
+
+export async function safeIncrementSessionCheckInCount(
+  sessionId: string | null | undefined
+): Promise<void> {
+  void sessionId;
+  return;
+}
+
+/**
+ * Perform check-in without requiring a session
+ * All check-in state is stored in the registration document (no separate check_in_logs)
+ */
+export async function performSessionlessCheckIn(data: {
+  registration_id: string;
+  event_id: string;
+  performed_by_user_id: string;
+  performed_by_name?: string;
+  method?: 'qr_scan' | 'manual';
+  ticket_id?: string;
+  location?: string; // Multi-location support
+  notes?: string;
+}): Promise<{
+  success: boolean;
+  registration: RegistrationDocument;
+  log_id: string;
+}> {
+  const db = getDatabases();
+  const now = new Date().toISOString();
+  
+  // Get registration
+  const registration = await getRegistration(data.registration_id);
+  if (!registration) {
+    throw new Error('Registration not found');
+  }
+  
+  // Verify event matches
+  if (registration.event_id !== data.event_id) {
+    throw new Error('Registration does not belong to this event');
+  }
+  
+  // Check if already checked in
+  if (registration.checked_in) {
+    throw new Error('Already checked in');
+  }
+  
+  // Build update payload
+  const updatePayload: Record<string, unknown> = {
+    checked_in: true,
+    check_in_time: now,
+    checked_in_by: data.performed_by_user_id,
+  };
+  
+  // Update registration with all check-in state
+  const updatedRegistration = await db.updateDocument(
     DATABASE_ID,
-    SLOT_RESERVATIONS_COLLECTION_ID,
-    [
-      Query.equal("event_id", event.$id),
-      Query.equal("status", "active"),
-      Query.greaterThan("expires_at", now),
-      Query.limit(1),
-    ],
-  );
-  const reservedSlots = reservationsResult.total;
-
-  const available = maxCapacity - currentRegistrations - reservedSlots;
-
+    REGISTRATIONS_COLLECTION_ID,
+    data.registration_id,
+    updatePayload
+  ) as unknown as RegistrationDocument;
+  
+  // No check-in log creation - all state in registration
+  
+  // Increment event counter
+  await incrementEventCheckInCount(data.event_id);
+  
+  // Mark ticket as scanned if available
+  if (data.ticket_id || registration.ticket_id) {
+    await markTicketScanned(data.registration_id, data.ticket_id || registration.ticket_id || '');
+  }
+  
   return {
-    max_capacity: maxCapacity,
-    current_registrations: currentRegistrations,
-    reserved_slots: reservedSlots,
-    available: Math.max(0, available),
-    is_full: available <= 0,
+    success: true,
+    registration: updatedRegistration,
+    log_id: data.registration_id, // Use registration ID as reference (no separate log)
   };
 }

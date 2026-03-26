@@ -8,38 +8,27 @@
  * Usage:
  *   import { COLLECTIONS } from '@/lib/constants/collections';
  *   const result = await db.listDocuments(DATABASE_ID, COLLECTIONS.EVENTS, queries);
+ * 
+ * Active collections only.
  */
 
 // Database ID
-export const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'ieee_sahrdaya_db';
+export const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '69958465003804b8fe9d';
 
 // Collection IDs - centralized source of truth
 export const COLLECTIONS = {
-  // Core collections
+  // Core collections (post-migration)
   EVENTS: process.env.NEXT_PUBLIC_APPWRITE_EVENTS_COLLECTION_ID || 'events',
   EVENT_REGISTRATIONS: process.env.NEXT_PUBLIC_APPWRITE_EVENT_REGISTRATIONS_COLLECTION_ID || 'event_registrations',
-  REGISTRATIONS: process.env.NEXT_PUBLIC_APPWRITE_REGISTRATIONS_COLLECTION_ID || 'registrations',
-  TICKETS: process.env.NEXT_PUBLIC_APPWRITE_TICKETS_COLLECTION_ID || 'tickets',
-  EVENT_TICKETS: process.env.NEXT_PUBLIC_APPWRITE_EVENT_TICKETS_COLLECTION_ID || 'event_tickets',
   
-  // Reservation and capacity management
-  SLOT_RESERVATIONS: process.env.NEXT_PUBLIC_APPWRITE_SLOT_RESERVATIONS_COLLECTION_ID || 'slot_reservations',
-  
-  // Event metadata and configuration
-  EVENT_METADATA: process.env.NEXT_PUBLIC_APPWRITE_EVENT_METADATA_COLLECTION_ID || 'event_metadata',
+  // Email configuration
   EMAIL_TEMPLATES: process.env.NEXT_PUBLIC_APPWRITE_EMAIL_TEMPLATES_COLLECTION_ID || 'email_templates',
   
   // User and society management
-  USERS: process.env.NEXT_PUBLIC_APPWRITE_USERS_COLLECTION_ID || 'users',
   SOCIETIES: process.env.NEXT_PUBLIC_APPWRITE_SOCIETIES_COLLECTION_ID || 'societies',
-  SOCIETY_MEMBERS: process.env.NEXT_PUBLIC_APPWRITE_SOCIETY_MEMBERS_COLLECTION_ID || 'society_members',
+  MEMBERS: process.env.NEXT_PUBLIC_APPWRITE_MEMBERS_COLLECTION_ID || 'members',
+  EXECOM: process.env.NEXT_PUBLIC_APPWRITE_EXECOM_COLLECTION_ID || 'execom_members',
   
-  // Waitlist management
-  WAITLIST: process.env.NEXT_PUBLIC_APPWRITE_WAITLIST_COLLECTION_ID || 'waitlist',
-  
-  // Payment and transaction tracking
-  PAYMENTS: process.env.NEXT_PUBLIC_APPWRITE_PAYMENTS_COLLECTION_ID || 'payments',
-  TRANSACTIONS: process.env.NEXT_PUBLIC_APPWRITE_TRANSACTIONS_COLLECTION_ID || 'transactions',
 } as const;
 
 // Type for collection keys
@@ -61,7 +50,7 @@ export function getCollectionId(key: CollectionKey): string {
  * Call this at startup to catch configuration issues early
  */
 export function validateCollections(): { valid: boolean; missing: string[] } {
-  const required: CollectionKey[] = ['EVENTS', 'REGISTRATIONS', 'TICKETS', 'SLOT_RESERVATIONS'];
+  const required: CollectionKey[] = ['EVENTS', 'EVENT_REGISTRATIONS', 'SOCIETIES'];
   const missing: string[] = [];
   
   for (const key of required) {
@@ -78,13 +67,12 @@ export function validateCollections(): { valid: boolean; missing: string[] } {
   };
 }
 
-// Backwards compatibility exports
-// These match the existing exports in appwrite-admin.ts
+// Collection exports
 export const EVENTS_COLLECTION_ID = COLLECTIONS.EVENTS;
-export const REGISTRATIONS_COLLECTION_ID = COLLECTIONS.REGISTRATIONS;
 export const EVENT_REGISTRATIONS_COLLECTION_ID = COLLECTIONS.EVENT_REGISTRATIONS;
-export const TICKETS_COLLECTION_ID = COLLECTIONS.TICKETS;
-export const EVENT_TICKETS_COLLECTION_ID = COLLECTIONS.EVENT_TICKETS;
-export const SLOT_RESERVATIONS_COLLECTION_ID = COLLECTIONS.SLOT_RESERVATIONS;
-export const EVENT_METADATA_COLLECTION_ID = COLLECTIONS.EVENT_METADATA;
+export const REGISTRATIONS_COLLECTION_ID = COLLECTIONS.EVENT_REGISTRATIONS;
 export const EMAIL_TEMPLATES_COLLECTION_ID = COLLECTIONS.EMAIL_TEMPLATES;
+export const SOCIETIES_COLLECTION_ID = COLLECTIONS.SOCIETIES;
+export const MEMBERS_COLLECTION_ID = COLLECTIONS.MEMBERS;
+export const EXECOM_COLLECTION_ID = COLLECTIONS.EXECOM;
+

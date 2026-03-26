@@ -7,21 +7,51 @@ import { motion } from 'framer-motion';
 import { databases, DATABASE_ID, SOCIETIES_COLLECTION_ID } from '@/lib/appwrite';
 import type { Society } from '@/types';
 
-const LogoItem: React.FC<{ society: Society }> = ({ society }) => (
-    <TransitionLink href="/societies" className="flex-shrink-0 flex items-center justify-center group mx-6 md:mx-10">
-        <div className="relative flex items-center justify-center h-10 md:h-12 w-auto transition-all duration-300 group-hover:scale-110 cursor-pointer">
-            <Image
-                src={society.logo_url}
-                alt={society.name}
-                width={60}
-                height={48}
-                style={{ width: 'auto', height: '100%' }}
-                className="opacity-40 group-hover:opacity-90 transition-opacity duration-500 grayscale group-hover:grayscale-0"
-                draggable={false}
-            />
-        </div>
-    </TransitionLink>
-);
+// Helper to validate and fix logo URLs
+const getValidLogoUrl = (logoUrl: string | undefined | null): string | null => {
+    if (!logoUrl) return null;
+    
+    // Check if it's a valid URL (starts with / or http)
+    if (logoUrl.startsWith('/') || logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
+        return logoUrl;
+    }
+    
+    // Invalid URL pattern
+    return null;
+};
+
+const LogoItem: React.FC<{ society: Society }> = ({ society }) => {
+    const validLogoUrl = getValidLogoUrl(society.logo_url);
+    
+    // Skip rendering if no valid logo URL
+    if (!validLogoUrl) {
+        return (
+            <TransitionLink href="/societies" className="flex-shrink-0 flex items-center justify-center group mx-6 md:mx-10">
+                <div className="relative flex items-center justify-center h-10 md:h-12 w-auto transition-all duration-300 group-hover:scale-110 cursor-pointer">
+                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-xs font-bold">
+                        {society.name?.charAt(0) || '?'}
+                    </div>
+                </div>
+            </TransitionLink>
+        );
+    }
+    
+    return (
+        <TransitionLink href="/societies" className="flex-shrink-0 flex items-center justify-center group mx-6 md:mx-10">
+            <div className="relative flex items-center justify-center h-10 md:h-12 w-auto transition-all duration-300 group-hover:scale-110 cursor-pointer">
+                <Image
+                    src={validLogoUrl}
+                    alt={society.name}
+                    width={60}
+                    height={48}
+                    style={{ width: 'auto', height: '100%' }}
+                    className="opacity-40 group-hover:opacity-90 transition-opacity duration-500 grayscale group-hover:grayscale-0"
+                    draggable={false}
+                />
+            </div>
+        </TransitionLink>
+    );
+};
 
 export const SocietyStrip: React.FC = () => {
     const [societies, setSocieties] = useState<Society[]>([]);

@@ -1,11 +1,17 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
 import { account, teams, databases, DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/appwrite';
 import { User, TeamMembership, AuthContextType } from '@/types';
 import { OAuthProvider, Query } from 'appwrite';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// JWT cache to avoid creating new JWTs on every API call
+interface JWTCache {
+    jwt: string;
+    expiresAt: number;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -13,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [profileCompleted, setProfileCompleted] = useState<boolean | null>(null);
     const [profileLoading, setProfileLoading] = useState(false);
+    const jwtCacheRef = useRef<JWTCache | null>(null);
 
     const checkProfile = useCallback(async (userId: string) => {
         setProfileLoading(true);
@@ -92,14 +99,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Check if user is member of chair_{societySlug} team
         const chairTeamName = `chair_${societySlug}`;
         return userTeams.some(
-            (team) => team.teamId === chairTeamName || team.teamName?.toLowerCase().includes(chairTeamName)
+            (team) => team.$id === chairTeamName || team.name?.toLowerCase().includes(chairTeamName)
         );
     };
 
+    // Get JWT for API calls - creates one if needed, uses cache otherwise
+    const getJWT = useCallback(async (): Promise<string | null> => {
+        if (!user) {
+            console.warn('[AuthContext] getJWT called but user is null');
+            return null;
+        }
+        
+        // Check cache - use if we have at least 60 seconds before expiry
+        const now = Date.now();
+        if (jwtCacheRef.current && jwtCacheRef.current.expiresAt > now + 60000) {
+            console.log('[AuthContext] Using cached JWT');
+            return jwtCacheRef.current.jwt;
+        }
+        
+        try {
+            console.log('[AuthContext] Creating new JWT for user:', user.email);
+            // Create new JWT (expires in 15 minutes by default)
+            const result = await account.createJWT();
+            
+            // Cache it (assume 15 min expiry = 900 seconds)
+            jwtCacheRef.current = {
+                jwt: result.jwt,
+                expiresAt: now + (14 * 60 * 1000), // 14 minutes to be safe
+            };
+            
+            console.log('[AuthContext] JWT created successfully');
+            return result.jwt;
+        } catch (error) {
+            console.error('[AuthContext] Failed to create JWT:', error);
+            return null;
+        }
+    }, [user]);
+
     const contextValue = useMemo(
-        () => ({ user, loading, profileCompleted, profileLoading, login, logout, refresh, isChairOf, userTeams }),
+        () => ({ user, loading, profileCompleted, profileLoading, login, logout, refresh, isChairOf, userTeams, getJWT }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [user, loading, profileCompleted, profileLoading, userTeams]
+        [user, loading, profileCompleted, profileLoading, userTeams, getJWT]
     );
 
     return (

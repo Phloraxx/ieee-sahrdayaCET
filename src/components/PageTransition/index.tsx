@@ -37,7 +37,6 @@ export default function PageTransitionOverlay() {
 
   // ── 1. Init: Hide curtain initially ─────────────────────────────────────
   useEffect(() => {
-    console.log('[Transition] Overlay mounted. Setting initial GSAP state.');
     gsap.set(wrapperRef.current, { autoAlpha: 0 });
     ready.current = true;
   }, []);
@@ -46,7 +45,6 @@ export default function PageTransitionOverlay() {
   useEffect(() => {
     const handler = (e: Event) => {
       const { href, done } = (e as CustomEvent<LeaveDetail>).detail;
-      console.log(`[Transition] Leave event received. Destination: ${href}`);
       
       const config = getTransitionConfig(href);
       const cbg = config.colors[0];
