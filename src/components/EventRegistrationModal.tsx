@@ -539,31 +539,39 @@ export default function EventRegistrationModal({
                 status: 'confirmed',
             });
 
-            // Fetch ticket after payment success
+            // Step 1: Mark payment as completed on backend and create ticket
             try {
-                // Get JWT for authentication
                 const jwt = await getJWT();
-                const headers: Record<string, string> = {};
+                const headers: Record<string, string> = {
+                    'Content-Type': 'application/json',
+                };
                 if (jwt) {
                     headers['Authorization'] = `Bearer ${jwt}`;
                 }
 
-                const ticketResponse = await fetch(`/api/registrations/${registration.$id}`, {
+                // Call backend to complete payment and create ticket_id
+                const completeResponse = await fetch(`/api/admin/registrations/${registration.$id}/complete-payment`, {
+                    method: 'POST',
                     headers,
                     credentials: 'include'
                 });
+
+                if (!completeResponse.ok) {
+                    throw new Error('Failed to complete payment on backend');
+                }
+
+                const completeData = await completeResponse.json();
+                const ticketId = completeData.ticket_id;
+
+                // Step 2: Fetch full ticket details
+                const ticketResponse = await fetch(`/api/registrations/${registration.$id}`, {
+                    headers: { 'Authorization': jwt ? `Bearer ${jwt}` : '' },
+                    credentials: 'include'
+                });
+                
                 if (ticketResponse.ok) {
                     const data = await ticketResponse.json();
-                    if (data.ticket && data.event) {
-                        // Parse ticket_id from qr_data
-                        let ticketId = data.ticket.id;
-                        try {
-                            const qrData = JSON.parse(data.ticket.qr_data);
-                            ticketId = qrData.ticket_id || data.ticket.id;
-                        } catch {
-                            // Use ticket ID if parsing fails
-                        }
-
+                    if (data.event) {
                         const ticketData: Ticket = {
                             ticketId,
                             eventId: data.event.id,
@@ -575,19 +583,20 @@ export default function EventRegistrationModal({
                             userEmail: user.email || '',
                             registrationId: registration.$id,
                             status: 'confirmed',
-                            qrCodeData: ticketId, // Just the ticket ID for QR code
-                            createdAt: data.ticket.created_at,
+                            qrCodeData: ticketId,
+                            createdAt: data.ticket?.created_at || new Date().toISOString(),
                         };
                         setTicket(ticketData);
                     }
                 }
             } catch (err) {
-                console.error('Failed to fetch ticket:', err);
+                console.error('Failed to complete payment:', err);
+                toast.error('Payment confirmed but ticket generation failed. Please contact support.');
             }
         }
         setCurrentStep('success');
         toast.success('Payment successful! Your ticket is ready.');
-    }, [registration, getJWT]);
+    }, [registration, getJWT, user]);
 
     const handlePaymentError = useCallback((errorMessage: string) => {
         setError(errorMessage);

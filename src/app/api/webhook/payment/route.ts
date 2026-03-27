@@ -244,19 +244,19 @@ export async function POST(request: NextRequest) {
         throw error;
       }
     } else if (ticketId) {
-      // Find by ticket_id field
+      // Find by payment_reference (stores payment API ticket ID for paid events)
       const result = await db.listDocuments(
         DATABASE_ID,
         REGISTRATIONS_COLLECTION_ID,
         [
-          Query.equal('ticket_id', ticketId),
+          Query.equal('payment_reference', ticketId),
           Query.limit(1),
         ]
       );
       
       if (result.documents.length === 0) {
         return NextResponse.json(
-          { error: 'Registration not found for ticket' },
+          { error: 'Registration not found for payment ticket' },
           { status: 404 }
         );
       } else {
@@ -290,7 +290,7 @@ export async function POST(request: NextRequest) {
       REGISTRATIONS_COLLECTION_ID,
       registration.$id,
       {
-        payment_status: 'completed',
+        payment_status: 'paid',
         registration_status: 'confirmed',
       }
     );
@@ -311,33 +311,19 @@ export async function POST(request: NextRequest) {
       { current_registrations: currentRegistrations + 1 }
     );
 
-    // Ensure registration has ticket_id (ticket payload should already be embedded)
+    // Ensure registration has ticket_id
     let ticketIdForResponse = registration.ticket_id as string | undefined;
     if (!ticketIdForResponse) {
       ticketIdForResponse = randomUUID();
-      const qrData = JSON.stringify({
-        ticket_id: ticketIdForResponse,
-        registration_id: registration.$id,
-        event_id: eventId,
-        timestamp: new Date().toISOString(),
-      });
       await db.updateDocument(
         DATABASE_ID,
         REGISTRATIONS_COLLECTION_ID,
         registration.$id,
         {
           ticket_id: ticketIdForResponse,
-          ticket: JSON.stringify({
-            ticket_id: ticketIdForResponse,
-            ticket_code: `TKT-${ticketIdForResponse.slice(0, 8).toUpperCase()}`,
-            qr_code: qrData,
-            qr_data: qrData,
-            issued_at: new Date().toISOString(),
-            is_scanned: false,
-          }),
         }
       );
-      logger.info('Embedded ticket created on webhook', { ticketId: ticketIdForResponse, registrationId: registration.$id });
+      logger.info('Ticket ID created on webhook', { ticketId: ticketIdForResponse, registrationId: registration.$id });
     }
 
     // Send confirmation email

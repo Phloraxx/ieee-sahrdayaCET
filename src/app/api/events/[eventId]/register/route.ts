@@ -231,9 +231,9 @@ async function handlePaidRegistration(
       amount: String(paymentTicket.amount),
     });
 
-    // Update registration with payment ticket ID
+    // Update registration with payment reference (ticket ID from payment API)
     await updateRegistration(registration.$id, {
-      payment_ticket_id: paymentTicket.ticketId,
+      payment_reference: paymentTicket.ticketId,
     });
   } catch (error) {
     log.error('Failed to create payment ticket', error instanceof Error ? error : new Error(String(error)));
@@ -287,7 +287,7 @@ async function handleFreeRegistration(
     user_id: userId,
     event_id: event.$id,
     form_data: formData,
-    payment_status: 'completed',
+    payment_status: 'free',
     registration_status: 'confirmed',
   });
 
