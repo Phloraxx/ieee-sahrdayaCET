@@ -408,23 +408,12 @@ export async function createTicket(data: {
   const ticketCode = "TKT-" + Math.random().toString(36).substring(2, 10).toUpperCase();
   const issuedAt = new Date().toISOString();
 
-  // Create embedded ticket object for registration
-  const embeddedTicket: EmbeddedTicket = {
-    ticket_id: ticketId,
-    ticket_code: ticketCode,
-    qr_code: qrData,
-    qr_data: qrData,
-    issued_at: issuedAt,
-    is_scanned: false,
-  };
-
-  // Embed ticket in registration (simplified schema - only source of truth)
+  // Store ticket_id in registration (schema expects ticket_id field only)
   await db.updateDocument(
     DATABASE_ID,
     REGISTRATIONS_COLLECTION_ID,
     data.registration_id,
     {
-      ticket: JSON.stringify(embeddedTicket),
       ticket_id: ticketId,
     }
   );

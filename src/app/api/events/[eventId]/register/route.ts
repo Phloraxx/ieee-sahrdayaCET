@@ -175,7 +175,7 @@ class PaymentError extends Error {
 }
 
 // Create payment ticket with payment API
-async function createPaymentTicket(amount: number, metadata: any) {
+async function createPaymentTicket(amount: number, metadata: Record<string, unknown>) {
   const paymentApiUrl = process.env.PAYMENT_API_URL || 'https://payment-api.nerdpixel.workers.dev/api';
   
   const response = await fetch(`${paymentApiUrl}/ticket`, {

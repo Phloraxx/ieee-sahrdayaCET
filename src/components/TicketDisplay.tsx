@@ -141,16 +141,36 @@ export default function TicketDisplay({
 
             await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
             const target = ticketRef.current;
+            
+            const FIXED_WIDTH = 340;
+
             const canvas = await html2canvas(target, {
-                backgroundColor: null,
-                scale: Math.max(2, window.devicePixelRatio || 1),
+                backgroundColor: null, // Critical for transparent PNG
+                scale: 3, // High-res capture
                 logging: false,
                 useCORS: true,
                 allowTaint: true,
+                width: FIXED_WIDTH,
+                x: 0,
+                y: 0,
+                windowWidth: 1024,
                 onclone: (clonedDoc) => {
                     const clonedTarget = clonedDoc.querySelector('[data-ticket="true"]') as HTMLElement;
                     if (clonedTarget) {
+                        // Isolate the ticket from any responsive modal/grid parents
+                        clonedDoc.body.innerHTML = '';
+                        clonedDoc.body.style.background = 'transparent';
+                        
                         clonedTarget.style.transform = 'none';
+                        clonedTarget.style.width = `${FIXED_WIDTH}px`;
+                        clonedTarget.style.minWidth = `${FIXED_WIDTH}px`;
+                        clonedTarget.style.maxWidth = `${FIXED_WIDTH}px`;
+                        clonedTarget.style.margin = '0';
+                        clonedTarget.style.position = 'absolute';
+                        clonedTarget.style.top = '0';
+                        clonedTarget.style.left = '0';
+                        
+                        clonedDoc.body.appendChild(clonedTarget);
                     }
                 }
             });
@@ -275,20 +295,24 @@ export default function TicketDisplay({
                             </h4>
                         </div>
 
-                        {/* Cutout / Perforation Row (Transparent precise cutouts) */}
-                        <div 
-                            className="relative h-8 w-full z-10 flex items-center px-4"
-                            style={{
-                                background: `radial-gradient(circle at 0px 16px, transparent 16px, #ffffff 16.5px),
-                                             radial-gradient(circle at 100% 16px, transparent 16px, #ffffff 16.5px)`,
-                                backgroundSize: '51% 100%, 51% 100%',
-                                backgroundPosition: 'left, right',
-                                backgroundRepeat: 'no-repeat'
-                            }}
-                        >
-                            <div className="absolute left-[-16px] top-0 w-8 h-8 rounded-full shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1)] pointer-events-none" />
-                            <div className="absolute right-[-16px] top-0 w-8 h-8 rounded-full shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1)] pointer-events-none" />
-                            <div className="w-full border-t-2 border-dashed border-gray-200" />
+                        {/* Cutout / Perforation Row (Foolproof HTML2Canvas approach using box-shadow inverse drawing) */}
+                        <div className="relative h-8 w-full z-10 flex px-0">
+                            {/* Left Hole */}
+                            <div className="relative w-4 h-8 overflow-hidden flex-shrink-0 bg-transparent">
+                                <div className="absolute left-[-16px] top-0 w-8 h-8 rounded-full bg-transparent shadow-[0_0_0_50px_#ffffff]" />
+                                <div className="absolute left-[-16px] top-0 w-8 h-8 rounded-full shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1)] pointer-events-none" />
+                            </div>
+
+                            {/* Middle Cutout Connection */}
+                            <div className="flex-1 bg-white h-8 relative flex items-center">
+                                <div className="w-full border-t-2 border-dashed border-gray-200" />
+                            </div>
+
+                            {/* Right Hole */}
+                            <div className="relative w-4 h-8 overflow-hidden flex-shrink-0 bg-transparent">
+                                <div className="absolute left-0 top-0 w-8 h-8 rounded-full bg-transparent shadow-[0_0_0_50px_#ffffff]" />
+                                <div className="absolute left-0 top-0 w-8 h-8 rounded-full shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1)] pointer-events-none" />
+                            </div>
                         </div>
 
                         {/* Ticket Body / QR */}
