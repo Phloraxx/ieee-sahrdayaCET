@@ -31,15 +31,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { 
   getDatabases, 
-  getUsers,
   DATABASE_ID, 
   REGISTRATIONS_COLLECTION_ID,
   EVENTS_COLLECTION_ID,
   Query,
 } from '@/lib/api/appwrite-admin';
 import { logger } from '@/lib/api/logger';
-import { queuePaymentEmail } from '@/lib/emailQueue';
-import QRCode from 'qrcode';
+import { sendRegistrationConfirmation } from '@/lib/emailIntegration';
 import { randomUUID, timingSafeEqual as cryptoTimingSafeEqual } from 'crypto';
 
 export const runtime = 'nodejs';
@@ -328,48 +326,28 @@ export async function POST(request: NextRequest) {
 
     // Send confirmation email
     try {
-      const users = getUsers();
-      const user = await users.get(userId);
       const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
       
-      if (user.email) {
-        const eventDate = new Date(event.date as string || event.start_date as string);
-        
-        const emailVariables = {
-          student_name: user.name || 'Student',
-          event_name: event.title as string,
-          event_date: eventDate.toLocaleDateString('en-IN', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          }),
-          event_time: eventDate.toLocaleTimeString('en-IN', {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
-          event_venue: (event.venue as string) || 'TBA',
+      sendRegistrationConfirmation(
+        {
+          $id: registration.$id,
+          user_id: userId,
+          event_id: eventId,
           ticket_id: ticketIdForResponse,
-          ticket_url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/ticket/${ticketIdForResponse}`,
-          amount_paid: amount || (event.price as number) || 0,
-          transaction_id: payload.transactionId || payload.rrn || 'N/A',
-          payment_reference: payload.rrn || payload.transactionId || ticketId || 'N/A',
-          sender_name: payload.senderName || 'N/A',
-        };
-        
-        queuePaymentEmail(
-          user.email,
-          emailVariables,
-          '', // Use default template
-          eventId,
-          registration.$id
+        },
+        event as unknown as { $id: string; title: string; start_date?: string; date?: string; venue?: string; price?: number }
+      ).catch(emailError => {
+        // Don't fail webhook if email fails
+        logger.error('Failed to send confirmation email', 
+          emailError instanceof Error ? emailError : new Error(String(emailError)),
+          { registrationId: registration.$id }
         );
-        
-        logger.info('Confirmation email queued', { email: user.email, registrationId: registration.$id });
-      }
+      });
+      
+      logger.info('Confirmation email queued', { registrationId: registration.$id });
     } catch (emailError) {
       // Log but don't fail the webhook
-      logger.error('Failed to send confirmation email', 
+      logger.error('Failed to queue confirmation email', 
         emailError instanceof Error ? emailError : new Error(String(emailError)),
         { registrationId: registration.$id }
       );
