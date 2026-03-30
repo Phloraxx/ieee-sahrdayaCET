@@ -531,39 +531,8 @@ export function getDefaultTemplate(type: EmailTemplateType): {
       font-size: 12px;
       margin: 4px 0;
     }
-    .rc-bg { background-color: #f3f4f6; padding: 40px 16px; }
-    .rc-wrap { max-width: 520px; margin: 0 auto; }
-    .rc-org { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6b7280; text-align: center; margin: 0 0 20px; font-weight: 700; }
-    .rc-greet { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 20px; padding: 26px 30px; margin-bottom: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-    .rc-greet h1 { margin: 0 0 10px; font-size: 26px; line-height: 1.2; color: #111827; letter-spacing: -0.01em; }
-    .rc-greet p { margin: 0; color: #6b7280; font-size: 14px; line-height: 1.6; }
-    .rc-ticket { background: #ffffff; border-radius: 24px; overflow: hidden; margin: 20px 0; border: 1px solid #e5e7eb; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); }
-    .rc-head { padding: 28px 24px 24px; color: #ffffff; background: linear-gradient(135deg, #111827 0%, #1f2937 100%); }
-    .rc-tag { display: inline-block; background: rgba(255,255,255,0.10); border-radius: 8px; padding: 6px 12px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.82); letter-spacing: 0.10em; text-transform: uppercase; margin-bottom: 18px; }
-    .rc-name { margin: 0; color: #ffffff; font-size: 20px; line-height: 1.2; }
-    .rc-tear { position: relative; height: 24px; background: #ffffff; overflow: visible; }
-    .rc-tear-line { border-top: 2px dashed #e5e7eb; margin: 11px 16px 0; }
-    .rc-body { padding: 10px 24px 24px; background: #ffffff; }
-    .rc-info-label { display: block; font-size: 10px; color: #9ca3af; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 4px; font-weight: 700; }
-    .rc-info-val { margin: 0; color: #111827; font-size: 13px; font-weight: 700; line-height: 1.4; }
-    .rc-attendee { background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 16px; padding: 14px 16px; margin: 20px 0 22px; }
-    .rc-attendee-name { margin: 2px 0 0; color: #111827; font-size: 16px; font-weight: 700; }
-    .rc-badge { display: inline-block; background: #dbeafe; border-radius: 4px; padding: 4px 8px; color: #1e3a8a; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .rc-qr { background: #ffffff; border: 1px solid #f3f4f6; border-radius: 18px; padding: 16px 20px 20px; text-align: center; }
-    .rc-qr-inner { background: #ffffff; border-radius: 12px; padding: 14px; display: inline-block; margin-bottom: 14px; }
-    .rc-qr-inner img { width: 160px; height: 160px; border-radius: 6px; display: block; }
-    .rc-pass-label { display: block; font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: #9ca3af; margin-bottom: 6px; font-weight: 700; }
-    .rc-pass { display: inline-block; font-size: 14px; color: #1f2937; letter-spacing: 0.1em; margin-bottom: 16px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background:#f9fafb; border:1px solid #f3f4f6; border-radius:8px; padding:4px 12px; }
-    .rc-valid { display: inline-block; background: #f0fdf4; border: 1px solid rgba(22,163,74,0.5); border-radius: 999px; padding: 8px 16px; color: #16a34a; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700; }
-    .rc-cta { display: inline-block; text-decoration: none; border-radius: 12px; padding: 12px 16px; background: rgba(59,130,246,0.10); color: #1e3a8a; border: 1px solid rgba(59,130,246,0.25); font-size: 13px; font-weight: 700; margin-top: 10px; }
-    .rc-note { background: #ffffff; border-left: 3px solid #3b82f6; border-radius: 16px; padding: 20px 24px; margin: 16px 0; color: #6b7280; font-size: 13px; line-height: 1.6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
-    @media only screen and (max-width: 480px) {
-      .rc-bg { padding: 24px 12px; }
-      .rc-head { padding: 24px 20px 20px; }
-      .rc-body { padding: 20px; }
-      .rc-greet { padding: 22px 20px; }
-      .rc-name { font-size: 18px; }
-    }
+    /* Minimal - all styling inline for Gmail */
+    body { margin: 0; padding: 0; }
   `;
 
   const templates: Record<
@@ -573,101 +542,194 @@ export function getDefaultTemplate(type: EmailTemplateType): {
     registration_confirmation: {
       subject: "Your Ticket for {{event_name}}",
       body: `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>${baseTheme}</style>
-</head>
-<body>
-  <div class="rc-bg">
-    <div class="rc-wrap">
-      <p class="rc-org">IEEE SAHRDAYA STUDENT BRANCH</p>
-
-      <div class="rc-greet">
-        <h1>You&apos;re registered, {{student_name}}!</h1>
-        <p>Your spot at <strong>{{event_name}}</strong> is confirmed. This email is your entry pass — present this QR code at the venue for check-in.</p>
-      </div>
-
-      <div class="rc-ticket">
-        <div class="rc-head">
-          <div class="rc-tag">IEEE SAHRDAYA SB · {{event_year}}</div>
-          <h2 class="rc-name">{{event_name}}</h2>
-        </div>
-        <!--[if mso]>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background:#ffffff;height:24px;font-size:0;">
-        <![endif]-->
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:#ffffff;">
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f5;">
           <tr>
-            <td style="width:16px;height:24px;vertical-align:middle;background:#f3f4f6;border-top-right-radius:12px;border-bottom-right-radius:12px;"></td>
-            <td style="height:24px;vertical-align:middle;background:#ffffff;">
-              <div style="border-top:2px dashed #e5e7eb;margin:0 8px;"></div>
+            <td align="center" style="padding:32px 16px;">
+
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:400px;">
+
+                <!-- Org Header -->
+                <tr>
+                  <td align="center" style="padding-bottom:20px;">
+                    <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#71717a;font-weight:bold;">IEEE SAHRDAYA STUDENT BRANCH</span>
+                  </td>
+                </tr>
+
+                <!-- Greeting Card -->
+                <tr>
+                  <td style="background-color:#ffffff;padding:24px;border-radius:12px;border:1px solid #e4e4e7;">
+                    <h1 style="margin:0 0 8px 0;font-size:22px;color:#18181b;font-weight:bold;line-height:1.3;">You're registered, {{student_name}}!</h1>
+                    <p style="margin:0;font-size:14px;color:#52525b;line-height:1.6;">Your spot at <strong style="color:#18181b;">{{event_name}}</strong> is confirmed. Present this QR code at the venue for check-in.</p>
+                  </td>
+                </tr>
+
+                <tr><td style="height:16px;"></td></tr>
+
+                <!-- TICKET with shadow simulation via border -->
+                <tr>
+                  <td>
+                    <!-- Outer shadow wrapper (creates depth) -->
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #d4d4d8;border-radius:16px;">
+                      <tr>
+                        <td style="padding:6px 6px 12px 6px;background-color:#e4e4e7;border-radius:16px;">
+                          <!-- Inner ticket -->
+                          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-radius:14px;overflow:hidden;">
+
+                            <!-- Dark Header -->
+                            <tr>
+                              <td style="background-color:#18181b;padding:22px 20px;">
+                                <p style="margin:0 0 10px 0;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#a1a1aa;">IEEE SAHRDAYA SB · {{event_year}}</p>
+                                <h2 style="margin:0;font-size:16px;color:#ffffff;font-weight:bold;line-height:1.4;">{{event_name}}</h2>
+                              </td>
+                            </tr>
+
+                              <!-- Tear Line with punch-holes -->
+                              <tr>
+                                <td style="background-color:#ffffff;padding:0;">
+                                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                    <tr>
+                                      <!-- Left punch hole -->
+                                      <td width="16" style="width:16px;height:28px;background-color:#e4e4e7;border-top-right-radius:14px;border-bottom-right-radius:14px;font-size:0;line-height:0;">&nbsp;</td>
+
+                                      <!-- Centered dashed line -->
+                                      <td style="height:28px;vertical-align:middle;background-color:#ffffff;padding:0;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                          <tr>
+                                            <td style="border-top:2px dashed #d4d4d8;height:0;line-height:0;font-size:0;">&nbsp;</td>
+                                          </tr>
+                                        </table>
+                                      </td>
+
+                                      <!-- Right punch hole -->
+                                      <td width="16" style="width:16px;height:28px;background-color:#e4e4e7;border-top-left-radius:14px;border-bottom-left-radius:14px;font-size:0;line-height:0;">&nbsp;</td>
+                                    </tr>
+                                  </table>
+                                </td>
+                              </tr>
+
+
+                            <!-- Ticket Body -->
+                            <tr>
+                              <td style="background-color:#ffffff;padding:16px 20px 24px;">
+
+                                <!-- Event Details -->
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                  <tr>
+                                    <td width="50%" style="padding:0 8px 12px 0;vertical-align:top;">
+                                      <p style="margin:0 0 2px 0;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#a1a1aa;font-weight:bold;">Date</p>
+                                      <p style="margin:0;font-size:13px;color:#18181b;font-weight:600;">{{event_date}}</p>
+                                    </td>
+                                    <td width="50%" style="padding:0 0 12px 0;vertical-align:top;">
+                                      <p style="margin:0 0 2px 0;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#a1a1aa;font-weight:bold;">Time</p>
+                                      <p style="margin:0;font-size:13px;color:#18181b;font-weight:600;">{{event_time}}</p>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td colspan="2" style="padding-bottom:16px;">
+                                      <p style="margin:0 0 2px 0;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#a1a1aa;font-weight:bold;">Venue</p>
+                                      <p style="margin:0;font-size:13px;color:#18181b;font-weight:600;">{{event_venue}}</p>
+                                    </td>
+                                  </tr>
+                                </table>
+
+                                <!-- Attendee Box -->
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fafafa;border-radius:8px;border:1px solid #f4f4f5;">
+                                  <tr>
+                                    <td style="padding:12px 14px;">
+                                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                        <tr>
+                                          <td valign="middle">
+                                            <p style="margin:0 0 2px 0;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#a1a1aa;font-weight:bold;">Attendee</p>
+                                            <p style="margin:0;font-size:15px;color:#18181b;font-weight:bold;">{{student_name}}</p>
+                                          </td>
+                                          <td align="right" valign="middle">
+                                            <span style="display:inline-block;background-color:#dbeafe;padding:4px 10px;border-radius:4px;font-size:10px;color:#1e40af;font-weight:bold;text-transform:uppercase;">PAID</span>
+                                          </td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                </table>
+
+                                <!-- QR Section -->
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;">
+                                  <tr>
+                                    <td align="center" style="padding:16px;background-color:#fafafa;border-radius:10px;border:1px solid #f4f4f5;">
+
+                                      <!-- QR Image -->
+                                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:8px;border:1px solid #e4e4e7;">
+                                        <tr>
+                                          <td style="padding:10px;">
+                                            <img src="cid:qrcode" alt="QR Code" width="140" height="140" style="display:block;border-radius:4px;" />
+                                          </td>
+                                        </tr>
+                                      </table>
+
+                                      <!-- Pass ID -->
+                                      <p style="margin:14px 0 4px 0;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:#a1a1aa;font-weight:bold;">Pass ID</p>
+                                      <p style="margin:0 0 12px 0;font-size:12px;color:#3f3f46;font-weight:600;font-family:monospace;letter-spacing:1px;background-color:#f4f4f5;display:inline-block;padding:4px 10px;border-radius:4px;border:1px solid #e4e4e7;">{{ticket_id}}</p>
+
+                                      <!-- Valid Badge -->
+                                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                                        <tr>
+                                          <td style="background-color:#dcfce7;padding:6px 14px;border-radius:20px;border:1px solid #bbf7d0;">
+                                            <span style="font-size:11px;color:#166534;font-weight:bold;text-transform:uppercase;">Valid Pass</span>
+                                          </td>
+                                        </tr>
+                                      </table>
+
+                                      <!-- View Button -->
+                                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;">
+                                        <tr>
+                                          <td style="background-color:#eff6ff;padding:10px 18px;border-radius:6px;border:1px solid #dbeafe;">
+                                            <a href="{{ticket_url}}" style="font-size:13px;color:#2563eb;font-weight:600;text-decoration:none;">View E-Ticket</a>
+                                          </td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                </table>
+
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr><td style="height:16px;"></td></tr>
+
+                <!-- Note -->
+                <tr>
+                  <td style="background-color:#ffffff;padding:16px 18px;border-radius:8px;border-left:3px solid #3b82f6;border:1px solid #e4e4e7;border-left:3px solid #3b82f6;">
+                    <p style="margin:0;font-size:13px;color:#52525b;line-height:1.5;">Arrive early for smooth check-in. Keep this email handy and don't share your QR code.</p>
+                  </td>
+                </tr>
+
+                <tr><td style="height:24px;"></td></tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td align="center">
+                    <p style="margin:0 0 2px 0;font-size:13px;color:#18181b;font-weight:600;">IEEE Sahrdaya SB</p>
+                    <p style="margin:0;font-size:11px;color:#a1a1aa;">Advancing Technology for Humanity</p>
+                  </td>
+                </tr>
+
+              </table>
             </td>
-            <td style="width:16px;height:24px;vertical-align:middle;background:#f3f4f6;border-top-left-radius:12px;border-bottom-left-radius:12px;"></td>
           </tr>
         </table>
-        <!--[if mso]>
-        </td></tr></table>
-        <![endif]-->
-        <div class="rc-body">
-          <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
-            <tr>
-              <td style="width:50%;padding-right:14px;padding-bottom:14px;">
-                <span class="rc-info-label">Date</span>
-                <p class="rc-info-val">{{event_date}}</p>
-              </td>
-              <td style="width:50%;padding-bottom:14px;">
-                <span class="rc-info-label">Time</span>
-                <p class="rc-info-val">{{event_time}}</p>
-              </td>
-            </tr>
-            <tr>
-              <td colspan="2">
-                <span class="rc-info-label">Venue</span>
-                <p class="rc-info-val">{{event_venue}}</p>
-              </td>
-            </tr>
-          </table>
-
-          <div class="rc-attendee">
-            <table style="width:100%;border-collapse:collapse;">
-              <tr>
-                <td style="vertical-align:middle;">
-                  <span class="rc-info-label">Delegate</span>
-                  <p class="rc-attendee-name">{{student_name}}</p>
-                </td>
-                <td style="vertical-align:middle;text-align:right;">
-                  <span class="rc-badge">PAID</span>
-                </td>
-              </tr>
-            </table>
-          </div>
-
-          <div class="rc-qr">
-            <div class="rc-qr-inner">
-              <img src="cid:qrcode" alt="Entry QR Code" />
-            </div>
-            <span class="rc-pass-label">Pass ID</span>
-            <span class="rc-pass">{{ticket_id}}</span>
-            <span class="rc-valid">Valid Pass</span>
-            <br />
-            <a href="{{ticket_url}}" class="rc-cta">View E-ticket</a>
-          </div>
-        </div>
-      </div>
-
-      <div class="rc-note">
-        Please arrive a little early for smooth check-in. Keep this email handy and do not share your QR code.
-      </div>
-
-      <div class="footer">
-        <p style="font-weight: 600; color: #111827;">IEEE Sahrdaya SB</p>
-        <p>Advancing Technology for Humanity</p>
-      </div>
-    </div>
-  </div>
-</body>
-</html>`,
+      </body>
+      </html>`,
     },
     payment_confirmation: {
       subject: "Payment Receipt: {{event_name}}",

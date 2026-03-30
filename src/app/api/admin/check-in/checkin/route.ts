@@ -111,6 +111,10 @@ export async function POST(req: NextRequest) {
     }
 
     const effectiveLocation = (location?.trim() || 'entrance');
+    
+    // Check for duplicate check-in at this location (for warning, not blocking)
+    let isDuplicate = false;
+    let duplicateMessage = '';
     const existingHistory = parseCheckInHistory(registration);
     const existingLocationEntryFromHistory = existingHistory
       .filter((entry) => entry.location.toLowerCase() === effectiveLocation.toLowerCase())
@@ -131,9 +135,8 @@ export async function POST(req: NextRequest) {
           }
         : undefined;
 
-    // Only block duplicate check-in for the same location.
     if (existingLocationEntry) {
-      // Use schema-compatible check-in timestamp with legacy fallback
+      isDuplicate = true;
       const checkedInAtRaw =
         existingLocationEntry.checked_in_at ||
         registration.check_in_time ||
@@ -142,18 +145,28 @@ export async function POST(req: NextRequest) {
         new Date().toISOString();
       const checkedInAt = new Date(checkedInAtRaw);
       const timeAgo = formatTimeAgo(checkedInAt);
+      duplicateMessage = `Already checked in ${timeAgo}`;
       
       // Get location history for duplicate check-in info
       const locationHistory = getLocationRecency(registration);
-
-      log.warn('Already checked in', { registrationId: registration_id, checkedInAt: checkedInAtRaw });
+      
+      log.warn('Duplicate check-in blocked', { 
+        registrationId: registration_id, 
+        checkedInAt: checkedInAtRaw,
+        location: effectiveLocation 
+      });
+      
+      // Return error response (same as scanner's verify-qr) - do NOT proceed with check-in
       return NextResponse.json({
         error: 'ALREADY_CHECKED_IN',
-        message: `This attendee was already checked in ${timeAgo}.`,
+        message: duplicateMessage,
         checked_in_at: checkedInAtRaw,
         time_ago: timeAgo,
         last_location: registration.last_check_in_location || effectiveLocation,
         location_history: locationHistory,
+        student_name: registration.user_name,
+        is_duplicate: true,
+        duplicate_message: duplicateMessage,
       }, { status: 409 });
     }
 

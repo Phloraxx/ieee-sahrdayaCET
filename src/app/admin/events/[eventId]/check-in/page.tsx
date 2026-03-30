@@ -512,25 +512,47 @@ export default function CheckInPage({ params }: PageProps) {
             const data = await response.json();
 
             if (!response.ok) {
-                toast.error(data.message || 'Check-in failed');
+                // Handle duplicate check-in error (409) - show warning modal like scanner
+                if (response.status === 409 && data.error === 'ALREADY_CHECKED_IN') {
+                    setLastScanResult({
+                        success: false,
+                        message: data.message || 'Already checked in',
+                        type: 'warning',
+                        studentName: data.student_name || registration.studentName,
+                        timeAgo: data.time_ago || 'earlier',
+                        latestLocation: data.last_location || currentLocation,
+                        latestCheckInAt: data.checked_in_at,
+                        locationHistory: normalizeLocationHistory(data.location_history),
+                    });
+                } else {
+                    // Other errors - show toast
+                    toast.error(data.message || 'Check-in failed');
+                }
                 return;
             }
 
-            toast.success(`${registration.studentName} checked in!`);
+            // Success - show success modal (same as scanner)
+            setLastScanResult({
+                success: true,
+                message: 'Checked in successfully!',
+                type: 'success',
+                studentName: data.student_name || registration.studentName,
+                latestLocation: data.location || currentLocation,
+                latestCheckInAt: data.registration?.check_in_time || new Date().toISOString(),
+            });
             
-            // Update search results
+            // Update search results - only on successful check-in
             setSearchResults(prev => 
                         prev.map(r => r.registrationId === registration.registrationId 
                             ? { 
-                                ...r, 
-                                isCheckedIn: true, 
-                                checkedInAt: new Date().toISOString(), 
-                                lastLocation: currentLocation,
+                                ...r,
+                                checkedInAt: data.registration?.check_in_time || new Date().toISOString(), 
+                                lastLocation: data.location || currentLocation,
                                 locationHistory: [
-                                    ...(r.locationHistory || []).filter((h) => h.location !== currentLocation),
+                                    ...(r.locationHistory || []),
                                     {
-                                        location: currentLocation,
-                                        checkedInAt: new Date().toISOString(),
+                                        location: data.location || currentLocation,
+                                        checkedInAt: data.registration?.check_in_time || new Date().toISOString(),
                                         timeAgo: '0s ago',
                                     },
                                 ],

@@ -177,7 +177,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           ticketId,
           studentName,
           email,
-          isCheckedIn: reg.checked_in === true,
+          isCheckedIn: false, // Always allow check-in, multiple check-ins supported
           checkedInAt: reg.check_in_time || reg.checked_in_at || undefined,
           lastLocation: reg.last_check_in_location || 'entrance',
           locationHistory,
