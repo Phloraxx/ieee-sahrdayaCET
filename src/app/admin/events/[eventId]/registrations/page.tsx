@@ -22,11 +22,14 @@ import {
     CheckCircle,
     Clock,
     XCircle,
+    UserPlus,
+    Upload,
 } from 'lucide-react';
 import { RegistrationDetails } from '@/components/admin/RegistrationDetails';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { account } from '@/lib/appwrite';
+import Papa from 'papaparse';
 
 interface Registration {
     id: string;
@@ -94,6 +97,21 @@ export default function RegistrationsPage() {
     const [bulkAction, setBulkAction] = useState<string>('');
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
+    
+    // Manual registration state
+    const [showManualRegModal, setShowManualRegModal] = useState(false);
+    const [manualRegLoading, setManualRegLoading] = useState(false);
+    const [csvImportLoading, setCsvImportLoading] = useState(false);
+    const csvFileInputRef = React.useRef<HTMLInputElement>(null);
+    const [manualRegForm, setManualRegForm] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        department: '',
+        semester: '',
+        section: '',
+        roll_number: '',
+    });
 
     const getAuthHeaders = async (includeContentType = false) => {
         const headers: Record<string, string> = {};
@@ -212,39 +230,33 @@ export default function RegistrationsPage() {
         setActionLoading(true);
         try {
             const headers = await getAuthHeaders(true);
-            const response = await fetch('/api/admin/bulk-operations', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
+            const endpoint = action === 'email'
+                ? `/api/admin/events/${eventId}/registrations/bulk-email`
+                : '/api/admin/bulk-operations';
+
+            const payload = action === 'email'
+                ? { registration_ids: Array.from(selectedIds) }
+                : {
                     action,
                     registration_ids: Array.from(selectedIds),
                     event_id: eventId,
-                }),
+                };
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) throw new Error('Bulk action failed');
 
             const result = await response.json();
-            
-            if (action === 'export') {
-                // Download CSV
-                const blob = new Blob([result.csv], { type: 'text/csv' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `registrations-${eventId}-${Date.now()}.csv`;
-                a.click();
-                window.URL.revokeObjectURL(url);
-                toast.success(`Exported ${result.count} registrations`);
-            } else if (action === 'delete') {
-                toast.success(`Deleted ${result.count} registrations`);
-                setSelectedIds(new Set());
-                fetchRegistrations();
-            } else if (action === 'checkin') {
-                toast.success(`Marked ${result.count} registrations as checked in`);
-                fetchRegistrations();
-            } else if (action === 'email') {
-                toast.success(`Sent emails to ${result.count} registrations`);
+             
+            if (action === 'email') {
+                toast.success(`Queued emails for ${result.sent_count} registrations`);
+                if (result.failed_count > 0 || result.skipped_count > 0) {
+                    toast.error(`Failed: ${result.failed_count}, Skipped: ${result.skipped_count}`);
+                }
             }
         } catch (error) {
             console.error('Bulk action error:', error);
@@ -309,6 +321,109 @@ export default function RegistrationsPage() {
         } catch (error) {
             console.error('Error deleting:', error);
             toast.error('Failed to delete registration');
+        }
+    };
+
+    // Manual registration handler
+    const handleManualRegistration = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!manualRegForm.name || !manualRegForm.email) {
+            toast.error('Name and email are required');
+            return;
+        }
+
+        setManualRegLoading(true);
+        try {
+            const headers = await getAuthHeaders(true);
+            const response = await fetch(`/api/admin/events/${eventId}/registrations`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(manualRegForm),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to create registration');
+            }
+
+            toast.success('Registration created successfully');
+            setShowManualRegModal(false);
+            setManualRegForm({
+                name: '',
+                email: '',
+                phone: '',
+                department: '',
+                semester: '',
+                section: '',
+                roll_number: '',
+            });
+            fetchRegistrations();
+        } catch (error) {
+            console.error('Error creating registration:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to create registration');
+        } finally {
+            setManualRegLoading(false);
+        }
+    };
+
+    const handleCsvImportClick = () => {
+        if (!csvImportLoading) {
+            csvFileInputRef.current?.click();
+        }
+    };
+
+    const handleCsvFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setCsvImportLoading(true);
+        try {
+            const csvText = await file.text();
+            const parsed = Papa.parse<Record<string, string>>(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                transformHeader: (header) => header.trim(),
+            });
+
+            if (parsed.errors.length > 0) {
+                throw new Error(`CSV parse error: ${parsed.errors[0].message}`);
+            }
+
+            const rows = parsed.data.filter((row) =>
+                Object.values(row).some((value) => String(value || '').trim().length > 0)
+            );
+
+            if (rows.length === 0) {
+                throw new Error('No valid rows found in CSV file.');
+            }
+
+            const headers = await getAuthHeaders(true);
+            const response = await fetch(`/api/admin/events/${eventId}/registrations/import-csv`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ rows }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'CSV import failed');
+            }
+
+            toast.success(`Imported ${data.imported_count} registration(s)`);
+            if (data.failed_count > 0 || data.skipped_count > 0) {
+                toast.error(`Skipped: ${data.skipped_count}, Failed: ${data.failed_count}`);
+            }
+            fetchRegistrations();
+        } catch (error) {
+            console.error('CSV import error:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to import CSV');
+        } finally {
+            setCsvImportLoading(false);
+            if (csvFileInputRef.current) {
+                csvFileInputRef.current.value = '';
+            }
         }
     };
 
@@ -378,6 +493,36 @@ export default function RegistrationsPage() {
                             Filters
                             {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
+
+                        {/* Manual Registration Button */}
+                        <button
+                            onClick={() => setShowManualRegModal(true)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                        >
+                            <UserPlus className="w-5 h-5" />
+                            Manual Registration
+                        </button>
+
+                        {/* CSV Import Button */}
+                        <button
+                            onClick={handleCsvImportClick}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={csvImportLoading}
+                        >
+                            {csvImportLoading ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                                <Upload className="w-5 h-5" />
+                            )}
+                            {csvImportLoading ? 'Importing CSV...' : 'Import CSV'}
+                        </button>
+                        <input
+                            ref={csvFileInputRef}
+                            type="file"
+                            accept=".csv,text/csv"
+                            onChange={handleCsvFileSelected}
+                            className="hidden"
+                        />
 
                         {/* Bulk Actions */}
                         {selectedIds.size > 0 && (
@@ -789,6 +934,164 @@ export default function RegistrationsPage() {
                     variant="danger"
                     loading={actionLoading}
                 />
+
+                {/* Manual Registration Modal */}
+                <AnimatePresence>
+                    {showManualRegModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                            >
+                                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                                    <h2 className="text-2xl font-bold text-gray-900">Manual Registration</h2>
+                                    <button
+                                        onClick={() => setShowManualRegModal(false)}
+                                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                        disabled={manualRegLoading}
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                <form onSubmit={handleManualRegistration} className="p-6 space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Name <span className="text-red-500">*</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={manualRegForm.name}
+                                                onChange={(e) => setManualRegForm({ ...manualRegForm, name: e.target.value })}
+                                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ieee-blue/20 focus:border-ieee-blue"
+                                                placeholder="Enter full name"
+                                                disabled={manualRegLoading}
+                                            />
+                                        </div>
+
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Email <span className="text-red-500">*</span>
+                                            </label>
+                                            <input
+                                                type="email"
+                                                required
+                                                value={manualRegForm.email}
+                                                onChange={(e) => setManualRegForm({ ...manualRegForm, email: e.target.value })}
+                                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ieee-blue/20 focus:border-ieee-blue"
+                                                placeholder="email@example.com"
+                                                disabled={manualRegLoading}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Phone
+                                            </label>
+                                            <input
+                                                type="tel"
+                                                value={manualRegForm.phone}
+                                                onChange={(e) => setManualRegForm({ ...manualRegForm, phone: e.target.value })}
+                                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ieee-blue/20 focus:border-ieee-blue"
+                                                placeholder="10-digit phone number"
+                                                pattern="[6-9][0-9]{9}"
+                                                disabled={manualRegLoading}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Department
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={manualRegForm.department}
+                                                onChange={(e) => setManualRegForm({ ...manualRegForm, department: e.target.value })}
+                                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ieee-blue/20 focus:border-ieee-blue"
+                                                placeholder="e.g., Computer Science"
+                                                disabled={manualRegLoading}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Semester
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={manualRegForm.semester}
+                                                onChange={(e) => setManualRegForm({ ...manualRegForm, semester: e.target.value })}
+                                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ieee-blue/20 focus:border-ieee-blue"
+                                                placeholder="e.g., S5"
+                                                disabled={manualRegLoading}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Section
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={manualRegForm.section}
+                                                onChange={(e) => setManualRegForm({ ...manualRegForm, section: e.target.value })}
+                                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ieee-blue/20 focus:border-ieee-blue"
+                                                placeholder="e.g., A"
+                                                disabled={manualRegLoading}
+                                            />
+                                        </div>
+
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Roll Number
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={manualRegForm.roll_number}
+                                                onChange={(e) => setManualRegForm({ ...manualRegForm, roll_number: e.target.value })}
+                                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-ieee-blue/20 focus:border-ieee-blue"
+                                                placeholder="Enter roll number"
+                                                disabled={manualRegLoading}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-4 pt-4 border-t border-gray-200">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowManualRegModal(false)}
+                                            className="flex-1 px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                                            disabled={manualRegLoading}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                            disabled={manualRegLoading}
+                                        >
+                                            {manualRegLoading ? (
+                                                <>
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                    Creating...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <UserPlus className="w-5 h-5" />
+                                                    Create Registration
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </form>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );

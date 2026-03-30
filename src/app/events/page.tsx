@@ -13,7 +13,6 @@ import Footer from '@/components/Footer';
 import { databases, DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { Event, Society } from '@/types';
-import { FAKE_EVENTS, SOCIETIES, SocietyId, Event as FakeEvent } from '@/lib/fake-events-data';
 import EventRegistrationModal from '@/components/EventRegistrationModal';
 import { MyTicketsSection } from '@/components/tickets/MyTicketsSection';
 
@@ -77,36 +76,6 @@ const AnimatedSection: React.FC<AnimatedSectionProps> = ({ children, className =
             {children}
         </motion.section>
     );
-};
-
-// ==================== HELPER FUNCTIONS ====================
-const convertFakeToEventWithSociety = (fakeEvent: FakeEvent): EventWithSociety => {
-    const societyData = SOCIETIES[fakeEvent.society_id as SocietyId];
-    const society: Society | undefined = societyData ? {
-        $id: fakeEvent.society_id,
-        $createdAt: new Date().toISOString(),
-        $updatedAt: new Date().toISOString(),
-        name: societyData.name,
-        slug: fakeEvent.society_id,
-        logo_url: `/societies/${fakeEvent.society_id}-logo.png`,
-    } : undefined;
-
-    return {
-        $id: fakeEvent.$id,
-        $createdAt: new Date().toISOString(),
-        $updatedAt: new Date().toISOString(),
-        title: fakeEvent.title,
-        description: fakeEvent.description,
-        date: fakeEvent.date,
-        venue: fakeEvent.venue,
-        price: fakeEvent.price,
-        banner_url: fakeEvent.banner_url,
-        registration_url: fakeEvent.registration_url,
-        society_id: fakeEvent.society_id,
-        status: fakeEvent.status,
-        max_capacity: fakeEvent.max_capacity,
-        society,
-    };
 };
 
 const getEventColor = (index: number): { color: string; textColor: string } => {
@@ -175,15 +144,8 @@ export default function Events1Page() {
             setEvents(eventsWithSocieties);
         } catch (err) {
             console.error('Failed to fetch events from Appwrite:', err);
-            setError('Failed to load events from database. Showing sample events.');
-
-            // Fallback to fake data
-            const fakeUpcoming = FAKE_EVENTS
-                .filter(e => e.status === 'published' && new Date(e.date) > new Date())
-                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                .map(convertFakeToEventWithSociety);
-
-            setEvents(fakeUpcoming);
+            setError('Unable to load events right now. Please try again in a moment.');
+            setEvents([]);
         } finally {
             setLoading(false);
         }
@@ -349,7 +311,15 @@ export default function Events1Page() {
                             animate={{ opacity: 1, y: 0 }}
                             className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-8 mx-4 text-amber-800 text-sm"
                         >
-                            ⚠️ {error}
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <span>⚠️ {error}</span>
+                                <button
+                                    onClick={fetchEvents}
+                                    className="self-start sm:self-auto bg-amber-100 hover:bg-amber-200 text-amber-900 px-3 py-1.5 rounded-lg font-semibold transition-colors"
+                                >
+                                    Retry
+                                </button>
+                            </div>
                         </motion.div>
                     )}
 
@@ -860,13 +830,21 @@ export default function Events1Page() {
                             <div className="p-6 border-t border-slate-100 bg-white/80 backdrop-blur-md shrink-0">
                                 <button
                                     onClick={() => {
+                                        if (selectedEvent.registration_open === false) {
+                                            return;
+                                        }
                                         setRegistrationEvent(selectedEvent);
                                         setIsRegistrationModalOpen(true);
                                         setSelectedEvent(null);
                                     }}
-                                    className={`w-full ${selectedEvent.color} text-white px-8 py-4 rounded-2xl font-bold text-[16px] hover:opacity-90 transition-opacity shadow-lg flex items-center justify-center gap-2 group/btn`}
+                                    disabled={selectedEvent.registration_open === false}
+                                    className={`w-full ${selectedEvent.registration_open === false ? 'bg-slate-400 cursor-not-allowed' : selectedEvent.color} text-white px-8 py-4 rounded-2xl font-bold text-[16px] ${selectedEvent.registration_open === false ? '' : 'hover:opacity-90'} transition-opacity shadow-lg flex items-center justify-center gap-2 group/btn`}
                                 >
-                                    {selectedEvent.price === 0 ? 'Register Now' : `Get Tickets • ₹${selectedEvent.price}`}
+                                    {selectedEvent.registration_open === false
+                                        ? 'Registration Closed'
+                                        : selectedEvent.price === 0
+                                            ? 'Register Now'
+                                            : `Get Tickets • ₹${selectedEvent.price}`}
                                     <Ticket size={20} className="group-hover/btn:rotate-12 group-hover/btn:scale-110 transition-transform" />
                                 </button>
                             </div>

@@ -3,6 +3,7 @@ import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import {
   getDatabases,
   getUsers,
+  ID,
   Query,
   DATABASE_ID,
   EVENTS_COLLECTION_ID,
@@ -15,6 +16,22 @@ export const runtime = 'nodejs';
 
 interface RouteParams {
   params: Promise<{ eventId: string }>;
+}
+
+function normalizeIndianPhone(raw: string): { local: string; e164: string } | null {
+  const digits = raw.replace(/\D/g, '');
+  let local = '';
+
+  if (/^[6-9]\d{9}$/.test(digits)) {
+    local = digits;
+  } else if (/^91[6-9]\d{9}$/.test(digits)) {
+    local = digits.slice(2);
+  } else if (/^0[6-9]\d{9}$/.test(digits)) {
+    local = digits.slice(1);
+  }
+
+  if (!local) return null;
+  return { local, e164: `+91${local}` };
 }
 
 /**
@@ -216,3 +233,213 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     );
   }
 }
+
+/**
+ * POST /api/admin/events/[eventId]/registrations
+ * Manual registration by admin
+ */
+export async function POST(req: NextRequest, { params }: RouteParams) {
+  const { eventId } = await params;
+  const log = createLogger({ action: 'manual_registration', eventId });
+
+  try {
+    // Authentication
+    const user = await getSignedInUserFromRequest(req);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: 'Authentication required.' },
+        { status: 401 }
+      );
+    }
+
+    // Authorization
+    const isChair = await isUserChairOfEvent(user.$id, eventId);
+    if (!isChair) {
+      log.warn('Unauthorized manual registration attempt', { userId: user.$id, eventId });
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: 'Not authorized to create registrations for this event.' },
+        { status: 403 }
+      );
+    }
+
+    // Parse request body
+    const body = await req.json();
+    const { name, email, phone, department, semester, section, roll_number } = body;
+    const normalizedPhone = phone && String(phone).trim()
+      ? normalizeIndianPhone(String(phone))
+      : null;
+
+    // Validate required fields
+    if (!name || !email) {
+      return NextResponse.json(
+        { error: 'VALIDATION_ERROR', message: 'Name and email are required.' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'VALIDATION_ERROR', message: 'Invalid email format.' },
+        { status: 400 }
+      );
+    }
+
+    // Validate phone if provided
+    if (phone && String(phone).trim() && !normalizedPhone) {
+      return NextResponse.json(
+        { error: 'VALIDATION_ERROR', message: 'Phone must be a valid Indian mobile number.' },
+        { status: 400 }
+      );
+    }
+
+    const db = getDatabases();
+    const users = getUsers();
+
+    // Get event
+    const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
+    if (!event) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: 'Event not found.' },
+        { status: 404 }
+      );
+    }
+
+    // Find or create user
+    let targetUserId: string;
+    try {
+      const usersList = await users.list([Query.equal('email', email), Query.limit(1)]);
+      if (usersList.users.length > 0) {
+        targetUserId = usersList.users[0].$id;
+        log.info('Found existing user', { targetUserId, email });
+      } else {
+        const newUser = await users.create(
+          ID.unique(),
+          email,
+          normalizedPhone?.e164,
+          undefined,
+          name
+        );
+        targetUserId = newUser.$id;
+        log.info('Created new user', { targetUserId, email });
+      }
+    } catch (error) {
+      log.error('Failed to find/create user', error instanceof Error ? error : new Error(String(error)));
+      return NextResponse.json(
+        { error: 'USER_ERROR', message: 'Failed to process user information.' },
+        { status: 500 }
+      );
+    }
+
+    // Check for duplicate registration (active statuses only)
+    const existingRegs = await db.listDocuments(
+      DATABASE_ID,
+      REGISTRATIONS_COLLECTION_ID,
+      [
+        Query.equal('user_id', targetUserId),
+        Query.equal('event_id', eventId),
+        Query.notEqual('registration_status', 'cancelled'),
+        Query.notEqual('registration_status', 'expired'),
+        Query.limit(1),
+      ]
+    );
+
+    if (existingRegs.documents.length > 0) {
+      log.warn('Duplicate registration detected', { targetUserId, eventId });
+      return NextResponse.json(
+        { error: 'DUPLICATE_REGISTRATION', message: 'User is already registered for this event.' },
+        { status: 409 }
+      );
+    }
+
+    // Prepare form data
+    const formData: Record<string, unknown> = {
+      name,
+      email,
+    };
+    if (normalizedPhone) formData.phone = normalizedPhone.local;
+    if (department && department.trim()) formData.department = department.trim();
+    if (semester && semester.trim()) formData.semester = semester.trim();
+    if (section && section.trim()) formData.section = section.trim();
+    if (roll_number && roll_number.trim()) formData.roll_number = roll_number.trim();
+
+    // Manual registrations bypass payment flow and should always be marked as free
+    const paymentStatus = 'free';
+
+    // Create registration as confirmed
+    const registration = await db.createDocument(
+      DATABASE_ID,
+      REGISTRATIONS_COLLECTION_ID,
+      ID.unique(),
+      {
+        user_id: targetUserId,
+        event_id: eventId,
+        user_name: name,
+        user_email: email,
+        user_phone: normalizedPhone?.local || '',
+        form_responses: JSON.stringify(formData),
+        payment_status: paymentStatus,
+        registration_status: 'confirmed',
+        registration_date: new Date().toISOString(),
+        checked_in: false,
+      }
+    );
+
+    log.info('Manual registration created', { 
+      registrationId: registration.$id, 
+      targetUserId,
+      paymentStatus 
+    });
+
+    // Create ticket ID
+    const ticketId = ID.unique();
+
+    // Update registration with ticket ID
+    await db.updateDocument(
+      DATABASE_ID,
+      REGISTRATIONS_COLLECTION_ID,
+      registration.$id,
+      {
+        ticket_id: ticketId,
+      }
+    );
+
+    log.info('Ticket created for manual registration', { ticketId, registrationId: registration.$id });
+
+    return NextResponse.json({
+      success: true,
+      registration: {
+        id: registration.$id,
+        user_id: targetUserId,
+        user_name: name,
+        user_email: email,
+        user_phone: normalizedPhone?.local || '',
+        department: department || '',
+        semester: semester || '',
+        section: section || '',
+        roll_number: roll_number || '',
+        payment_status: paymentStatus,
+        registration_status: 'confirmed',
+        ticket_id: ticketId,
+        registration_date: registration.$createdAt,
+      },
+      message: 'Registration created successfully.',
+    });
+  } catch (error) {
+    const appwriteError = error as { code?: number };
+    if (appwriteError.code === 404) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: 'Event not found.' },
+        { status: 404 }
+      );
+    }
+    
+    log.error('Failed to create manual registration', error instanceof Error ? error : new Error(String(error)));
+    return NextResponse.json(
+      { error: 'INTERNAL_ERROR', message: 'Failed to create registration.' },
+      { status: 500 }
+    );
+  }
+}
+

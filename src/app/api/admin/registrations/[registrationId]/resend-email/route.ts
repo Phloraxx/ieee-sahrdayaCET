@@ -5,14 +5,12 @@ import {
   DATABASE_ID, 
   REGISTRATIONS_COLLECTION_ID,
   getEvent,
-  getUsers,
   parseEmbeddedTicket,
   isUserAdmin
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
 import { RegistrationDocument } from '@/lib/api/appwrite-admin';
-import { generateQRCodeDataUrl } from '@/lib/ticketGenerator';
-import { sendEmail, renderTemplate, getDefaultTemplate } from '@/lib/emailService';
+import { resendTicketEmail } from '@/lib/emailIntegration';
 
 export const runtime = 'nodejs';
 
@@ -77,60 +75,22 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 5. Get user details for email
-    const users = getUsers();
-    const targetUser = await users.get(registration.user_id);
-
-    // 6. Generate QR code
-    const qrCodeDataUrl = await generateQRCodeDataUrl(ticketIdStr);
-
-    // 7. Format event date and time
-    const eventDate = new Date(event.date);
-    const formattedDate = eventDate.toLocaleDateString('en-IN', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-    const formattedTime = eventDate.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    // 8. Prepare email template
-    const template = getDefaultTemplate('registration_confirmation');
-    const ticketUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://ieeesahrdaya.org'}/tickets/${ticketIdStr}`;
-
-    const emailHtml = renderTemplate(template.body, {
-      student_name: targetUser.name,
-      event_name: event.title,
-      event_date: formattedDate,
-      event_time: formattedTime,
-      event_venue: event.venue || 'To Be Announced',
-      ticket_id: ticketIdStr,
-      ticket_url: ticketUrl,
-      qr_code_data_url: qrCodeDataUrl,
-    });
-
-    const emailSubject = renderTemplate(template.subject, {
-      event_name: event.title,
-    });
-
-    // 9. Prepare attachments (QR Code CID)
-    const qrBase64 = qrCodeDataUrl.split(',')[1];
-    const qrBuffer = Buffer.from(qrBase64, 'base64');
-
-    // 10. Send email
-    const result = await sendEmail({
-      to: targetUser.email,
-      subject: emailSubject,
-      html: emailHtml,
-      attachments: [{
-        filename: 'qrcode.png',
-        content: qrBuffer,
-        cid: 'qrcode'
-      }]
-    });
+    const result = await resendTicketEmail(
+      {
+        $id: registration.$id,
+        user_id: registration.user_id,
+        event_id: registration.event_id,
+        ticket_id: ticketIdStr,
+      },
+      {
+        $id: event.$id,
+        title: event.title,
+        start_date: event.start_date,
+        date: event.date,
+        venue: event.venue,
+        price: event.price,
+      }
+    );
 
     if (!result.success) {
       log.error('Failed to send admin ticket email', new Error(result.error || 'Unknown error'));
@@ -140,12 +100,12 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    log.info('Admin ticket email sent successfully', { ticketId: ticketIdStr, email: targetUser.email });
+    log.info('Admin ticket email sent successfully', { ticketId: ticketIdStr });
 
     return NextResponse.json({
       success: true,
       message: 'Email sent successfully.',
-      sent_to: targetUser.email,
+      ticket_id: ticketIdStr,
     });
   } catch (error) {
     log.error('Failed to process admin resend email', error instanceof Error ? error : new Error(String(error)));

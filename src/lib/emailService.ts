@@ -1,28 +1,34 @@
 /**
  * Email Service - Core email sending functionality
- * Uses Nodemailer for SMTP communication
+ * Uses Nodemailer for SMTP or native Resend API
  */
 
-import nodemailer from 'nodemailer';
-import { logger } from './api/logger';
+import nodemailer from "nodemailer";
+import { Resend } from "resend";
+import { logger } from "./api/logger";
+
+const EMAIL_PROVIDER = (process.env.EMAIL_PROVIDER || "smtp").toLowerCase();
 
 // SMTP Configuration from environment
 const SMTP_CONFIG = {
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587', 10),
-  secure: process.env.SMTP_SECURE === 'true',
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: parseInt(process.env.SMTP_PORT || "587", 10),
+  secure: process.env.SMTP_SECURE === "true",
   auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASSWORD || '',
+    user: process.env.SMTP_USER || "",
+    pass: process.env.SMTP_PASSWORD || "",
   },
 };
 
-const SMTP_FROM = process.env.SMTP_FROM || 'IEEE Sahrdaya Events <events@ieeesahrdaya.com>';
+const SMTP_FROM =
+  process.env.SMTP_FROM || "IEEE Sahrdaya Events <events@ieeesahrdaya.com>";
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const RESEND_FROM = process.env.RESEND_FROM || SMTP_FROM;
 
 // Rate limiting for email sending
 const EMAIL_RATE_LIMIT = {
-  maxPerMinute: parseInt(process.env.EMAIL_RATE_LIMIT_PER_MINUTE || '10', 10),
-  maxPerHour: parseInt(process.env.EMAIL_RATE_LIMIT_PER_HOUR || '100', 10),
+  maxPerMinute: parseInt(process.env.EMAIL_RATE_LIMIT_PER_MINUTE || "30", 10),
+  maxPerHour: parseInt(process.env.EMAIL_RATE_LIMIT_PER_HOUR || "2000", 10),
 };
 
 // Track email sends for rate limiting
@@ -30,6 +36,7 @@ const emailSendLog: { timestamp: number }[] = [];
 
 // Singleton transporter instance
 let transporter: nodemailer.Transporter | null = null;
+let resendClient: Resend | null = null;
 
 /**
  * Get or create the nodemailer transporter
@@ -37,7 +44,9 @@ let transporter: nodemailer.Transporter | null = null;
 function getTransporter(): nodemailer.Transporter {
   if (!transporter) {
     if (!SMTP_CONFIG.auth.user || !SMTP_CONFIG.auth.pass) {
-      throw new Error('SMTP credentials not configured. Set SMTP_USER and SMTP_PASSWORD environment variables.');
+      throw new Error(
+        "SMTP credentials not configured. Set SMTP_USER and SMTP_PASSWORD environment variables.",
+      );
     }
 
     transporter = nodemailer.createTransport({
@@ -52,13 +61,26 @@ function getTransporter(): nodemailer.Transporter {
       rateLimit: EMAIL_RATE_LIMIT.maxPerMinute,
     });
 
-    logger.info('Email transporter initialized', {
+    logger.info("Email transporter initialized", {
       host: SMTP_CONFIG.host,
       port: String(SMTP_CONFIG.port),
     });
   }
 
   return transporter;
+}
+
+function getResendClient(): Resend {
+  if (!resendClient) {
+    if (!RESEND_API_KEY) {
+      throw new Error(
+        "Resend credentials not configured. Set RESEND_API_KEY environment variable.",
+      );
+    }
+    resendClient = new Resend(RESEND_API_KEY);
+    logger.info("Resend client initialized");
+  }
+  return resendClient;
 }
 
 /**
@@ -75,15 +97,23 @@ function checkRateLimit(): { allowed: boolean; reason?: string } {
   }
 
   // Count sends in last minute
-  const sendsLastMinute = emailSendLog.filter(e => e.timestamp > oneMinuteAgo).length;
+  const sendsLastMinute = emailSendLog.filter(
+    (e) => e.timestamp > oneMinuteAgo,
+  ).length;
   if (sendsLastMinute >= EMAIL_RATE_LIMIT.maxPerMinute) {
-    return { allowed: false, reason: `Rate limit exceeded: ${EMAIL_RATE_LIMIT.maxPerMinute} emails per minute` };
+    return {
+      allowed: false,
+      reason: `Rate limit exceeded: ${EMAIL_RATE_LIMIT.maxPerMinute} emails per minute`,
+    };
   }
 
   // Count sends in last hour
   const sendsLastHour = emailSendLog.length;
   if (sendsLastHour >= EMAIL_RATE_LIMIT.maxPerHour) {
-    return { allowed: false, reason: `Rate limit exceeded: ${EMAIL_RATE_LIMIT.maxPerHour} emails per hour` };
+    return {
+      allowed: false,
+      reason: `Rate limit exceeded: ${EMAIL_RATE_LIMIT.maxPerHour} emails per hour`,
+    };
   }
 
   return { allowed: true };
@@ -119,47 +149,83 @@ export interface SendEmailResult {
 /**
  * Send an email
  */
-export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
+export async function sendEmail(
+  options: SendEmailOptions,
+): Promise<SendEmailResult> {
   const { to, subject, html, text, attachments, replyTo } = options;
 
   // Check rate limits
   const rateCheck = checkRateLimit();
   if (!rateCheck.allowed) {
-    logger.warn('Email rate limit exceeded', { to: String(to), reason: rateCheck.reason });
+    logger.warn("Email rate limit exceeded", {
+      to: String(to),
+      reason: rateCheck.reason,
+    });
     return { success: false, error: rateCheck.reason };
   }
 
   try {
-    const transport = getTransporter();
+    let messageId: string | undefined;
 
-    const mailOptions: nodemailer.SendMailOptions = {
-      from: SMTP_FROM,
-      to: Array.isArray(to) ? to.join(', ') : to,
-      subject,
-      html,
-      text: text || stripHtml(html),
-      replyTo,
-      attachments,
-    };
+    if (EMAIL_PROVIDER === "resend") {
+      const resend = getResendClient();
+      const resendResult = await resend.emails.send({
+        from: RESEND_FROM,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html,
+        text: text || stripHtml(html),
+        replyTo: replyTo ? [replyTo] : undefined,
+        attachments: attachments?.map((attachment) => ({
+          filename: attachment.filename,
+          content:
+            typeof attachment.content === "string"
+              ? attachment.content
+              : attachment.content.toString("base64"),
+          contentType: attachment.contentType,
+          contentId: attachment.cid,
+        })),
+      });
+      messageId = resendResult.data?.id;
+    } else {
+      const transport = getTransporter();
 
-    const result = await transport.sendMail(mailOptions);
+      const mailOptions: nodemailer.SendMailOptions = {
+        from: SMTP_FROM,
+        to: Array.isArray(to) ? to.join(", ") : to,
+        subject,
+        html,
+        text: text || stripHtml(html),
+        replyTo,
+        attachments,
+      };
+
+      const result = await transport.sendMail(mailOptions);
+      messageId = result.messageId;
+    }
 
     recordEmailSend();
 
-    logger.info('Email sent successfully', {
+    logger.info("Email sent successfully", {
       to: String(to),
       subject,
-      messageId: result.messageId,
+      messageId: messageId || "",
+      provider: EMAIL_PROVIDER,
     });
 
-    return { success: true, messageId: result.messageId };
+    return { success: true, messageId };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
-    logger.error('Failed to send email', error instanceof Error ? error : new Error(errorMessage), {
-      to: String(to),
-      subject,
-    });
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+
+    logger.error(
+      "Failed to send email",
+      error instanceof Error ? error : new Error(errorMessage),
+      {
+        to: String(to),
+        subject,
+      },
+    );
 
     return { success: false, error: errorMessage };
   }
@@ -170,16 +236,16 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
  */
 function stripHtml(html: string): string {
   return html
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/\s+/g, ' ')
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -189,7 +255,7 @@ function stripHtml(html: string): string {
  */
 export function renderTemplate(
   template: string,
-  variables: Record<string, string | number | undefined>
+  variables: Record<string, string | number | undefined>,
 ): string {
   return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
     const value = variables[key];
@@ -200,15 +266,28 @@ export function renderTemplate(
 /**
  * Verify SMTP connection
  */
-export async function verifyConnection(): Promise<{ success: boolean; error?: string }> {
+export async function verifyConnection(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
   try {
+    if (EMAIL_PROVIDER === "resend") {
+      getResendClient();
+      logger.info("Resend connection verified successfully");
+      return { success: true };
+    }
+
     const transport = getTransporter();
     await transport.verify();
-    logger.info('SMTP connection verified successfully');
+    logger.info("SMTP connection verified successfully");
     return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('SMTP connection verification failed', error instanceof Error ? error : new Error(errorMessage));
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    logger.error(
+      "SMTP connection verification failed",
+      error instanceof Error ? error : new Error(errorMessage),
+    );
     return { success: false, error: errorMessage };
   }
 }
@@ -220,17 +299,19 @@ export function closeConnection(): void {
   if (transporter) {
     transporter.close();
     transporter = null;
-    logger.info('Email transporter connection closed');
+    logger.info("Email transporter connection closed");
   }
+  resendClient = null;
 }
 
 // Email template types
-export type EmailTemplateType = 
-  | 'registration_confirmation'
-  | 'payment_confirmation'
-  | 'event_reminder_24h'
-  | 'event_reminder_1h'
-  | 'custom';
+export type EmailTemplateType =
+  | "registration_confirmation"
+  | "payment_confirmation"
+  | "payment_receipt"
+  | "event_reminder_24h"
+  | "event_reminder_1h"
+  | "custom";
 
 // Template variables interface
 export interface TemplateVariables {
@@ -249,7 +330,10 @@ export interface TemplateVariables {
 /**
  * Get default email templates
  */
-export function getDefaultTemplate(type: EmailTemplateType): { subject: string; body: string } {
+export function getDefaultTemplate(type: EmailTemplateType): {
+  subject: string;
+  body: string;
+} {
   const baseTheme = `
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -447,11 +531,47 @@ export function getDefaultTemplate(type: EmailTemplateType): { subject: string; 
       font-size: 12px;
       margin: 4px 0;
     }
+    .rc-bg { background-color: #f3f4f6; padding: 40px 16px; }
+    .rc-wrap { max-width: 520px; margin: 0 auto; }
+    .rc-org { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #6b7280; text-align: center; margin: 0 0 20px; font-weight: 700; }
+    .rc-greet { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 20px; padding: 26px 30px; margin-bottom: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+    .rc-greet h1 { margin: 0 0 10px; font-size: 26px; line-height: 1.2; color: #111827; letter-spacing: -0.01em; }
+    .rc-greet p { margin: 0; color: #6b7280; font-size: 14px; line-height: 1.6; }
+    .rc-ticket { background: #ffffff; border-radius: 24px; overflow: hidden; margin: 20px 0; border: 1px solid #e5e7eb; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); }
+    .rc-head { padding: 28px 24px 24px; color: #ffffff; background: linear-gradient(135deg, #111827 0%, #1f2937 100%); }
+    .rc-tag { display: inline-block; background: rgba(255,255,255,0.10); border-radius: 8px; padding: 6px 12px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.82); letter-spacing: 0.10em; text-transform: uppercase; margin-bottom: 18px; }
+    .rc-name { margin: 0; color: #ffffff; font-size: 20px; line-height: 1.2; }
+    .rc-tear { position: relative; height: 24px; background: #ffffff; overflow: visible; }
+    .rc-tear-line { border-top: 2px dashed #e5e7eb; margin: 11px 16px 0; }
+    .rc-body { padding: 10px 24px 24px; background: #ffffff; }
+    .rc-info-label { display: block; font-size: 10px; color: #9ca3af; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 4px; font-weight: 700; }
+    .rc-info-val { margin: 0; color: #111827; font-size: 13px; font-weight: 700; line-height: 1.4; }
+    .rc-attendee { background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 16px; padding: 14px 16px; margin: 20px 0 22px; }
+    .rc-attendee-name { margin: 2px 0 0; color: #111827; font-size: 16px; font-weight: 700; }
+    .rc-badge { display: inline-block; background: #dbeafe; border-radius: 4px; padding: 4px 8px; color: #1e3a8a; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .rc-qr { background: #ffffff; border: 1px solid #f3f4f6; border-radius: 18px; padding: 16px 20px 20px; text-align: center; }
+    .rc-qr-inner { background: #ffffff; border-radius: 12px; padding: 14px; display: inline-block; margin-bottom: 14px; }
+    .rc-qr-inner img { width: 160px; height: 160px; border-radius: 6px; display: block; }
+    .rc-pass-label { display: block; font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: #9ca3af; margin-bottom: 6px; font-weight: 700; }
+    .rc-pass { display: inline-block; font-size: 14px; color: #1f2937; letter-spacing: 0.1em; margin-bottom: 16px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background:#f9fafb; border:1px solid #f3f4f6; border-radius:8px; padding:4px 12px; }
+    .rc-valid { display: inline-block; background: #f0fdf4; border: 1px solid rgba(22,163,74,0.5); border-radius: 999px; padding: 8px 16px; color: #16a34a; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700; }
+    .rc-cta { display: inline-block; text-decoration: none; border-radius: 12px; padding: 12px 16px; background: rgba(59,130,246,0.10); color: #1e3a8a; border: 1px solid rgba(59,130,246,0.25); font-size: 13px; font-weight: 700; margin-top: 10px; }
+    .rc-note { background: #ffffff; border-left: 3px solid #3b82f6; border-radius: 16px; padding: 20px 24px; margin: 16px 0; color: #6b7280; font-size: 13px; line-height: 1.6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+    @media only screen and (max-width: 480px) {
+      .rc-bg { padding: 24px 12px; }
+      .rc-head { padding: 24px 20px 20px; }
+      .rc-body { padding: 20px; }
+      .rc-greet { padding: 22px 20px; }
+      .rc-name { font-size: 18px; }
+    }
   `;
 
-  const templates: Record<EmailTemplateType, { subject: string; body: string }> = {
+  const templates: Record<
+    EmailTemplateType,
+    { subject: string; body: string }
+  > = {
     registration_confirmation: {
-      subject: 'Your Ticket for {{event_name}}',
+      subject: "Your Ticket for {{event_name}}",
       body: `<!DOCTYPE html>
 <html>
 <head>
@@ -460,85 +580,97 @@ export function getDefaultTemplate(type: EmailTemplateType): { subject: string; 
   <style>${baseTheme}</style>
 </head>
 <body>
-  <div class="email-wrapper">
-    <div class="intro-text">
-      <h2>Registration Confirmed! 🎉</h2>
-      <p>Hello <b>{{student_name}}</b>,</p>
-      <p style="margin-top: 8px;">Your registration for <b>{{event_name}}</b> is officially confirmed. This email contains your digital entry pass. Please save this email and present the QR code below at the venue for check-in.</p>
-    </div>
+  <div class="rc-bg">
+    <div class="rc-wrap">
+      <p class="rc-org">IEEE SAHRDAYA STUDENT BRANCH</p>
 
-    <div class="ticket-card">
-      <div class="ticket-header">
-        <div class="ticket-header-society-wrap">
-          <p class="ticket-header-society">IEEE Sahrdaya SB</p>
-        </div>
-        <h4 class="ticket-header-title">{{event_name}}</h4>
+      <div class="rc-greet">
+        <h1>You&apos;re registered, {{student_name}}!</h1>
+        <p>Your spot at <strong>{{event_name}}</strong> is confirmed. This email is your entry pass — present this QR code at the venue for check-in.</p>
       </div>
 
-      <!-- Cutout Row -->
-      <div style="position: relative; height: 24px; background-color: #ffffff; margin-top: -12px; z-index: 10;">
-        <div style="position: absolute; left: -16px; top: -4px; width: 32px; height: 32px; background-color: #f3f4f6; border-radius: 50%;"></div>
-        <div style="position: absolute; right: -16px; top: -4px; width: 32px; height: 32px; background-color: #f3f4f6; border-radius: 50%;"></div>
-        <div style="padding-top: 11px;">
-           <div class="cutout-dashed-line"></div>
+      <div class="rc-ticket">
+        <div class="rc-head">
+          <div class="rc-tag">IEEE SAHRDAYA SB · {{event_year}}</div>
+          <h2 class="rc-name">{{event_name}}</h2>
         </div>
-      </div>
-
-      <div class="ticket-body">
-        <table style="margin-top: 8px;">
+        <!--[if mso]>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background:#ffffff;height:24px;font-size:0;">
+        <![endif]-->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:#ffffff;">
           <tr>
-            <td style="width: 50%; padding-right: 8px;">
-              <p class="label">Date & Time</p>
-              <p class="value">{{event_date}}</p>
-              <p class="value-sub">{{event_time}}</p>
+            <td style="width:16px;height:24px;vertical-align:middle;background:#f3f4f6;border-top-right-radius:12px;border-bottom-right-radius:12px;"></td>
+            <td style="height:24px;vertical-align:middle;background:#ffffff;">
+              <div style="border-top:2px dashed #e5e7eb;margin:0 8px;"></div>
             </td>
-            <td style="width: 50%; padding-left: 8px;">
-              <p class="label">Location</p>
-              <p class="value">{{event_venue}}</p>
-            </td>
+            <td style="width:16px;height:24px;vertical-align:middle;background:#f3f4f6;border-top-left-radius:12px;border-bottom-left-radius:12px;"></td>
           </tr>
         </table>
-
-        <div class="info-box">
-          <table>
+        <!--[if mso]>
+        </td></tr></table>
+        <![endif]-->
+        <div class="rc-body">
+          <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
             <tr>
-              <td style="width: 70%; border-right: 1px solid #e5e7eb; padding-right: 16px;">
-                <p class="info-box-label">Attendee / Name</p>
-                <p class="info-box-val">{{student_name}}</p>
+              <td style="width:50%;padding-right:14px;padding-bottom:14px;">
+                <span class="rc-info-label">Date</span>
+                <p class="rc-info-val">{{event_date}}</p>
               </td>
-              <td style="width: 30%; text-align: right; padding-left: 16px; vertical-align: middle;">
-                <p class="info-box-label">Type</p>
-                <div style="display: inline-block; background-color: #dbeafe; color: #1e3a8a; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 4px;">PAID</div>
+              <td style="width:50%;padding-bottom:14px;">
+                <span class="rc-info-label">Time</span>
+                <p class="rc-info-val">{{event_time}}</p>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2">
+                <span class="rc-info-label">Venue</span>
+                <p class="rc-info-val">{{event_venue}}</p>
               </td>
             </tr>
           </table>
-        </div>
 
-        <div class="qr-container">
-          <div class="qr-box">
-            <img src="cid:qrcode" alt="Ticket QR Code" />
+          <div class="rc-attendee">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr>
+                <td style="vertical-align:middle;">
+                  <span class="rc-info-label">Delegate</span>
+                  <p class="rc-attendee-name">{{student_name}}</p>
+                </td>
+                <td style="vertical-align:middle;text-align:right;">
+                  <span class="rc-badge">PAID</span>
+                </td>
+              </tr>
+            </table>
           </div>
-          <div style="text-align: center;">
-            <p class="label" style="margin-top: 16px;">Pass ID</p>
-            <div class="pass-id">{{ticket_id}}</div>
-          </div>
-          <div style="text-align: center;">
-            <div class="valid-pass">✓ Valid Pass</div>
+
+          <div class="rc-qr">
+            <div class="rc-qr-inner">
+              <img src="cid:qrcode" alt="Entry QR Code" />
+            </div>
+            <span class="rc-pass-label">Pass ID</span>
+            <span class="rc-pass">{{ticket_id}}</span>
+            <span class="rc-valid">Valid Pass</span>
+            <br />
+            <a href="{{ticket_url}}" class="rc-cta">View E-ticket</a>
           </div>
         </div>
       </div>
-    </div>
-    
-    <div class="footer">
-      <p style="font-weight: 600; color: #111827;">IEEE Sahrdaya SB</p>
-      <p>Advancing Technology for Humanity</p>
+
+      <div class="rc-note">
+        Please arrive a little early for smooth check-in. Keep this email handy and do not share your QR code.
+      </div>
+
+      <div class="footer">
+        <p style="font-weight: 600; color: #111827;">IEEE Sahrdaya SB</p>
+        <p>Advancing Technology for Humanity</p>
+      </div>
     </div>
   </div>
 </body>
 </html>`,
     },
     payment_confirmation: {
-      subject: 'Payment Receipt: {{event_name}}',
+      subject: "Payment Receipt: {{event_name}}",
       body: `<!DOCTYPE html>
 <html>
 <head>
@@ -587,7 +719,7 @@ export function getDefaultTemplate(type: EmailTemplateType): { subject: string; 
         </div>
       </div>
     </div>
-    
+
     <div class="footer">
       <p style="font-weight: 600; color: #111827;">IEEE Sahrdaya SB</p>
       <p>Advancing Technology for Humanity</p>
@@ -597,7 +729,7 @@ export function getDefaultTemplate(type: EmailTemplateType): { subject: string; 
 </html>`,
     },
     event_reminder_24h: {
-      subject: 'Reminder: {{event_name}} is Tomorrow',
+      subject: "Reminder: {{event_name}} is Tomorrow",
       body: `<!DOCTYPE html>
 <html>
 <head>
@@ -643,7 +775,7 @@ export function getDefaultTemplate(type: EmailTemplateType): { subject: string; 
             </td>
           </tr>
         </table>
-        
+
         <div class="qr-container">
           <div class="qr-box">
             <img src="cid:qrcode" alt="Ticket QR Code" />
@@ -655,7 +787,7 @@ export function getDefaultTemplate(type: EmailTemplateType): { subject: string; 
         </div>
       </div>
     </div>
-    
+
     <div class="footer">
       <p style="font-weight: 600; color: #111827;">IEEE Sahrdaya SB</p>
     </div>
@@ -664,7 +796,7 @@ export function getDefaultTemplate(type: EmailTemplateType): { subject: string; 
 </html>`,
     },
     event_reminder_1h: {
-      subject: 'Starting Soon: {{event_name}}',
+      subject: "Starting Soon: {{event_name}}",
       body: `<!DOCTYPE html>
 <html>
 <head>
@@ -701,7 +833,7 @@ export function getDefaultTemplate(type: EmailTemplateType): { subject: string; 
            <p class="label">Venue Location</p>
            <p class="value" style="font-size: 20px;">{{event_venue}}</p>
         </div>
-        
+
         <div class="qr-container">
           <div class="qr-box">
             <img src="cid:qrcode" alt="Ticket QR Code" />
@@ -713,7 +845,7 @@ export function getDefaultTemplate(type: EmailTemplateType): { subject: string; 
         </div>
       </div>
     </div>
-    
+
     <div class="footer">
       <p style="font-weight: 600; color: #111827;">IEEE Sahrdaya SB</p>
     </div>
@@ -721,9 +853,220 @@ export function getDefaultTemplate(type: EmailTemplateType): { subject: string; 
 </body>
 </html>`,
     },
+    payment_receipt: {
+      subject: "Payment Receipt: {{event_name}}",
+      body: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f3f4f6;
+      margin: 0;
+      padding: 40px 20px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .email-wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      color: #ffffff;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .header p {
+      margin: 0;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .content {
+      padding: 32px 24px;
+    }
+    .greeting {
+      font-size: 16px;
+      color: #374151;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .amount-box {
+      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+      border: 2px solid #3b82f6;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      margin: 24px 0;
+    }
+    .amount-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e3a8a;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .amount-value {
+      font-size: 42px;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin: 0;
+    }
+    .status-badge {
+      display: inline-block;
+      background-color: #dcfce7;
+      color: #166534;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 12px;
+    }
+    .info-section {
+      margin: 24px 0;
+    }
+    .info-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .info-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    .info-label {
+      font-size: 13px;
+      color: #6b7280;
+      flex: 0 0 140px;
+    }
+    .info-value {
+      font-size: 13px;
+      color: #111827;
+      font-weight: 600;
+    }
+    .attachment-note {
+      background-color: #fef3c7;
+      border: 1px solid #fbbf24;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 24px 0;
+    }
+    .attachment-note p {
+      margin: 0;
+      font-size: 13px;
+      color: #92400e;
+    }
+    .footer {
+      background-color: #f9fafb;
+      padding: 24px;
+      text-align: center;
+      border-top: 1px solid #e5e7eb;
+    }
+    .footer p {
+      margin: 4px 0;
+      font-size: 12px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+    <div class="header">
+      <h1>Payment Receipt</h1>
+      <p>IEEE Sahrdaya Student Branch</p>
+    </div>
+
+    <div class="content">
+      <div class="greeting">
+        <p><strong>Dear {{student_name}},</strong></p>
+        <p>Thank you for your payment. This email confirms that we have successfully received your payment for <strong>{{event_name}}</strong>.</p>
+      </div>
+
+      <div class="amount-box">
+        <div class="amount-label">Amount Paid</div>
+        <div class="amount-value">₹{{amount}}</div>
+        <div class="status-badge">✓ Payment Completed</div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-section-title">Event Details</div>
+        <div class="info-row">
+          <div class="info-label">Event Name:</div>
+          <div class="info-value">{{event_name}}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Date & Time:</div>
+          <div class="info-value">{{event_date}}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Venue:</div>
+          <div class="info-value">{{event_venue}}</div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-section-title">Transaction Details</div>
+        <div class="info-row">
+          <div class="info-label">Ticket/Pass ID:</div>
+          <div class="info-value">{{ticket_id}}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Payment Date:</div>
+          <div class="info-value">{{payment_date}}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Payment Reference:</div>
+          <div class="info-value">{{payment_reference}}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">UTR/RRN:</div>
+          <div class="info-value">{{utr_number}}</div>
+        </div>
+      </div>
+
+      <div class="attachment-note">
+        <p><strong>📎 Receipt Attached:</strong> A detailed PDF receipt is attached to this email for your records.</p>
+      </div>
+
+      <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+        <p style="font-size: 13px; color: #6b7280; line-height: 1.6;">
+          Your registration ticket with QR code will be sent separately in another email. Please keep both emails for your records.
+        </p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p><strong>IEEE Sahrdaya Student Branch</strong></p>
+      <p>Sahrdaya College of Engineering & Technology, Kodakara</p>
+      <p>For queries: events@ieeesahrdaya.com</p>
+    </div>
+  </div>
+</body>
+</html>`,
+    },
     custom: {
-      subject: '',
-      body: '',
+      subject: "",
+      body: "",
     },
   };
 

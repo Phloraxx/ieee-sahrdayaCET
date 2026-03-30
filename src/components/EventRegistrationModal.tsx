@@ -270,6 +270,11 @@ export default function EventRegistrationModal({
         if (!isOpen || !event) return;
 
         const checkExistingRegistration = async () => {
+            if (event.registration_open === false) {
+                setCurrentStep('form');
+                setError('Registrations are currently closed for this event.');
+                return;
+            }
             if (!user) {
                 setCurrentStep('auth');
                 return;
@@ -373,6 +378,10 @@ export default function EventRegistrationModal({
 
     const handleFormSubmit = async (data: RegistrationData) => {
         if (!event || !user) return;
+        if (event.registration_open === false) {
+            toast.error('Registrations are currently closed for this event.');
+            return;
+        }
 
         setFormData(data);
         setIsLoading(true);

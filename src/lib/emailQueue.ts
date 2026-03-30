@@ -18,7 +18,7 @@
  * TODO: Implement persistent queue before production deployment
  */
 
-import { sendEmail, SendEmailOptions, SendEmailResult } from './emailService';
+import { sendEmail, SendEmailOptions, SendEmailResult, renderTemplate, getDefaultTemplate } from './emailService';
 import { logger } from './api/logger';
 
 // Job status types
@@ -58,6 +58,33 @@ const emailQueue: Map<string, EmailJob> = new Map();
 const processingQueue: string[] = [];
 let isProcessing = false;
 let processingPromise: Promise<void> | null = null;
+
+function getInlineQrAttachment(
+  variables: Record<string, string | number | undefined>
+): SendEmailOptions['attachments'] {
+  const qrDataUrl = variables.qr_code_data_url;
+  if (typeof qrDataUrl !== 'string' || !qrDataUrl.includes(',')) {
+    return undefined;
+  }
+
+  try {
+    const base64 = qrDataUrl.split(',')[1];
+    const buffer = Buffer.from(base64, 'base64');
+    return [
+      {
+        filename: 'qrcode.png',
+        content: buffer,
+        contentType: 'image/png',
+        cid: 'qrcode',
+      },
+    ];
+  } catch (error) {
+    logger.warn('Failed to parse QR data URL for inline email attachment', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return undefined;
+  }
+}
 
 /**
  * Generate unique job ID
@@ -402,14 +429,13 @@ export function queueRegistrationEmail(
   eventId: string,
   registrationId: string
 ): QueueEmailResult {
-  const { renderTemplate, getDefaultTemplate } = require('./emailService');
-  
   const defaultTemplate = getDefaultTemplate('registration_confirmation');
   const html = renderTemplate(templateHtml || defaultTemplate.body, variables);
   const subject = renderTemplate(defaultTemplate.subject, variables);
+  const attachments = getInlineQrAttachment(variables);
 
   const jobId = queueEmail(
-    { to, subject, html },
+    { to, subject, html, attachments },
     { event_id: eventId, registration_id: registrationId, template_type: 'registration_confirmation' }
   );
 
@@ -426,14 +452,13 @@ export function queuePaymentEmail(
   eventId: string,
   registrationId: string
 ): QueueEmailResult {
-  const { renderTemplate, getDefaultTemplate } = require('./emailService');
-  
   const defaultTemplate = getDefaultTemplate('payment_confirmation');
   const html = renderTemplate(templateHtml || defaultTemplate.body, variables);
   const subject = renderTemplate(defaultTemplate.subject, variables);
+  const attachments = getInlineQrAttachment(variables);
 
   const jobId = queueEmail(
-    { to, subject, html },
+    { to, subject, html, attachments },
     { event_id: eventId, registration_id: registrationId, template_type: 'payment_confirmation' }
   );
 
@@ -451,15 +476,52 @@ export function queueReminderEmail(
   eventId: string,
   registrationId: string
 ): QueueEmailResult {
-  const { renderTemplate, getDefaultTemplate } = require('./emailService');
-  
   const defaultTemplate = getDefaultTemplate(templateType);
   const html = renderTemplate(templateHtml || defaultTemplate.body, variables);
   const subject = renderTemplate(defaultTemplate.subject, variables);
+  const attachments = getInlineQrAttachment(variables);
 
   const jobId = queueEmail(
-    { to, subject, html },
+    { to, subject, html, attachments },
     { event_id: eventId, registration_id: registrationId, template_type: templateType }
+  );
+
+  return { job_id: jobId, status: 'pending' };
+}
+
+/**
+ * Queue payment receipt email with PDF attachment
+ */
+export function queueReceiptEmail(
+  to: string,
+  variables: Record<string, string | number | undefined>,
+  templateHtml: string,
+  eventId: string,
+  registrationId: string,
+  pdfBase64: string,
+  pdfFilename: string
+): QueueEmailResult {
+  const defaultTemplate = getDefaultTemplate('payment_receipt');
+  const html = renderTemplate(templateHtml || defaultTemplate.body, variables);
+  const subject = renderTemplate(defaultTemplate.subject, variables);
+
+  // Convert base64 PDF to buffer for attachment
+  const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+
+  const jobId = queueEmail(
+    { 
+      to, 
+      subject, 
+      html,
+      attachments: [
+        {
+          filename: pdfFilename,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        }
+      ]
+    },
+    { event_id: eventId, registration_id: registrationId, template_type: 'payment_receipt' }
   );
 
   return { job_id: jobId, status: 'pending' };

@@ -9,11 +9,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabases, getUsers, DATABASE_ID, EVENTS_COLLECTION_ID, EVENT_REGISTRATIONS_COLLECTION_ID, EMAIL_TEMPLATES_COLLECTION_ID } from '@/lib/api/appwrite-admin';
+import { getDatabases, getUsers, DATABASE_ID, EVENTS_COLLECTION_ID, EVENT_REGISTRATIONS_COLLECTION_ID } from '@/lib/api/appwrite-admin';
 import { logger } from '@/lib/api/logger';
 import { Query } from 'node-appwrite';
 import { queueReminderEmail } from '@/lib/emailQueue';
-import { getDefaultTemplate, renderTemplate } from '@/lib/emailService';
+import { getDefaultTemplate } from '@/lib/emailService';
 import QRCode from 'qrcode';
 
 export const runtime = 'nodejs';
@@ -75,43 +75,6 @@ async function generateQRCode(ticketId: string): Promise<string> {
 }
 
 /**
- * Get email template for event (or use default)
- */
-async function getEmailTemplate(
-  db: ReturnType<typeof getDatabases>,
-  eventId: string,
-  templateType: 'event_reminder_24h' | 'event_reminder_1h'
-): Promise<{ subject: string; body: string }> {
-  try {
-    const response = await db.listDocuments(
-      DATABASE_ID,
-      EMAIL_TEMPLATES_COLLECTION_ID,
-      [
-        Query.equal('event_id', eventId),
-        Query.equal('template_type', templateType),
-        Query.limit(1),
-      ]
-    );
-
-    if (response.documents.length > 0) {
-      const template = response.documents[0];
-      return {
-        subject: template.subject as string,
-        body: template.body as string,
-      };
-    }
-  } catch (error) {
-    logger.warn('Failed to load custom template, using default', {
-      eventId,
-      templateType,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  return getDefaultTemplate(templateType);
-}
-
-/**
  * Send 24-hour reminders for events starting tomorrow
  */
 async function send24HourReminders(db: ReturnType<typeof getDatabases>) {
@@ -159,7 +122,7 @@ async function send24HourReminders(db: ReturnType<typeof getDatabases>) {
         ]
       );
 
-      const template = await getEmailTemplate(db, event.$id, 'event_reminder_24h');
+      const template = getDefaultTemplate('event_reminder_24h');
       const users = getUsers();
 
       // Send reminder to each registered user
@@ -284,7 +247,7 @@ async function send1HourReminders(db: ReturnType<typeof getDatabases>) {
         ]
       );
 
-      const template = await getEmailTemplate(db, event.$id, 'event_reminder_1h');
+      const template = getDefaultTemplate('event_reminder_1h');
       const users = getUsers();
 
       // Send reminder to each registered user

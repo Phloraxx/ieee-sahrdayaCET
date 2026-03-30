@@ -104,6 +104,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // 6b. Respect explicit registration toggle
+    if (event.registration_open === false) {
+      log.warn('Registration attempt while registration is closed', { userId, eventId });
+      return NextResponse.json(
+        { error: 'REGISTRATION_CLOSED', message: 'Registrations are currently closed for this event.' },
+        { status: 400 }
+      );
+    }
+
     // 7. Check registration deadline (from metadata or event)
     const registrationDeadline = event.registration_deadline;
     if (registrationDeadline) {
@@ -327,10 +336,11 @@ async function handleFreeRegistration(
     },
     event
   ).catch(emailError => {
-    // Don't fail registration if email fails
+    // Don't fail registration if email fails, but surface high-signal context for QR issues
+    const message = emailError instanceof Error ? emailError.message : String(emailError);
     log.error('Failed to send confirmation email', 
       emailError instanceof Error ? emailError : new Error(String(emailError)),
-      { registrationId: registration.$id }
+      { registrationId: registration.$id, ticketId: ticket.$id, reason: message }
     );
   });
 

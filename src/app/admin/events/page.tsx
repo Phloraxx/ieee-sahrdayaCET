@@ -155,14 +155,17 @@ export default function AdminEventsPage() {
 
         try {
             setDeleting(true);
-            // Soft delete - update status to archived
-            await databases.updateDocument(
-                DATABASE_ID,
-                EVENTS_COLLECTION_ID,
-                deleteDialog.eventId,
-                { status: 'archived' }
-            );
-            
+            // Archive via admin API so server-side auth and soft-delete fields are applied consistently
+            const response = await fetch(`/api/admin/events/${deleteDialog.eventId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload?.message || 'Failed to archive event');
+            }
+             
             toast.success('Event archived successfully');
             setDeleteDialog({ isOpen: false, eventId: null });
             fetchEvents();

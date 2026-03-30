@@ -37,7 +37,7 @@ import {
   Query,
 } from '@/lib/api/appwrite-admin';
 import { logger } from '@/lib/api/logger';
-import { sendRegistrationConfirmation } from '@/lib/emailIntegration';
+import { sendRegistrationConfirmation, sendPaymentReceipt } from '@/lib/emailIntegration';
 import { randomUUID, timingSafeEqual as cryptoTimingSafeEqual } from 'crypto';
 
 export const runtime = 'nodejs';
@@ -131,33 +131,6 @@ function parseSmsPayment(text: string): { ticketId: string | null; amount: numbe
 }
 
 /**
- * Generate QR code for ticket
- */
-async function generateQRCode(ticketId: string, registrationId: string, eventId: string): Promise<string> {
-  try {
-    const qrData = JSON.stringify({
-      ticket_id: ticketId,
-      registration_id: registrationId,
-      event_id: eventId,
-      timestamp: new Date().toISOString(),
-    });
-    
-    const dataUrl = await QRCode.toDataURL(qrData, {
-      width: 300,
-      margin: 2,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF',
-      },
-    });
-    return dataUrl;
-  } catch (error) {
-    logger.error('Failed to generate QR code', error instanceof Error ? error : new Error(String(error)));
-    return '';
-  }
-}
-
-/**
  * Main webhook handler
  */
 export async function POST(request: NextRequest) {
@@ -167,7 +140,7 @@ export async function POST(request: NextRequest) {
   
   try {
     payload = await request.json();
-  } catch (error) {
+  } catch {
     logger.warn('Invalid JSON in webhook payload');
     return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
   }
@@ -269,39 +242,111 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if already paid
-    if (registration.payment_status === 'completed') {
-      logger.info('Payment already completed', { registrationId: registration.$id });
+    const eventId = registration.event_id as string;
+    const userId = registration.user_id as string;
+    const alreadyProcessedPayment =
+      registration.payment_status === 'paid' ||
+      registration.payment_status === 'completed';
+
+    if (alreadyProcessedPayment) {
+      logger.info('Payment already processed, skipping duplicate webhook side-effects', {
+        registrationId: registration.$id,
+        paymentStatus: registration.payment_status,
+      });
       return NextResponse.json({
         success: true,
-        message: 'Payment already completed',
+        message: 'Payment already processed',
         registration_id: registration.$id,
+        ticket_id: registration.ticket_id,
+        status: 'confirmed',
       });
     }
 
-    const eventId = registration.event_id as string;
-    const userId = registration.user_id as string;
+    // Fetch detailed payment information from Payment API
+    let paymentApiDetails: {
+      amount?: number;
+      rrn?: string;
+      senderName?: string;
+      paidAt?: string;
+      transactionId?: string;
+      upiId?: string;
+    } = {};
 
-    // Update registration to confirmed
+    if (ticketId) {
+      try {
+        const paymentApiUrl = process.env.PAYMENT_API_URL || 'https://payment-api.nerdpixel.workers.dev/api';
+        const statusResponse = await fetch(`${paymentApiUrl}/status/${ticketId}`);
+        
+        if (statusResponse.ok) {
+          const paymentData = await statusResponse.json();
+          
+          if (paymentData.status === 'paid') {
+            paymentApiDetails = {
+              amount: paymentData.amount || payload.amount,
+              rrn: paymentData.rrn || payload.rrn,
+              senderName: paymentData.senderName || payload.senderName,
+              paidAt: paymentData.paidAt || payload.paidAt,
+              transactionId: paymentData.transactionId || payload.transactionId,
+              upiId: paymentData.upiId || payload.upiId,
+            };
+            logger.info('Payment details fetched from Payment API', paymentApiDetails);
+          }
+        }
+      } catch (error) {
+        logger.warn('Failed to fetch payment details from Payment API', 
+          error instanceof Error ? error : new Error(String(error))
+        );
+        // Continue with webhook payload data
+        paymentApiDetails = {
+          amount: payload.amount,
+          rrn: payload.rrn,
+          senderName: payload.senderName,
+          paidAt: payload.paidAt,
+          transactionId: payload.transactionId,
+          upiId: payload.upiId,
+        };
+      }
+    } else {
+      // Fallback to webhook payload
+      paymentApiDetails = {
+        amount: payload.amount,
+        rrn: payload.rrn,
+        senderName: payload.senderName,
+        paidAt: payload.paidAt,
+        transactionId: payload.transactionId,
+        upiId: payload.upiId,
+      };
+    }
+
+    // Update registration to confirmed with payment details
+    const updateData: Record<string, unknown> = {
+      payment_status: 'paid',
+      registration_status: 'confirmed',
+      payment_date: paymentApiDetails.paidAt || new Date().toISOString(),
+    };
+
+    // Store payment details for idempotency tracking
+    if (paymentApiDetails.amount) {
+      updateData.amount_paid = paymentApiDetails.amount;
+    }
+    if (paymentApiDetails.rrn) {
+      updateData.utr_number = paymentApiDetails.rrn;
+    }
+
     await db.updateDocument(
       DATABASE_ID,
       REGISTRATIONS_COLLECTION_ID,
       registration.$id,
-      {
-        payment_status: 'paid',
-        registration_status: 'confirmed',
-      }
+      updateData
     );
 
-    logger.info('Registration updated to confirmed', { 
+    logger.info('Registration updated to confirmed', {
       registrationId: registration.$id,
       eventId,
     });
 
-    // Increment current registrations on event
     const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
     const currentRegistrations = (event.current_registrations as number) || 0;
-    
     await db.updateDocument(
       DATABASE_ID,
       EVENTS_COLLECTION_ID,
@@ -324,10 +369,44 @@ export async function POST(request: NextRequest) {
       logger.info('Ticket ID created on webhook', { ticketId: ticketIdForResponse, registrationId: registration.$id });
     }
 
-    // Send confirmation email
+    // Send payment receipt email FIRST (with PDF attachment)
     try {
-      const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-      
+      sendPaymentReceipt(
+        {
+          $id: registration.$id,
+          user_id: userId,
+          event_id: eventId,
+          ticket_id: ticketIdForResponse,
+        },
+        event as unknown as { $id: string; title: string; start_date?: string; date?: string; venue?: string; price?: number },
+        {
+          amount: paymentApiDetails.amount || payload.amount,
+          paidAt: paymentApiDetails.paidAt,
+          transactionId: paymentApiDetails.transactionId,
+          rrn: paymentApiDetails.rrn,
+          utr: paymentApiDetails.rrn,
+          senderName: paymentApiDetails.senderName,
+          upiId: paymentApiDetails.upiId,
+          paymentReference: ticketId,
+        }
+      ).catch(emailError => {
+        // Don't fail webhook if email fails
+        logger.error('Failed to send payment receipt email',
+          emailError instanceof Error ? emailError : new Error(String(emailError)),
+          { registrationId: registration.$id }
+        );
+      });
+      logger.info('Payment receipt email queued', { registrationId: registration.$id });
+    } catch (emailError) {
+      // Log but don't fail the webhook
+      logger.error('Failed to queue payment receipt email',
+        emailError instanceof Error ? emailError : new Error(String(emailError)),
+        { registrationId: registration.$id }
+      );
+    }
+
+    // Send registration confirmation email SECOND (with ticket/QR code)
+    try {
       sendRegistrationConfirmation(
         {
           $id: registration.$id,
@@ -338,16 +417,15 @@ export async function POST(request: NextRequest) {
         event as unknown as { $id: string; title: string; start_date?: string; date?: string; venue?: string; price?: number }
       ).catch(emailError => {
         // Don't fail webhook if email fails
-        logger.error('Failed to send confirmation email', 
+        logger.error('Failed to send confirmation email',
           emailError instanceof Error ? emailError : new Error(String(emailError)),
           { registrationId: registration.$id }
         );
       });
-      
       logger.info('Confirmation email queued', { registrationId: registration.$id });
     } catch (emailError) {
       // Log but don't fail the webhook
-      logger.error('Failed to queue confirmation email', 
+      logger.error('Failed to queue confirmation email',
         emailError instanceof Error ? emailError : new Error(String(emailError)),
         { registrationId: registration.$id }
       );

@@ -7,13 +7,12 @@ import {
     Calendar, 
     MapPin, 
     Clock, 
-    Download, 
-    CheckCircle2, 
+    Download,
     AlertCircle,
     Ticket,
     ArrowLeft,
-    Share2,
-    Loader2
+    Loader2,
+    ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
@@ -98,33 +97,55 @@ export default function TicketPage({ params }: PageProps) {
     }, [ticketId]);
 
     const downloadQR = () => {
-        if (!qrDataUrl || !ticketData?.event) return;
-        
+        if (!qrDataUrl || !event) return;
         const link = document.createElement('a');
-        link.download = `ticket-${ticketData.event.title.replace(/\s+/g, '-').toLowerCase()}.png`;
+        link.download = `ticket-${event.title.replace(/\s+/g, '-').toLowerCase()}.png`;
         link.href = qrDataUrl;
         link.click();
     };
 
-    const shareTicket = async () => {
-        if (!ticketData?.event) return;
-        
-        const shareData = {
-            title: `Ticket for ${ticketData.event.title}`,
-            text: `My ticket for ${ticketData.event.title}`,
-            url: window.location.href,
-        };
+    const downloadCalendarFile = () => {
+        if (!event) return;
+        const start = new Date(event.date);
+        const end = new Date(start.getTime() + (2 * 60 * 60 * 1000));
+        const formatICSDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+        const details = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//IEEE Sahrdaya//Event Ticket//EN',
+            'BEGIN:VEVENT',
+            `UID:${ticket?.id || registration.id}@ieeesahrdaya.com`,
+            `DTSTAMP:${formatICSDate(new Date())}`,
+            `DTSTART:${formatICSDate(start)}`,
+            `DTEND:${formatICSDate(end)}`,
+            `SUMMARY:${event.title}`,
+            `DESCRIPTION:Ticket ID: ${ticket?.id || registration.id} | Open ticket: ${window.location.href}`,
+            `LOCATION:${event.venue || 'TBA'}`,
+            'END:VEVENT',
+            'END:VCALENDAR',
+        ].join('\r\n');
 
-        try {
-            if (navigator.share) {
-                await navigator.share(shareData);
-            } else {
-                await navigator.clipboard.writeText(window.location.href);
-                alert('Link copied to clipboard!');
-            }
-        } catch (err) {
-            console.error('Share failed:', err);
-        }
+        const blob = new Blob([details], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${event.title.replace(/\s+/g, '-').toLowerCase()}.ics`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const openGoogleCalendar = () => {
+        if (!event) return;
+        const start = new Date(event.date);
+        const end = new Date(start.getTime() + (2 * 60 * 60 * 1000));
+        const gDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+        const url = new URL('https://calendar.google.com/calendar/render');
+        url.searchParams.set('action', 'TEMPLATE');
+        url.searchParams.set('text', event.title);
+        url.searchParams.set('dates', `${gDate(start)}/${gDate(end)}`);
+        url.searchParams.set('details', `Ticket ID: ${ticket?.id || registration.id}\n${window.location.href}`);
+        url.searchParams.set('location', event.venue || 'TBA');
+        window.open(url.toString(), '_blank', 'noopener,noreferrer');
     };
 
     if (loading) {
@@ -171,20 +192,9 @@ export default function TicketPage({ params }: PageProps) {
     const eventDate = event ? new Date(event.date) : new Date();
     const isPast = eventDate < new Date();
     const isConfirmed = registration.registration_status === 'confirmed';
-    const isCheckedIn = ticket?.is_scanned;
     const isPending = registration.payment_status === 'pending';
 
     const getStatusInfo = () => {
-        if (isCheckedIn) {
-            return {
-                icon: CheckCircle2,
-                text: 'Checked In',
-                color: 'bg-green-100 text-green-700 border-green-200',
-                description: ticket?.scanned_at 
-                    ? `Checked in on ${new Date(ticket.scanned_at).toLocaleString('en-IN')}`
-                    : 'You have been checked in to this event',
-            };
-        }
         if (isPast) {
             return {
                 icon: Clock,
@@ -206,7 +216,7 @@ export default function TicketPage({ params }: PageProps) {
                 icon: Ticket,
                 text: 'Confirmed',
                 color: 'bg-ieee-blue/10 text-ieee-blue border-ieee-blue/20',
-                description: 'Show this QR code at the event for check-in',
+                description: 'Use this QR at each check-in point during the event',
             };
         }
         return {
@@ -287,19 +297,15 @@ export default function TicketPage({ params }: PageProps) {
                                             className="w-56 h-56"
                                         />
                                     </div>
-                                    {isCheckedIn && (
-                                        <div className="absolute inset-0 bg-green-500/20 rounded-2xl flex items-center justify-center">
-                                            <div className="bg-green-500 text-white p-3 rounded-full">
-                                                <CheckCircle2 className="w-8 h-8" />
-                                            </div>
-                                        </div>
-                                    )}
                                 </motion.div>
                             ) : (
                                 <div className="w-56 h-56 bg-gray-200 rounded-2xl animate-pulse" />
                             )}
                             <p className="text-gray-500 text-sm mt-4 text-center">
-                                {isCheckedIn ? 'You have been checked in' : 'Scan this QR code at the event venue'}
+                                Scan this QR at the event venue checkpoints
+                            </p>
+                            <p className="text-xs text-gray-400 mt-2 text-center">
+                                For security, direct ticket sharing is disabled.
                             </p>
                         </div>
 
@@ -345,20 +351,28 @@ export default function TicketPage({ params }: PageProps) {
                             )}
 
                             {/* Action Buttons */}
-                            <div className="flex gap-3 pt-2">
+                            <div className="grid grid-cols-2 gap-3 pt-2">
                                 <button
                                     onClick={downloadQR}
-                                    disabled={!qrDataUrl}
-                                    className="flex-1 flex items-center justify-center gap-2 bg-ieee-blue text-white py-3.5 rounded-xl font-semibold hover:bg-ieee-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!qrDataUrl || !isConfirmed || isPending}
+                                    className="flex items-center justify-center gap-2 bg-ieee-blue text-white py-3.5 rounded-xl font-semibold hover:bg-ieee-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <Download className="w-5 h-5" />
                                     Download QR
                                 </button>
                                 <button
-                                    onClick={shareTicket}
-                                    className="flex items-center justify-center gap-2 bg-gray-100 text-gray-700 px-5 py-3.5 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                                    onClick={openGoogleCalendar}
+                                    className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 py-3.5 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
                                 >
-                                    <Share2 className="w-5 h-5" />
+                                    <ExternalLink className="w-5 h-5" />
+                                    Google Calendar
+                                </button>
+                                <button
+                                    onClick={downloadCalendarFile}
+                                    className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 py-3.5 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                                >
+                                    <Calendar className="w-5 h-5" />
+                                    Apple/ICS
                                 </button>
                             </div>
                         </div>
@@ -376,7 +390,7 @@ export default function TicketPage({ params }: PageProps) {
 
                     {/* Additional Info */}
                     <div className="mt-8 text-center text-sm text-gray-500">
-                        <p>Keep this ticket handy for the event.</p>
+                        <p>Pro tip: Add this to calendar, keep your e-ticket saved, and fly through check-in.</p>
                         <p>For any issues, contact the event organizers.</p>
                     </div>
                 </div>

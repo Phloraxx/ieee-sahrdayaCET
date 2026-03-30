@@ -95,11 +95,6 @@ export interface Organization {
     admins?: string[];
     settings?: {
         default_payment_account?: string;
-        email_templates?: {
-            registration_confirmation?: string;
-            ticket_issued?: string;
-            event_reminder?: string;
-        };
     };
 }
 

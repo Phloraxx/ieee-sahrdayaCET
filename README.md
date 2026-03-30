@@ -182,15 +182,19 @@ NEXT_PUBLIC_APPWRITE_EVENTS_COLLECTION_ID=events
 NEXT_PUBLIC_APPWRITE_EVENT_REGISTRATIONS_COLLECTION_ID=event_registrations
 # ... (see .env.local.example for full list)
 
-# Email (SMTP)
+# Email (SMTP / Resend)
+EMAIL_PROVIDER=smtp # or "resend" for native Resend API
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your_app_password
 SMTP_FROM=IEEE Sahrdaya <events@ieeesahrdaya.com>
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM=IEEE Sahrdaya <events@ieeesahrdaya.com>
 
 # Application
 NEXT_PUBLIC_BASE_URL=https://ieeesahrdaya.com
+
 ```
 
 See [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) for detailed configuration instructions.

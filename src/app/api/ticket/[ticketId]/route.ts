@@ -67,15 +67,26 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       );
     }
     
-    // Parse the embedded ticket
-    const embeddedTicket = parseEmbeddedTicket(registration);
-    if (!embeddedTicket) {
-      log.warn('No embedded ticket in registration');
-      return NextResponse.json(
-        { error: 'TICKET_NOT_FOUND', message: 'Ticket not found.' },
-        { status: 404 }
-      );
-    }
+    // Parse embedded ticket with fallback for legacy/manual rows with only ticket_id
+    const embeddedTicket = parseEmbeddedTicket(registration) ?? {
+      ticket_id: registration.ticket_id || ticketId,
+      ticket_code: registration.ticket_id || ticketId,
+      qr_code: JSON.stringify({
+        ticket_id: registration.ticket_id || ticketId,
+        registration_id: registration.$id,
+        event_id: registration.event_id,
+        timestamp: registration.registration_date || registration.$createdAt,
+      }),
+      qr_data: JSON.stringify({
+        ticket_id: registration.ticket_id || ticketId,
+        registration_id: registration.$id,
+        event_id: registration.event_id,
+        timestamp: registration.registration_date || registration.$createdAt,
+      }),
+      issued_at: registration.registration_date || registration.$createdAt,
+      is_scanned: registration.checked_in || false,
+      scanned_at: registration.checked_in_at || registration.check_in_time,
+    };
 
     // Get event details
     const event = await getEvent(registration.event_id);
