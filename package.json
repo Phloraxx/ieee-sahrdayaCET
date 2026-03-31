@@ -9,6 +9,7 @@
     "lint": "next lint",
     "setup:appwrite": "npx tsx scripts/setup-appwrite.ts",
     "setup:event-system": "npx tsx scripts/setup-event-system.ts",
+    "setup:email-logs": "npx tsx scripts/setup-email-logs.ts",
     "import:events": "npx tsx scripts/import-events.ts",
     "test:connection": "npx tsx scripts/test-connection.ts",
     "setup:execom": "npx tsx scripts/setup-execom-collection.ts",
