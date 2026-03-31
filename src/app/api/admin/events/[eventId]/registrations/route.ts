@@ -222,35 +222,52 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       queries.push(Query.orderAsc(sortBy === 'registration_date' ? '$createdAt' : sortBy));
     }
     
-    // Get total count
-    const countQueries = [Query.equal('event_id', eventId)];
-    if (paymentStatus && paymentStatus !== 'all') {
-      countQueries.push(Query.equal('payment_status', paymentStatus));
-    }
-    if (checkinStatus && checkinStatus !== 'all') {
-      if (checkinStatus === 'checked_in') {
-        countQueries.push(Query.equal('checked_in', true));
-      } else if (checkinStatus === 'not_checked_in') {
-        countQueries.push(Query.equal('checked_in', false));
-      }
-    }
-    if (dateFrom) {
-      countQueries.push(Query.greaterThanEqual('$createdAt', dateFrom));
-    }
-    if (dateTo) {
-      countQueries.push(Query.lessThanEqual('$createdAt', dateTo));
-    }
-    const allRegistrations = await db.listDocuments(DATABASE_ID, REGISTRATIONS_COLLECTION_ID, countQueries);
-    const total = allRegistrations.total;
+    // When searching, we need to fetch ALL registrations first (up to 500),
+    // enrich them with user info, apply search filter, then paginate.
+    // This is because search is on user name/email which requires user lookup.
+    const isSearching = !!search.trim();
+    const SEARCH_FETCH_LIMIT = 500; // Max registrations to fetch when searching
     
-    // Add pagination
-    queries.push(Query.limit(limit));
-    queries.push(Query.offset((page - 1) * limit));
+    // For non-search queries, get total count first
+    let totalBeforeSearch = 0;
+    if (!isSearching) {
+      const countQueries = [Query.equal('event_id', eventId)];
+      if (paymentStatus && paymentStatus !== 'all') {
+        countQueries.push(Query.equal('payment_status', paymentStatus));
+      }
+      if (checkinStatus && checkinStatus !== 'all') {
+        if (checkinStatus === 'checked_in') {
+          countQueries.push(Query.equal('checked_in', true));
+        } else if (checkinStatus === 'not_checked_in') {
+          countQueries.push(Query.equal('checked_in', false));
+        }
+      }
+      if (dateFrom) {
+        countQueries.push(Query.greaterThanEqual('$createdAt', dateFrom));
+      }
+      if (dateTo) {
+        countQueries.push(Query.lessThanEqual('$createdAt', dateTo));
+      }
+      const allRegistrations = await db.listDocuments(DATABASE_ID, REGISTRATIONS_COLLECTION_ID, countQueries);
+      totalBeforeSearch = allRegistrations.total;
+    }
+    
+    // Add pagination/limit based on whether we're searching
+    if (isSearching) {
+      // Fetch more results when searching to allow post-filtering
+      queries.push(Query.limit(SEARCH_FETCH_LIMIT));
+      // No offset - we'll paginate after filtering
+    } else {
+      // Normal pagination
+      queries.push(Query.limit(limit));
+      queries.push(Query.offset((page - 1) * limit));
+    }
     
     // Fetch registrations
     const registrationsRes = await db.listDocuments(DATABASE_ID, REGISTRATIONS_COLLECTION_ID, queries);
     
-    // Enrich with user info
+    // Enrich with user info and apply search filter
+    const searchLower = search.toLowerCase().trim();
     const enrichedRegistrations = await Promise.all(
       registrationsRes.documents.map(async (reg) => {
         const regRecord = reg as Record<string, unknown>;
@@ -268,12 +285,16 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           userEmail = asNonEmptyString(formPayload.email) || '';
         }
         
-        // Apply search filter client-side if search term provided
-        if (search) {
-          const searchLower = search.toLowerCase();
+        const userPhone = getRegistrationPhone(regRecord, formPayload);
+        const ticketId = (reg.ticket_id as string) || '';
+        
+        // Apply search filter if searching
+        if (isSearching) {
           const matchesName = userName.toLowerCase().includes(searchLower);
           const matchesEmail = userEmail.toLowerCase().includes(searchLower);
-          if (!matchesName && !matchesEmail) {
+          const matchesPhone = userPhone.includes(searchLower);
+          const matchesTicket = ticketId.toLowerCase().includes(searchLower);
+          if (!matchesName && !matchesEmail && !matchesPhone && !matchesTicket) {
             return null;
           }
         }
@@ -285,7 +306,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           user_id: reg.user_id,
           user_name: userName,
           user_email: userEmail,
-          user_phone: getRegistrationPhone(regRecord, formPayload),
+          user_phone: userPhone,
           department: asNonEmptyString(formPayload.department) || asNonEmptyString(formPayload.dept) || '',
           semester: asNonEmptyString(formPayload.semester) || asNonEmptyString(formPayload.sem) || '',
           form_data: formPayload,
@@ -293,21 +314,39 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           registration_status: reg.registration_status || 'pending',
           checked_in: reg.checked_in || false,
           checked_in_at: reg.checked_in_at,
-          ticket_id: reg.ticket_id,
+          ticket_id: ticketId,
         };
       })
     );
     
-    // Filter out nulls (search results)
-    const filteredRegistrations = enrichedRegistrations.filter(r => r !== null);
+    // Filter out nulls (search non-matches)
+    const allFilteredRegistrations = enrichedRegistrations.filter(r => r !== null);
+    
+    // Calculate totals and apply pagination for search results
+    let finalRegistrations;
+    let total: number;
+    let pages: number;
+    
+    if (isSearching) {
+      // For search: total is the filtered count, paginate the filtered results
+      total = allFilteredRegistrations.length;
+      pages = Math.ceil(total / limit);
+      const startIndex = (page - 1) * limit;
+      finalRegistrations = allFilteredRegistrations.slice(startIndex, startIndex + limit);
+    } else {
+      // For non-search: use the pre-counted total
+      total = totalBeforeSearch;
+      pages = Math.ceil(total / limit);
+      finalRegistrations = allFilteredRegistrations;
+    }
     
     // Get event details
     const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
 
     return NextResponse.json({
-      registrations: filteredRegistrations,
-      total: search ? filteredRegistrations.length : total,
-      pages: Math.ceil(total / limit),
+      registrations: finalRegistrations,
+      total,
+      pages,
       page,
       limit,
       event: {
