@@ -14,6 +14,28 @@ interface RouteParams {
     params: Promise<{ eventId: string }>;
 }
 
+function getPhoneValue(reg: Record<string, unknown>, formResponses: Record<string, unknown>): string {
+    const candidates = [
+        reg.user_phone,
+        reg.user_phone_,
+        formResponses.user_phone,
+        formResponses.user_phone_,
+        formResponses.phone,
+    ];
+
+    for (const value of candidates) {
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (trimmed) return trimmed;
+        }
+        if (typeof value === 'number') {
+            return String(value);
+        }
+    }
+
+    return '';
+}
+
 // Get admin client
 function getAdminClient(): Client {
     if (!ENDPOINT || !PROJECT_ID || !API_KEY) {
@@ -283,7 +305,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                 ticket_id: reg.ticket_id || '',
                 user_name: reg.user_name || 'Unknown',
                 user_email: reg.user_email || '',
-                user_phone: reg.user_phone || '',
+                user_phone: getPhoneValue(reg, formResponses),
                 department: formResponses.department || '',
                 semester: formResponses.semester || '',
                 section: formResponses.section || '',

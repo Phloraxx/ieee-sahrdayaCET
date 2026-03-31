@@ -79,6 +79,7 @@ export default function RegistrationsPage() {
     const [total, setTotal] = useState(0);
     const [pages, setPages] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
+    const [selectAllPages, setSelectAllPages] = useState(false); // Track if all pages are selected
     
     // Filters
     const [searchQuery, setSearchQuery] = useState('');
@@ -179,12 +180,44 @@ export default function RegistrationsPage() {
 
     // Selection handlers
     const handleSelectAll = useCallback(() => {
-        if (selectedIds.size === registrations.length) {
+        if (selectedIds.size === registrations.length && !selectAllPages) {
             setSelectedIds(new Set());
         } else {
             setSelectedIds(new Set(registrations.map(r => r.id)));
         }
-    }, [registrations, selectedIds.size]);
+        setSelectAllPages(false); // Reset global selection
+    }, [registrations, selectedIds.size, selectAllPages]);
+
+    const handleSelectAllPages = useCallback(async () => {
+        try {
+            // Fetch all registration IDs for this event
+            const headers = await getAuthHeaders();
+            const params = new URLSearchParams({
+                page: '1',
+                search: searchQuery,
+                payment_status: paymentFilter,
+                checkin_status: checkinFilter,
+                all_ids: 'true', // Signal to return all IDs
+            });
+
+            if (dateFrom) params.append('date_from', dateFrom);
+            if (dateTo) params.append('date_to', dateTo);
+
+            const response = await fetch(`/api/admin/events/${eventId}/registrations?${params}`, {
+                headers
+            });
+            if (!response.ok) throw new Error('Failed to fetch all IDs');
+
+            const data = await response.json();
+            const allIds = data.all_ids || [];
+            setSelectedIds(new Set(allIds));
+            setSelectAllPages(true);
+            toast.success(`Selected all ${allIds.length} registrations`);
+        } catch (error) {
+            console.error('Error selecting all:', error);
+            toast.error('Failed to select all registrations');
+        }
+    }, [eventId, searchQuery, paymentFilter, checkinFilter, dateFrom, dateTo]);
 
     const handleSelect = useCallback((id: string) => {
         setSelectedIds(prev => {
@@ -250,6 +283,22 @@ export default function RegistrationsPage() {
 
             if (!response.ok) throw new Error('Bulk action failed');
 
+            // Handle export separately (CSV download)
+            if (action === 'export') {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Selected_Registrations_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                toast.success(`Exported ${selectedIds.size} registrations to CSV`);
+                setSelectedIds(new Set()); // Clear selection after export
+                return;
+            }
+
             const result = await response.json();
              
             if (action === 'email') {
@@ -257,6 +306,20 @@ export default function RegistrationsPage() {
                 if (result.failed_count > 0 || result.skipped_count > 0) {
                     toast.error(`Failed: ${result.failed_count}, Skipped: ${result.skipped_count}`);
                 }
+            } else if (action === 'checkin') {
+                toast.success(result.message || `Checked in ${result.checked_in_count} registrations`);
+                if (result.failed_count > 0) {
+                    toast.error(`Failed to check in ${result.failed_count} registrations`);
+                }
+                fetchRegistrations(); // Refresh list
+                setSelectedIds(new Set()); // Clear selection
+            } else if (action === 'delete') {
+                toast.success(result.message || `Deleted ${result.deleted_count} registrations`);
+                if (result.failed_count > 0) {
+                    toast.error(`Failed to delete ${result.failed_count} registrations`);
+                }
+                fetchRegistrations(); // Refresh list
+                setSelectedIds(new Set()); // Clear selection
             }
         } catch (error) {
             console.error('Bulk action error:', error);
@@ -413,7 +476,26 @@ export default function RegistrationsPage() {
 
             toast.success(`Imported ${data.imported_count} registration(s)`);
             if (data.failed_count > 0 || data.skipped_count > 0) {
-                toast.error(`Skipped: ${data.skipped_count}, Failed: ${data.failed_count}`);
+                const failureMessage = `Skipped: ${data.skipped_count}, Failed: ${data.failed_count}`;
+                toast.error(failureMessage, { duration: 8000 });
+                
+                // Log detailed errors to console for review
+                if (data.failures && data.failures.length > 0) {
+                    console.group('❌ CSV Import Errors:');
+                    console.table(data.failures);
+                    console.groupEnd();
+                    
+                    // Also show a summary alert with first few errors
+                    const errorDetails = data.failures.slice(0, 5).map((f: any) => 
+                        `Row ${f.row}: ${f.reason}`
+                    ).join('\n');
+                    const moreErrors = data.failures.length > 5 ? `\n\n...and ${data.failures.length - 5} more errors (check console for full list)` : '';
+                    
+                    // Use setTimeout to ensure it appears after the toast
+                    setTimeout(() => {
+                        alert(`Import completed with errors:\n\n${errorDetails}${moreErrors}`);
+                    }, 500);
+                }
             }
             fetchRegistrations();
         } catch (error) {
@@ -678,6 +760,39 @@ export default function RegistrationsPage() {
                         Showing {registrations.length} of {total} registrations
                     </p>
                 </div>
+
+                {/* Select All Pages Banner */}
+                {selectedIds.size === registrations.length && selectedIds.size > 0 && !selectAllPages && total > registrations.length && (
+                    <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+                        <p className="text-sm text-blue-900">
+                            {selectedIds.size} registrations on this page are selected.
+                        </p>
+                        <button
+                            onClick={handleSelectAllPages}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800 underline"
+                        >
+                            Select all {total} registrations
+                        </button>
+                    </div>
+                )}
+                
+                {/* Show when all pages are selected */}
+                {selectAllPages && (
+                    <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+                        <p className="text-sm text-blue-900 font-medium">
+                            All {selectedIds.size} registrations are selected.
+                        </p>
+                        <button
+                            onClick={() => {
+                                setSelectedIds(new Set());
+                                setSelectAllPages(false);
+                            }}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800 underline"
+                        >
+                            Clear selection
+                        </button>
+                    </div>
+                )}
 
                 {/* Table */}
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

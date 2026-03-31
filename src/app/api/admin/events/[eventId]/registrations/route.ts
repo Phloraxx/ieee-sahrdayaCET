@@ -34,6 +34,60 @@ function normalizeIndianPhone(raw: string): { local: string; e164: string } | nu
   return { local, e164: `+91${local}` };
 }
 
+function asNonEmptyString(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  return null;
+}
+
+function parseRegistrationFormPayload(reg: Record<string, unknown>): Record<string, unknown> {
+  const fromFormResponses = reg.form_responses;
+  if (typeof fromFormResponses === 'string' && fromFormResponses.trim()) {
+    try {
+      const parsed = JSON.parse(fromFormResponses);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Fall through to legacy shape
+    }
+  } else if (fromFormResponses && typeof fromFormResponses === 'object' && !Array.isArray(fromFormResponses)) {
+    return fromFormResponses as Record<string, unknown>;
+  }
+
+  const fromFormData = reg.form_data;
+  if (typeof fromFormData === 'string' && fromFormData.trim()) {
+    try {
+      const parsed = JSON.parse(fromFormData);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {};
+    }
+  } else if (fromFormData && typeof fromFormData === 'object' && !Array.isArray(fromFormData)) {
+    return fromFormData as Record<string, unknown>;
+  }
+
+  return {};
+}
+
+function getRegistrationPhone(reg: Record<string, unknown>, formPayload: Record<string, unknown>): string {
+  return (
+    asNonEmptyString(reg.user_phone) ||
+    asNonEmptyString(reg.user_phone_) ||
+    asNonEmptyString(formPayload.user_phone) ||
+    asNonEmptyString(formPayload.user_phone_) ||
+    asNonEmptyString(formPayload.phone) ||
+    ''
+  );
+}
+
 /**
  * Check if user is chair of event's society or global admin
  */
@@ -99,11 +153,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
     // Parse query params
     const { searchParams } = new URL(req.url);
+    const allIdsOnly = searchParams.get('all_ids') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const search = searchParams.get('search') || '';
     const paymentStatus = searchParams.get('payment_status') || 'all';
     const checkinStatus = searchParams.get('checkin_status') || 'all';
+    const dateFrom = searchParams.get('date_from') || '';
+    const dateTo = searchParams.get('date_to') || '';
     const sortBy = searchParams.get('sort_by') || 'registration_date';
     const sortOrder = searchParams.get('sort_order') || 'desc';
 
@@ -127,6 +184,36 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         queries.push(Query.equal('checked_in', false));
       }
     }
+
+    // Add date range filters
+    if (dateFrom) {
+      queries.push(Query.greaterThanEqual('$createdAt', dateFrom));
+    }
+    if (dateTo) {
+      queries.push(Query.lessThanEqual('$createdAt', dateTo));
+    }
+
+    // If only IDs are requested, return them quickly
+    if (allIdsOnly) {
+      const allIds: string[] = [];
+      let cursor: string | undefined = undefined;
+      
+      // Fetch all IDs in batches of 100
+      while (true) {
+        const batchQueries = [...queries, Query.limit(100)];
+        if (cursor) {
+          batchQueries.push(Query.cursorAfter(cursor));
+        }
+        
+        const batch = await db.listDocuments(DATABASE_ID, REGISTRATIONS_COLLECTION_ID, batchQueries);
+        allIds.push(...batch.documents.map(doc => doc.$id));
+        
+        if (batch.documents.length < 100) break;
+        cursor = batch.documents[batch.documents.length - 1].$id;
+      }
+      
+      return NextResponse.json({ all_ids: allIds });
+    }
     
     // Add sorting
     if (sortOrder === 'desc') {
@@ -139,6 +226,19 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const countQueries = [Query.equal('event_id', eventId)];
     if (paymentStatus && paymentStatus !== 'all') {
       countQueries.push(Query.equal('payment_status', paymentStatus));
+    }
+    if (checkinStatus && checkinStatus !== 'all') {
+      if (checkinStatus === 'checked_in') {
+        countQueries.push(Query.equal('checked_in', true));
+      } else if (checkinStatus === 'not_checked_in') {
+        countQueries.push(Query.equal('checked_in', false));
+      }
+    }
+    if (dateFrom) {
+      countQueries.push(Query.greaterThanEqual('$createdAt', dateFrom));
+    }
+    if (dateTo) {
+      countQueries.push(Query.lessThanEqual('$createdAt', dateTo));
     }
     const allRegistrations = await db.listDocuments(DATABASE_ID, REGISTRATIONS_COLLECTION_ID, countQueries);
     const total = allRegistrations.total;
@@ -153,6 +253,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     // Enrich with user info
     const enrichedRegistrations = await Promise.all(
       registrationsRes.documents.map(async (reg) => {
+        const regRecord = reg as Record<string, unknown>;
+        const formPayload = parseRegistrationFormPayload(regRecord);
         let userName = 'Unknown';
         let userEmail = '';
         
@@ -161,12 +263,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           userName = regUser.name || 'Unknown';
           userEmail = regUser.email || '';
         } catch {
-          // User not found, use form data
-          const formData = reg.form_data as Record<string, unknown> | undefined;
-          if (formData) {
-            userName = (formData.name as string) || 'Unknown';
-            userEmail = (formData.email as string) || '';
-          }
+          // User not found, use stored registration payload
+          userName = asNonEmptyString(formPayload.name) || 'Unknown';
+          userEmail = asNonEmptyString(formPayload.email) || '';
         }
         
         // Apply search filter client-side if search term provided
@@ -186,10 +285,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           user_id: reg.user_id,
           user_name: userName,
           user_email: userEmail,
-          user_phone: ((reg.form_data || {}) as Record<string, unknown>).phone as string || '',
-          department: ((reg.form_data || {}) as Record<string, unknown>).department as string || '',
-          semester: ((reg.form_data || {}) as Record<string, unknown>).semester as string || '',
-          form_data: reg.form_data,
+          user_phone: getRegistrationPhone(regRecord, formPayload),
+          department: asNonEmptyString(formPayload.department) || asNonEmptyString(formPayload.dept) || '',
+          semester: asNonEmptyString(formPayload.semester) || asNonEmptyString(formPayload.sem) || '',
+          form_data: formPayload,
           payment_status: reg.payment_status || 'pending',
           registration_status: reg.registration_status || 'pending',
           checked_in: reg.checked_in || false,
@@ -208,6 +307,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({
       registrations: filteredRegistrations,
       total: search ? filteredRegistrations.length : total,
+      pages: Math.ceil(total / limit),
       page,
       limit,
       event: {

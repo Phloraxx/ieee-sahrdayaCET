@@ -53,6 +53,28 @@ function parseFormResponses(formResponses: string | null | undefined): Record<st
     }
 }
 
+function getPhoneValue(registration: Record<string, unknown>, formData: Record<string, unknown> = {}): string {
+    const candidates = [
+        registration.user_phone,
+        registration.user_phone_,
+        formData.user_phone,
+        formData.user_phone_,
+        formData.phone,
+    ];
+
+    for (const value of candidates) {
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (trimmed) return trimmed;
+        }
+        if (typeof value === 'number') {
+            return String(value);
+        }
+    }
+
+    return '-';
+}
+
 /**
  * GET /api/admin/events/[eventId]/export
  * Export registrations as CSV or PDF
@@ -178,7 +200,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                 'S.No': index + 1,
                 'Name': r.user_name || '-',
                 'Email': r.user_email || '-',
-                'Phone': r.user_phone || '-',
+                'Phone': getPhoneValue(r),
             }));
             filename = `${eventSlug}_Contacts_${timestamp}.csv`;
         } else if (filter === 'checked_in') {
@@ -190,7 +212,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                     'Ticket ID': r.ticket_id || '-',
                     'Name': r.user_name || '-',
                     'Email': r.user_email || '-',
-                    'Phone': r.user_phone || '-',
+                    'Phone': getPhoneValue(r, formData),
                     'Department': formData.department || formData.dept || '-',
                     'Semester': formData.semester || formData.sem || '-',
                     'Check-in Time': formatDate(r.check_in_time as string),
@@ -209,7 +231,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                     'Ticket ID': r.ticket_id || '-',
                     'Name': r.user_name || '-',
                     'Email': r.user_email || '-',
-                    'Phone': r.user_phone || '-',
+                    'Phone': getPhoneValue(r, formData),
                     'Registration Date': formatDate(r.registration_date as string),
                     'Registration Status': r.registration_status || '-',
                     'Payment Status': r.payment_status || '-',

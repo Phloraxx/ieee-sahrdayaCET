@@ -5,6 +5,8 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  output: "standalone",
+  turbopack: {},
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -67,4 +69,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-

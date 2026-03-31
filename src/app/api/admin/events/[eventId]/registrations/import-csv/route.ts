@@ -156,7 +156,11 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
         if (!name || (!email && !phone)) {
           skippedCount++;
-          failures.push({ row: i + 2, reason: 'Missing required values (name and email/phone)' });
+          const rowData = `Name: ${name || 'N/A'}, Email: ${rawEmail || 'N/A'}, Phone: ${phoneRaw || 'N/A'}`;
+          failures.push({
+            row: i + 2,
+            reason: `Missing required values (name and email/phone) - ${rowData}`,
+          });
           continue;
         }
 
@@ -217,6 +221,14 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
         if (existingRegs.documents.length > 0) {
           skippedCount++;
+          const existingReg = existingRegs.documents[0];
+          const conflict = usersList.users.length > 0 
+            ? `email ${email}` 
+            : `phone ${phone}`;
+          failures.push({
+            row: i + 2,
+            reason: `Already registered - ${conflict} matches existing registration (Ticket: ${existingReg.ticket_id}, Registered as: ${existingReg.user_name})`,
+          });
           continue;
         }
 
@@ -253,14 +265,20 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         importedCount++;
       } catch (error) {
         failedCount++;
+        const name = getField(row, ['name']);
+        const rawEmail = getField(row, ['email', 'email (personal)', 'email (sahrdaya)']);
+        const phoneRaw = getField(row, ['phone', 'phone no', 'phone number', 'mobile', 'contact']);
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        const rowData = `Name: ${name || 'N/A'}, Email: ${rawEmail || 'N/A'}, Phone: ${phoneRaw || 'N/A'}`;
+        
         log.error(
           'CSV row import failed',
           error instanceof Error ? error : new Error(String(error)),
-          { row: String(i + 2) }
+          { row: String(i + 2), name, email: rawEmail, phone: phoneRaw }
         );
         failures.push({
           row: i + 2,
-          reason: error instanceof Error ? error.message : 'Unknown error',
+          reason: `${errorMsg} - ${rowData}`,
         });
       }
     }
@@ -278,7 +296,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       imported_count: importedCount,
       skipped_count: skippedCount,
       failed_count: failedCount,
-      failures: failures.slice(0, 50),
+      failures: failures,
       message: `Imported ${importedCount} registration(s).`,
     });
   } catch (error) {
