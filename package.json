@@ -4,7 +4,7 @@
   "version": "3.0.0",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build --turbo",
     "start": "next start",
     "lint": "next lint",
     "setup:appwrite": "npx tsx scripts/setup-appwrite.ts",
