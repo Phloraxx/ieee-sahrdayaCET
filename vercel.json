@@ -71,11 +71,5 @@
       "source": "/ticket/:id",
       "destination": "/api/tickets/:id"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/send-reminders",
-      "schedule": "0 * * * *"
-    }
   ]
 }
