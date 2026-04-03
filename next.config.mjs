@@ -10,6 +10,14 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  webpack: (config, { isServer }) => {
+    // Fix for pdfjs-dist in client-side builds (if ever imported from npm)
+    if (!isServer) {
+      config.resolve.alias.canvas = false;
+      config.resolve.alias.encoding = false;
+    }
+    return config;
+  },
   allowedDevOrigins: ["10.221.180.47", "*.10.221.180.47"],
   experimental: {
     optimizePackageImports: ["lucide-react", "framer-motion"],
@@ -54,6 +62,14 @@ const nextConfig = {
         // Prevent search engines from indexing the auth flow
         source: "/auth/:path*",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
+        // Allow embedding ADSSSC flipbook in iframes
+        source: "/ADSSSC/embed",
+        headers: [
+          { key: "X-Frame-Options", value: "ALLOWALL" },
+          { key: "Content-Security-Policy", value: "frame-ancestors *" },
+        ],
       },
       {
         // Security headers for all routes
