@@ -15,6 +15,7 @@ node_modules
 .agent*
 
 *.pdf
+!/public/Proceedings.pdf
 
 /docs/*
 /docs
