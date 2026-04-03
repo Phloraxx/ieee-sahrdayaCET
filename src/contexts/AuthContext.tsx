@@ -1,42 +1,58 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
-import { account, teams } from '@/lib/appwrite';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
+import { account, teams, databases, DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/appwrite';
 import { User, TeamMembership, AuthContextType } from '@/types';
-import { OAuthProvider } from 'appwrite';
+import { OAuthProvider, Query } from 'appwrite';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// JWT cache to avoid creating new JWTs on every API call
+interface JWTCache {
+    jwt: string;
+    expiresAt: number;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [userTeams, setUserTeams] = useState<TeamMembership[]>([]);
     const [loading, setLoading] = useState(true);
+    const [profileCompleted, setProfileCompleted] = useState<boolean | null>(null);
+    const [profileLoading, setProfileLoading] = useState(false);
+    const jwtCacheRef = useRef<JWTCache | null>(null);
+
+    const checkProfile = useCallback(async (userId: string) => {
+        setProfileLoading(true);
+        try {
+            const res = await databases.listDocuments(DATABASE_ID, MEMBERS_COLLECTION_ID, [
+                Query.equal('userID', userId),
+                Query.limit(1),
+            ]);
+            setProfileCompleted(res.documents.length > 0 && res.documents[0].profileCompleted === true);
+        } catch {
+            setProfileCompleted(false);
+        } finally {
+            setProfileLoading(false);
+        }
+    }, []);
 
     // Check if user is already logged in on mount
     useEffect(() => {
-        checkAuth();
+        refresh();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const checkAuth = async () => {
-        // Skip the network call entirely if no Appwrite session cookie exists.
-        // This prevents a noisy 401 in the browser console for logged-out visitors.
-        const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '';
-        const hasSession = projectId
-            ? document.cookie.includes(`a_session_${projectId}`)
-            : document.cookie.includes('a_session_');
-
-        if (!hasSession) {
-            setLoading(false);
-            return;
-        }
-
+    const refresh = async () => {
         try {
             const currentUser = await account.get();
             setUser(currentUser as unknown as User);
-            
+
             // Fetch user's team memberships
             const teamsList = await teams.list();
             setUserTeams(teamsList.teams as unknown as TeamMembership[]);
+
+            // Check if profile exists
+            await checkProfile(currentUser.$id);
         } catch {
             // Session cookie present but invalid/expired — clear it gracefully
             setUser(null);
@@ -49,6 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const login = async () => {
         try {
             // Trigger Google OAuth
+            const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            sessionStorage.setItem('auth_return_url', returnTo || '/');
+
             // Redirect to current page after login
             const redirectUrl = `${window.location.origin}/auth/callback`;
             await account.createOAuth2Session(
@@ -67,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await account.deleteSession('current');
             setUser(null);
             setUserTeams([]);
+            setProfileCompleted(null);
         } catch (error) {
             console.error('Logout failed:', error);
             throw error;
@@ -75,18 +95,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const isChairOf = (societySlug: string): boolean => {
         if (!user || !userTeams.length) return false;
-        
+
         // Check if user is member of chair_{societySlug} team
         const chairTeamName = `chair_${societySlug}`;
         return userTeams.some(
-            (team) => team.teamId === chairTeamName || team.teamName?.toLowerCase().includes(chairTeamName)
+            (team) => team.$id === chairTeamName || team.name?.toLowerCase().includes(chairTeamName)
         );
     };
 
+    // Get JWT for API calls - creates one if needed, uses cache otherwise
+    const getJWT = useCallback(async (): Promise<string | null> => {
+        if (!user) {
+            console.warn('[AuthContext] getJWT called but user is null');
+            return null;
+        }
+        
+        // Check cache - use if we have at least 60 seconds before expiry
+        const now = Date.now();
+        if (jwtCacheRef.current && jwtCacheRef.current.expiresAt > now + 60000) {
+            console.log('[AuthContext] Using cached JWT');
+            return jwtCacheRef.current.jwt;
+        }
+        
+        try {
+            console.log('[AuthContext] Creating new JWT for user:', user.email);
+            // Create new JWT (expires in 15 minutes by default)
+            const result = await account.createJWT();
+            
+            // Cache it (assume 15 min expiry = 900 seconds)
+            jwtCacheRef.current = {
+                jwt: result.jwt,
+                expiresAt: now + (14 * 60 * 1000), // 14 minutes to be safe
+            };
+            
+            console.log('[AuthContext] JWT created successfully');
+            return result.jwt;
+        } catch (error) {
+            console.error('[AuthContext] Failed to create JWT:', error);
+            return null;
+        }
+    }, [user]);
+
     const contextValue = useMemo(
-        () => ({ user, loading, login, logout, isChairOf, userTeams }),
+        () => ({ user, loading, profileCompleted, profileLoading, login, logout, refresh, isChairOf, userTeams, getJWT }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [user, loading, userTeams]
+        [user, loading, profileCompleted, profileLoading, userTeams, getJWT]
     );
 
     return (

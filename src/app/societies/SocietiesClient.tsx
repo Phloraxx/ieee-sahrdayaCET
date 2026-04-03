@@ -17,6 +17,11 @@ import EditSocietyModal from '@/components/EditSocietyModal';
 import LoginModal from '@/components/LoginModal';
 import EventCard from '@/components/EventCard';
 import Footer from '@/components/Footer';
+import {
+    authenticateWithPasskey,
+    createPasskeyForSignedInUser,
+    PasskeyClientError,
+} from '@/lib/passkeys/client';
 
 // Member Card Component
 const MemberCard = React.memo(({ member, idx }: { member: ExecomMember; idx: number }) => {
@@ -84,7 +89,10 @@ export default function SocietiesClient() {
     const [loadingMembers, setLoadingMembers] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [loginModalMessage, setLoginModalMessage] = useState("Sign in to edit your society's details");
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+    const [isRegisteringEvent, setIsRegisteringEvent] = useState(false);
+    const [eventActionError, setEventActionError] = useState<string | null>(null);
     const [scrollPosition, setScrollPosition] = useState(0);
     const { user, isChairOf } = useAuth();
 
@@ -124,12 +132,6 @@ export default function SocietiesClient() {
                     (event.status === 'published' || event.status === 'completed')
                 );
             setSocietyEvents(events);
-            
-            console.log(`Events for society ${societyId}:`, {
-                total: events.length,
-                published: events.filter(e => e.status === 'published').length,
-                completed: events.filter(e => e.status === 'completed').length
-            });
         } catch (err: unknown) {
             console.error('Error fetching events:', err);
         } finally {
@@ -171,6 +173,7 @@ export default function SocietiesClient() {
 
     const handleSocietyClick = (society: Society) => {
         setSelectedSociety(society);
+        setEventActionError(null);
         fetchSocietyEvents(society.$id);
         fetchSocietyMembers(society.slug);
     };
@@ -186,9 +189,68 @@ export default function SocietiesClient() {
 
     const handleEditClick = () => {
         if (!user) {
+            setLoginModalMessage("Sign in to edit your society's details");
             setIsLoginModalOpen(true);
         } else {
             setIsEditModalOpen(true);
+        }
+    };
+
+    const getPasskeyActionError = (err: unknown) => {
+        if (!(err instanceof PasskeyClientError)) {
+            return 'Could not verify passkey. Please try again.';
+        }
+
+        switch (err.code) {
+            case 'ABORTED':
+                return 'Passkey verification was cancelled.';
+            case 'NOT_SIGNED_IN':
+                return 'Sign in first to continue.';
+            case 'NO_PASSKEY':
+                return 'Set up a passkey first to continue secure payment.';
+            default:
+                return 'Could not verify passkey. Please try again.';
+        }
+    };
+
+    const handleRegisterForEvent = async () => {
+        if (!selectedEvent) return;
+        setEventActionError(null);
+
+        if (!selectedEvent.registration_url) {
+            setEventActionError('Registration link will be added soon.');
+            return;
+        }
+
+        if (!user) {
+            setLoginModalMessage('Sign in to register and complete secure checkout.');
+            setIsLoginModalOpen(true);
+            return;
+        }
+
+        setIsRegisteringEvent(true);
+
+        try {
+            const isPaidEvent = (selectedEvent.price ?? 0) > 0;
+            if (isPaidEvent) {
+                try {
+                    await authenticateWithPasskey('reauth');
+                } catch (err) {
+                    if (err instanceof PasskeyClientError && err.code === 'NO_PASSKEY') {
+                        await createPasskeyForSignedInUser();
+                        await authenticateWithPasskey('reauth');
+                    } else {
+                        throw err;
+                    }
+                }
+            }
+
+            window.open(selectedEvent.registration_url, '_blank', 'noopener,noreferrer');
+        } catch (err) {
+            console.error('Event registration security check failed:', err);
+            setEventActionError(getPasskeyActionError(err));
+        } finally {
+            setIsRegisteringEvent(false);
         }
     };
 
@@ -221,8 +283,8 @@ export default function SocietiesClient() {
             {/* Navbar - Hidden when society detail or event modal is active */}
             {!selectedSociety && !selectedEvent && <Navbar />}
 
-            {/* Subtle Society Chair Sign In Button - Top Right */}
-            {!user && !selectedSociety && !selectedEvent && (
+            {/* Subtle Society Chair Sign In Button - Top Right (visible even when Appwrite user exists) */}
+            {!selectedSociety && !selectedEvent && (
                 <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -230,7 +292,10 @@ export default function SocietiesClient() {
                     className="fixed top-24 right-6 z-20"
                 >
                     <button
-                        onClick={() => setIsLoginModalOpen(true)}
+                        onClick={() => {
+                            setLoginModalMessage("Sign in to edit your society's details");
+                            setIsLoginModalOpen(true);
+                        }}
                         className="bg-white/80 backdrop-blur-sm hover:bg-white border border-gray-200 hover:border-ieee-blue text-gray-700 hover:text-ieee-blue font-semibold py-2 px-4 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center gap-2 text-sm"
                     >
                         <LogIn className="w-4 h-4" />
@@ -555,7 +620,10 @@ export default function SocietiesClient() {
                                                             key={event.$id}
                                                             event={event}
                                                             variant="compact"
-                                                            onClick={setSelectedEvent}
+                                                            onClick={(selected) => {
+                                                                setEventActionError(null);
+                                                                setSelectedEvent(selected);
+                                                            }}
                                                             index={idx}
                                                         />
                                                     ))}
@@ -606,7 +674,7 @@ export default function SocietiesClient() {
             <LoginModal
                 isOpen={isLoginModalOpen}
                 onClose={() => setIsLoginModalOpen(false)}
-                message="Sign in to edit your society's details"
+                message={loginModalMessage}
             />
 
             {/* Footer */}
@@ -621,7 +689,10 @@ export default function SocietiesClient() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={() => setSelectedEvent(null)}
+                            onClick={() => {
+                                setEventActionError(null);
+                                setSelectedEvent(null);
+                            }}
                             className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
                         >
                             {/* Event Detail Card */}
@@ -635,7 +706,10 @@ export default function SocietiesClient() {
                             >
                                 {/* Close Button */}
                                 <button
-                                    onClick={() => setSelectedEvent(null)}
+                                    onClick={() => {
+                                        setEventActionError(null);
+                                        setSelectedEvent(null);
+                                    }}
                                     className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors backdrop-blur-sm"
                                 >
                                     <X className="w-5 h-5" />
@@ -727,9 +801,24 @@ export default function SocietiesClient() {
 
                                         {/* Action Button */}
                                         {selectedEvent.status === 'published' && (
-                                            <button className="w-full bg-gradient-to-r from-ieee-blue to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg hover:shadow-xl">
-                                                Register for Event
-                                            </button>
+                                            <>
+                                                <button
+                                                    onClick={() => void handleRegisterForEvent()}
+                                                    disabled={isRegisteringEvent}
+                                                    className="w-full bg-gradient-to-r from-ieee-blue to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed"
+                                                >
+                                                    {isRegisteringEvent
+                                                        ? 'Verifying passkey...'
+                                                        : (selectedEvent.price ?? 0) > 0
+                                                            ? 'Pay & Register'
+                                                            : 'Register for Event'}
+                                                </button>
+                                                {eventActionError && (
+                                                    <p className="mt-3 text-xs text-red-600" role="alert">
+                                                        {eventActionError}
+                                                    </p>
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                 </div>

@@ -1,25 +1,58 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   compress: true,
+  productionBrowserSourceMaps: false,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  output: "standalone",
+  turbopack: {},
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  webpack: (config, { isServer }) => {
+    // Fix for pdfjs-dist in client-side builds (if ever imported from npm)
+    if (!isServer) {
+      config.resolve.alias.canvas = false;
+      config.resolve.alias.encoding = false;
+    }
+    return config;
+  },
+  allowedDevOrigins: ["10.221.180.47", "*.10.221.180.47"],
+  experimental: {
+    optimizePackageImports: ["lucide-react", "framer-motion"],
+  },
+  onDemandEntries: {
+    maxInactiveAge: 60 * 1000,
+    pagesBufferLength: 5,
+  },
   images: {
-    formats: ['image/avif', 'image/webp'],
+    formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 86400,
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'res.cloudinary.com',
+        protocol: "https",
+        hostname: "res.cloudinary.com",
       },
       {
-        protocol: 'https',
-        hostname: 'lh3.googleusercontent.com',
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
       },
       {
-        protocol: 'https',
-        hostname: 'cloud.appwrite.io',
+        protocol: "https",
+        hostname: "cloud.appwrite.io",
       },
       {
-        protocol: 'https',
-        hostname: 'backend.mulearnscet.in',
+        protocol: "https",
+        hostname: "backend.mulearnscet.in",
+      },
+      {
+        protocol: "https",
+        hostname: "backend.ieeesahrdaya.com",
+      },
+      {
+        protocol: "https",
+        hostname: "i.ibb.co",
       },
     ],
   },
@@ -27,18 +60,24 @@ const nextConfig = {
     return [
       {
         // Prevent search engines from indexing the auth flow
-        source: '/auth/:path*',
+        source: "/auth/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
+        // Allow embedding ADSSSC flipbook in iframes
+        source: "/ADSSSC/embed",
         headers: [
-          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+          { key: "X-Frame-Options", value: "ALLOWALL" },
+          { key: "Content-Security-Policy", value: "frame-ancestors *" },
         ],
       },
       {
         // Security headers for all routes
-        source: '/:path*',
+        source: "/:path*",
         headers: [
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
       },
     ];

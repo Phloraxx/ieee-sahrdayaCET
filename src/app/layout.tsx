@@ -3,6 +3,7 @@ import { Press_Start_2P, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import JsonLd from "@/components/JsonLd";
+import PageTransitionOverlay from "@/components/PageTransition";
 
 const pressStart2P = Press_Start_2P({ 
   weight: "400",
@@ -136,6 +137,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
+        <PageTransitionOverlay />
       </body>
     </html>
   );

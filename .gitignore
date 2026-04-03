@@ -12,6 +12,7 @@ node_modules
 /.next/
 /out/
 
+.agent*
 
 *.pdf
 
@@ -76,3 +77,12 @@ next-env.d.ts
 
 # CSV data files
 *.csv
+
+certificates
+backups/
+diagnose-collections.js
+mcp-server-appwrite/
+opencode.json
+test-client-sdk.ts
+test-collections.js
+test-mcp.js

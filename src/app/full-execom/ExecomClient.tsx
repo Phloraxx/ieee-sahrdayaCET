@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Users, Cpu, Zap, Radio, Atom, GraduationCap, Activity, Bolt, Heart, Cog, Wrench, Sparkles, Camera, FileText, MessageSquare, Palette, X, Linkedin, Instagram, Mail, Phone } from 'lucide-react';
-import Link from 'next/link';
+import TransitionLink from '@/components/PageTransition/TransitionLink';
 import { databases, DATABASE_ID, EXECOM_COLLECTION_ID } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 
@@ -494,9 +494,9 @@ const FullExecom: React.FC = () => {
             {/* Mobile Header */}
             <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100">
                 <div className="flex items-center justify-between px-4 py-3">
-                    <Link href="/" className="p-2 -ml-2 text-gray-500 hover:text-gray-900">
+                    <TransitionLink href="/" className="p-2 -ml-2 text-gray-500 hover:text-gray-900">
                         <ArrowLeft className="w-5 h-5" />
-                    </Link>
+                    </TransitionLink>
                     <span className="font-semibold text-gray-900">EXECOM &apos;26</span>
                     <button 
                         onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
@@ -539,12 +539,12 @@ const FullExecom: React.FC = () => {
             {/* Desktop Sidebar */}
             <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-20 bg-white border-r border-gray-100 flex-col z-50">
                 {/* Back Button */}
-                <Link 
+                <TransitionLink 
                     href="/" 
                     className="flex items-center justify-center h-16 border-b border-gray-100 text-gray-400 hover:text-[#00629B] transition-colors"
                 >
                     <ArrowLeft className="w-5 h-5" />
-                </Link>
+                </TransitionLink>
 
                 {/* Nav Items */}
                 <nav className="flex-1 overflow-y-auto py-4 scrollbar-hide">

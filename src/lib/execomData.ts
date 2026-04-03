@@ -23,7 +23,7 @@ const IMAGE_MAP: { [key: string]: string } = {
     'CHRISTINA JOSEPH': '/Execom/Christina Joseph.jpg',
     'JENNIFER ANTONY': '/Execom/Jennifer Antony_.jpg',
     'SHEETAL SURESH UNNY': '/Execom/SHEETAL SURESH UNNY_.jpg',
-    'ALBERT SIBICHAN JACOB':'/Execom/Albert Sibichan Jacob/IMG_5412.JPG.jpeg',
+    'ALBERT SIBICHAN JACOB':'/Execom/Albert Sibichan Jacob/IMG_5412.JPG',
     'TANIYA THOMSON': '/Execom/Taniya Thomson.jpg',
     'AAN LILY OLIVIA': '/Execom/Aan Lily Olivia_/20260126_153002.jpg',
     'AARON STANPHEN': '/Execom/Aaron Stanphen_/Aaron_stanphen.jpg',

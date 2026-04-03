@@ -51,6 +51,7 @@ const PixelGrid: React.FC<{ grid: string[][]; size: number }> = ({ grid, size })
 
 export const FloatingAction: React.FC = () => {
     const [posX, setPosX] = useState(80); // percentage from left of viewport
+    const posXRef = useRef(80);
     const [action, setAction] = useState<IdleAction>('idle');
     const [facingLeft, setFacingLeft] = useState(false);
     const [isBlinking, setIsBlinking] = useState(false);
@@ -96,23 +97,27 @@ export const FloatingAction: React.FC = () => {
     const startWalking = useCallback((targetX: number) => {
         stopWalking();
         walkTargetRef.current = Math.max(5, Math.min(95, targetX));
-        setFacingLeft(targetX < posX);
+        setFacingLeft(targetX < posXRef.current);
 
         walkIntervalRef.current = setInterval(() => {
-            setPosX(prev => {
-                const target = walkTargetRef.current;
-                const step = 0.1; // slow stroll
-                const diff = target - prev;
-                if (Math.abs(diff) < step) {
-                    stopWalking();
-                    setAction('idle');
-                    return target;
-                }
-                setWalkCycle(c => (c + 1) % 2);
-                return prev + (diff > 0 ? step : -step);
-            });
+            const prev = posXRef.current;
+            const target = walkTargetRef.current;
+            const step = 0.4; // slow stroll
+            const diff = target - prev;
+
+            if (Math.abs(diff) < step) {
+                posXRef.current = target;
+                setPosX(target);
+                stopWalking();
+                setAction('idle');
+            } else {
+                const nextX = prev + (diff > 0 ? step : -step);
+                posXRef.current = nextX;
+                setPosX(nextX);
+                setWalkCycle(c => (c === 0 ? 1 : 0));
+            }
         }, 60);
-    }, [posX, stopWalking]);
+    }, [stopWalking]);
 
     // --- Action loop ---
     useEffect(() => {
@@ -126,7 +131,7 @@ export const FloatingAction: React.FC = () => {
                     case 'walking': {
                         // walk a short distance (5-20% of viewport)
                         const dist = (10 + Math.random() * 15) * (Math.random() > 0.5 ? 1 : -1);
-                        startWalking(posX + dist);
+                        startWalking(posXRef.current + dist);
                         break;
                     }
                     case 'jumping':
