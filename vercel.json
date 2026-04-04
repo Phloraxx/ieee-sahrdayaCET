@@ -5,6 +5,11 @@
   "framework": "nextjs",
   "cleanUrls": true,
   "trailingSlash": false,
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "maxDuration": 60
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",
@@ -27,7 +32,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=()"
+          "value": "microphone=(), geolocation=()"
         }
       ]
     },
@@ -64,12 +69,6 @@
       "source": "/admin",
       "destination": "/admin/dashboard",
       "permanent": false
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/ticket/:id",
-      "destination": "/api/tickets/:id"
     }
   ]
 }

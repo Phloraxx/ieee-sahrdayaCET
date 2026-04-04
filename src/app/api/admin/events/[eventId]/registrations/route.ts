@@ -14,6 +14,34 @@ import { createLogger } from '@/lib/api/logger';
 
 export const runtime = 'nodejs';
 
+// Simple in-memory cache for user lookups (TTL: 5 minutes)
+const userCache = new Map<string, { data: { name: string; email: string }; expires: number }>();
+const USER_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCachedUser(userId: string): { name: string; email: string } | null {
+  const cached = userCache.get(userId);
+  if (cached && cached.expires > Date.now()) {
+    return cached.data;
+  }
+  if (cached) {
+    userCache.delete(userId);
+  }
+  return null;
+}
+
+function setCachedUser(userId: string, data: { name: string; email: string }) {
+  // Limit cache size to prevent memory issues
+  if (userCache.size > 1000) {
+    // Remove oldest entries
+    const entries = Array.from(userCache.entries());
+    entries.sort((a, b) => a[1].expires - b[1].expires);
+    for (let i = 0; i < 200; i++) {
+      userCache.delete(entries[i][0]);
+    }
+  }
+  userCache.set(userId, { data, expires: Date.now() + USER_CACHE_TTL });
+}
+
 interface RouteParams {
   params: Promise<{ eventId: string }>;
 }
@@ -193,14 +221,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       queries.push(Query.lessThanEqual('$createdAt', dateTo));
     }
 
-    // If only IDs are requested, return them quickly
+    // If only IDs are requested, return them quickly using select to minimize data transfer
     if (allIdsOnly) {
       const allIds: string[] = [];
       let cursor: string | undefined = undefined;
       
-      // Fetch all IDs in batches of 100
+      // Fetch all IDs in batches of 100, selecting only $id
       while (true) {
-        const batchQueries = [...queries, Query.limit(100)];
+        const batchQueries = [...queries, Query.limit(100), Query.select(['$id'])];
         if (cursor) {
           batchQueries.push(Query.cursorAfter(cursor));
         }
@@ -222,102 +250,109 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       queries.push(Query.orderAsc(sortBy === 'registration_date' ? '$createdAt' : sortBy));
     }
     
-    // When searching, we need to fetch ALL registrations first (up to 500),
-    // enrich them with user info, apply search filter, then paginate.
-    // This is because search is on user name/email which requires user lookup.
     const isSearching = !!search.trim();
-    const SEARCH_FETCH_LIMIT = 500; // Max registrations to fetch when searching
+    const searchLower = search.toLowerCase().trim();
     
-    // For non-search queries, get total count first
-    let totalBeforeSearch = 0;
-    if (!isSearching) {
-      const countQueries = [Query.equal('event_id', eventId)];
-      if (paymentStatus && paymentStatus !== 'all') {
-        countQueries.push(Query.equal('payment_status', paymentStatus));
-      }
-      if (checkinStatus && checkinStatus !== 'all') {
-        if (checkinStatus === 'checked_in') {
-          countQueries.push(Query.equal('checked_in', true));
-        } else if (checkinStatus === 'not_checked_in') {
-          countQueries.push(Query.equal('checked_in', false));
-        }
-      }
-      if (dateFrom) {
-        countQueries.push(Query.greaterThanEqual('$createdAt', dateFrom));
-      }
-      if (dateTo) {
-        countQueries.push(Query.lessThanEqual('$createdAt', dateTo));
-      }
-      const allRegistrations = await db.listDocuments(DATABASE_ID, REGISTRATIONS_COLLECTION_ID, countQueries);
-      totalBeforeSearch = allRegistrations.total;
-    }
+    // OPTIMIZATION: For non-search queries, use efficient pagination with total from response
+    // For search queries, we need to fetch more records to filter, but limit to reasonable amount
+    const SEARCH_FETCH_LIMIT = 200; // Reduced from 500 for faster response
     
-    // Add pagination/limit based on whether we're searching
     if (isSearching) {
       // Fetch more results when searching to allow post-filtering
       queries.push(Query.limit(SEARCH_FETCH_LIMIT));
-      // No offset - we'll paginate after filtering
     } else {
-      // Normal pagination
+      // Normal pagination - Appwrite returns total in response
       queries.push(Query.limit(limit));
       queries.push(Query.offset((page - 1) * limit));
     }
     
-    // Fetch registrations
-    const registrationsRes = await db.listDocuments(DATABASE_ID, REGISTRATIONS_COLLECTION_ID, queries);
+    // Fetch registrations and event in parallel
+    const [registrationsRes, event] = await Promise.all([
+      db.listDocuments(DATABASE_ID, REGISTRATIONS_COLLECTION_ID, queries),
+      db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId),
+    ]);
     
-    // Enrich with user info and apply search filter
-    const searchLower = search.toLowerCase().trim();
-    const enrichedRegistrations = await Promise.all(
-      registrationsRes.documents.map(async (reg) => {
-        const regRecord = reg as Record<string, unknown>;
-        const formPayload = parseRegistrationFormPayload(regRecord);
-        let userName = 'Unknown';
-        let userEmail = '';
-        
+    // OPTIMIZATION: Batch user lookups - collect unique user IDs first
+    const userIds = Array.from(new Set(registrationsRes.documents.map(reg => reg.user_id as string)));
+    
+    // Fetch users in batches with caching
+    const userMap = new Map<string, { name: string; email: string }>();
+    const uncachedUserIds: string[] = [];
+    
+    // Check cache first
+    for (const userId of userIds) {
+      const cached = getCachedUser(userId);
+      if (cached) {
+        userMap.set(userId, cached);
+      } else {
+        uncachedUserIds.push(userId);
+      }
+    }
+    
+    // Batch fetch uncached users (in chunks of 50 to avoid overwhelming Appwrite)
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < uncachedUserIds.length; i += BATCH_SIZE) {
+      const batch = uncachedUserIds.slice(i, i + BATCH_SIZE);
+      const userPromises = batch.map(async (userId) => {
         try {
-          const regUser = await users.get(reg.user_id as string);
-          userName = regUser.name || 'Unknown';
-          userEmail = regUser.email || '';
+          const user = await users.get(userId);
+          const userData = { name: user.name || 'Unknown', email: user.email || '' };
+          setCachedUser(userId, userData);
+          return { userId, ...userData };
         } catch {
-          // User not found, use stored registration payload
-          userName = asNonEmptyString(formPayload.name) || 'Unknown';
-          userEmail = asNonEmptyString(formPayload.email) || '';
+          // User not found - return placeholder
+          return { userId, name: '', email: '' };
         }
-        
-        const userPhone = getRegistrationPhone(regRecord, formPayload);
-        const ticketId = (reg.ticket_id as string) || '';
-        
-        // Apply search filter if searching
-        if (isSearching) {
-          const matchesName = userName.toLowerCase().includes(searchLower);
-          const matchesEmail = userEmail.toLowerCase().includes(searchLower);
-          const matchesPhone = userPhone.includes(searchLower);
-          const matchesTicket = ticketId.toLowerCase().includes(searchLower);
-          if (!matchesName && !matchesEmail && !matchesPhone && !matchesTicket) {
-            return null;
-          }
+      });
+      const batchResults = await Promise.all(userPromises);
+      for (const result of batchResults) {
+        userMap.set(result.userId, { name: result.name, email: result.email });
+      }
+    }
+    
+    // Enrich registrations (now synchronous since we pre-fetched users)
+    const enrichedRegistrations = registrationsRes.documents.map((reg) => {
+      const regRecord = reg as Record<string, unknown>;
+      const formPayload = parseRegistrationFormPayload(regRecord);
+      const userId = reg.user_id as string;
+      
+      // Get user info from our map or fall back to form data
+      const userInfo = userMap.get(userId);
+      const userName = userInfo?.name || asNonEmptyString(formPayload.name) || asNonEmptyString(regRecord.user_name) || 'Unknown';
+      const userEmail = userInfo?.email || asNonEmptyString(formPayload.email) || asNonEmptyString(regRecord.user_email) || '';
+      
+      const userPhone = getRegistrationPhone(regRecord, formPayload);
+      const ticketId = (reg.ticket_id as string) || '';
+      
+      // Apply search filter if searching
+      if (isSearching) {
+        const matchesName = userName.toLowerCase().includes(searchLower);
+        const matchesEmail = userEmail.toLowerCase().includes(searchLower);
+        const matchesPhone = userPhone.includes(searchLower);
+        const matchesTicket = ticketId.toLowerCase().includes(searchLower);
+        if (!matchesName && !matchesEmail && !matchesPhone && !matchesTicket) {
+          return null;
         }
-        
-        return {
-          id: reg.$id, // Map the Appwrite ID to the expected UI property
-          $id: reg.$id,
-          $createdAt: reg.$createdAt,
-          user_id: reg.user_id,
-          user_name: userName,
-          user_email: userEmail,
-          user_phone: userPhone,
-          department: asNonEmptyString(formPayload.department) || asNonEmptyString(formPayload.dept) || '',
-          semester: asNonEmptyString(formPayload.semester) || asNonEmptyString(formPayload.sem) || '',
-          form_data: formPayload,
-          payment_status: reg.payment_status || 'pending',
-          registration_status: reg.registration_status || 'pending',
-          checked_in: reg.checked_in || false,
-          checked_in_at: reg.checked_in_at,
-          ticket_id: ticketId,
-        };
-      })
-    );
+      }
+      
+      return {
+        id: reg.$id,
+        $id: reg.$id,
+        $createdAt: reg.$createdAt,
+        user_id: userId,
+        user_name: userName,
+        user_email: userEmail,
+        user_phone: userPhone,
+        department: asNonEmptyString(formPayload.department) || asNonEmptyString(formPayload.dept) || '',
+        semester: asNonEmptyString(formPayload.semester) || asNonEmptyString(formPayload.sem) || '',
+        form_data: formPayload,
+        payment_status: reg.payment_status || 'pending',
+        registration_status: reg.registration_status || 'pending',
+        checked_in: reg.checked_in || false,
+        checked_in_at: reg.checked_in_at,
+        ticket_id: ticketId,
+      };
+    });
     
     // Filter out nulls (search non-matches)
     const allFilteredRegistrations = enrichedRegistrations.filter(r => r !== null);
@@ -325,28 +360,25 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     // Calculate totals and apply pagination for search results
     let finalRegistrations;
     let total: number;
-    let pages: number;
+    let totalPages: number;
     
     if (isSearching) {
       // For search: total is the filtered count, paginate the filtered results
       total = allFilteredRegistrations.length;
-      pages = Math.ceil(total / limit);
+      totalPages = Math.ceil(total / limit);
       const startIndex = (page - 1) * limit;
       finalRegistrations = allFilteredRegistrations.slice(startIndex, startIndex + limit);
     } else {
-      // For non-search: use the pre-counted total
-      total = totalBeforeSearch;
-      pages = Math.ceil(total / limit);
+      // For non-search: use Appwrite's returned total (no extra query needed!)
+      total = registrationsRes.total;
+      totalPages = Math.ceil(total / limit);
       finalRegistrations = allFilteredRegistrations;
     }
-    
-    // Get event details
-    const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
 
     return NextResponse.json({
       registrations: finalRegistrations,
       total,
-      pages,
+      pages: totalPages,
       page,
       limit,
       event: {

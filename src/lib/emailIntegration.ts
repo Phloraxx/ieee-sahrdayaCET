@@ -1,11 +1,14 @@
 /**
  * Email Integration Helper for Registration Flow
  * Handles sending confirmation emails after registration and payment
+ * 
+ * PRODUCTION MODE (Vercel): Uses direct synchronous email sending
+ * DEVELOPMENT MODE: Can use email queue for testing
  */
 
 import { logger } from '@/lib/api/logger';
 import { getUsers } from '@/lib/api/appwrite-admin';
-import { queueRegistrationEmail, queuePaymentEmail, queueReceiptEmail } from '@/lib/emailQueue';
+import { sendRegistrationEmailDirect, sendPaymentEmailDirect, sendReceiptEmailDirect } from '@/lib/emailSender';
 import { getDefaultTemplate } from '@/lib/emailService';
 import QRCode from 'qrcode';
 
@@ -124,8 +127,8 @@ export async function sendRegistrationConfirmation(
       return { success: false, error: 'Failed to generate QR code for ticket email' };
     }
 
-    // Queue email
-    queueRegistrationEmail(
+    // Send email directly (synchronous for Vercel compatibility)
+    const result = await sendRegistrationEmailDirect(
       user.email,
       variables,
       template.body,
@@ -133,13 +136,23 @@ export async function sendRegistrationConfirmation(
       registration.$id
     );
 
-    logger.info('Registration confirmation email queued', {
-      userId: user.$id,
-      email: user.email,
-      registrationId: registration.$id,
-      eventId: event.$id,
-    });
-    return { success: true };
+    if (result.success) {
+      logger.info('Registration confirmation email sent', {
+        userId: user.$id,
+        email: user.email,
+        registrationId: registration.$id,
+        eventId: event.$id,
+      });
+      return { success: true };
+    } else {
+      logger.error('Failed to send registration confirmation email', new Error(result.error || 'Unknown error'), {
+        userId: user.$id,
+        email: user.email,
+        registrationId: registration.$id,
+        eventId: event.$id,
+      });
+      return { success: false, error: result.error };
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to send registration confirmation',
@@ -244,8 +257,8 @@ export async function sendPaymentReceipt(
       event.title
     );
 
-    // Queue email with PDF attachment
-    queueReceiptEmail(
+    // Send email directly with PDF attachment (synchronous for Vercel)
+    const result = await sendReceiptEmailDirect(
       user.email,
       variables,
       template.body,
@@ -255,14 +268,23 @@ export async function sendPaymentReceipt(
       receiptFilename
     );
 
-    logger.info('Payment receipt email queued with PDF attachment', {
-      userId: user.$id,
-      email: user.email,
-      registrationId: registration.$id,
-      eventId: event.$id,
-      amount: String(paymentDetails.amount),
-      receiptFilename,
-    });
+    if (result.success) {
+      logger.info('Payment receipt email sent with PDF attachment', {
+        userId: user.$id,
+        email: user.email,
+        registrationId: registration.$id,
+        eventId: event.$id,
+        amount: String(paymentDetails.amount),
+        receiptFilename,
+      });
+    } else {
+      logger.error('Failed to send payment receipt email', new Error(result.error || 'Unknown error'), {
+        userId: user.$id,
+        email: user.email,
+        registrationId: registration.$id,
+        eventId: event.$id,
+      });
+    }
   } catch (error) {
     logger.error('Failed to send payment receipt',
       error instanceof Error ? error : new Error(String(error)),
@@ -332,8 +354,8 @@ export async function sendPaymentConfirmation(
       return;
     }
 
-    // Queue email
-    queuePaymentEmail(
+    // Send email directly (synchronous for Vercel)
+    const result = await sendPaymentEmailDirect(
       user.email,
       variables,
       template.body,
@@ -341,13 +363,22 @@ export async function sendPaymentConfirmation(
       registration.$id
     );
 
-    logger.info('Payment confirmation email queued', {
-      userId: user.$id,
-      email: user.email,
-      registrationId: registration.$id,
-      eventId: event.$id,
-      amount: String(amount),
-    });
+    if (result.success) {
+      logger.info('Payment confirmation email sent', {
+        userId: user.$id,
+        email: user.email,
+        registrationId: registration.$id,
+        eventId: event.$id,
+        amount: String(amount),
+      });
+    } else {
+      logger.error('Failed to send payment confirmation email', new Error(result.error || 'Unknown error'), {
+        userId: user.$id,
+        email: user.email,
+        registrationId: registration.$id,
+        eventId: event.$id,
+      });
+    }
   } catch (error) {
     logger.error('Failed to send payment confirmation',
       error instanceof Error ? error : new Error(String(error)),

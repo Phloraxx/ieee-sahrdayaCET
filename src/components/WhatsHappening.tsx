@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import TransitionLink from '@/components/PageTransition/TransitionLink';
 import {
@@ -9,11 +9,77 @@ import {
     Newspaper,
     Users,
     Code,
-    ArrowUpRight
+    ArrowUpRight,
+    Loader2
 } from 'lucide-react';
 import { SocietyStrip } from './SocietyStrip';
+import { databases, DATABASE_ID, EVENTS_COLLECTION_ID } from '@/lib/appwrite';
+import { Query } from 'appwrite';
+
+interface LatestEvent {
+    id: string;
+    title: string;
+    shortTitle?: string;
+    description: string;
+    date: string;
+    banner_url?: string;
+    tag?: string;
+}
 
 export const WhatsHappening: React.FC = () => {
+    const [latestEvent, setLatestEvent] = useState<LatestEvent | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchLatestEvent() {
+            try {
+                const now = new Date().toISOString();
+                const response = await databases.listDocuments(
+                    DATABASE_ID,
+                    EVENTS_COLLECTION_ID,
+                    [
+                        Query.equal('status', 'published'),
+                        Query.greaterThan('date', now),
+                        Query.orderAsc('date'),
+                        Query.limit(1)
+                    ]
+                );
+
+                if (response.documents.length > 0) {
+                    const event = response.documents[0];
+                    setLatestEvent({
+                        id: event.$id,
+                        title: event.title as string,
+                        shortTitle: (event.short_title as string) || undefined,
+                        description: (event.description as string) || 'Join us for this exciting IEEE event!',
+                        date: event.date as string,
+                        banner_url: (event.banner_url as string) || undefined,
+                        tag: (event.event_type as string) || 'UPCOMING EVENT'
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to fetch latest event:', err);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchLatestEvent();
+    }, []);
+
+    // Format date parts for display
+    const getDateParts = (dateString: string) => {
+        const date = new Date(dateString);
+        return {
+            day: date.getDate().toString().padStart(2, '0'),
+            month: date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+            hour: date.toLocaleTimeString('en-US', { hour: '2-digit', hour12: true }).split(' ')[0],
+            ampm: date.toLocaleTimeString('en-US', { hour: '2-digit', hour12: true }).split(' ')[1]
+        };
+    };
+
+    const dateParts = latestEvent ? getDateParts(latestEvent.date) : null;
+
     return (
         <section id="events" className="container mx-auto px-4 py-20 relative z-20">
             <div className="flex items-center space-x-2 mb-8">
@@ -23,49 +89,75 @@ export const WhatsHappening: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 auto-rows-min md:grid-rows-[300px_200px] gap-4">
-                {/* TechnoSummit Card */}
+                {/* Latest Event Card */}
                 <div className="col-span-1 md:col-span-3 row-span-1 md:row-span-1 bento-card bg-white rounded-xl overflow-hidden border border-gray-200 relative group shadow-sm transition-all hover:shadow-md hover:border-ieee-blue/30 min-h-[400px] md:min-h-0">
                     <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-transparent to-transparent z-10 opacity-90"></div>
                     <div className="absolute inset-0 bg-blue-900 bg-opacity-20 z-0">
-                        <Image
-                            alt="Tech Event"
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                            src="/AGM.webp"
-                            fill
-                            sizes="(max-width: 768px) 100vw, 75vw"
-                            priority
-                        />
+                        {loading ? (
+                            <div className="w-full h-full bg-gray-200 animate-pulse" />
+                        ) : (
+                            <Image
+                                alt={latestEvent?.title || "Upcoming Event"}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                src="/AGM.webp"
+                                fill
+                                sizes="(max-width: 768px) 100vw, 75vw"
+                                priority
+                            />
+                        )}
                     </div>
                     <div className="relative z-20 p-6 md:p-8 h-full flex flex-col justify-center text-white">
-                        <div className="inline-block px-3 py-1 bg-ieee-blue text-white text-[10px] font-mono tracking-wider rounded-sm mb-3 w-max">ANNUAL GENERAL MEETING</div>
-                        <h2 className="font-bold text-3xl md:text-5xl font-sans mb-2 drop-shadow-lg">IEEE AGM &apos;26</h2>
-                        <p className="text-gray-200 text-sm md:text-base mb-6 max-w-md">
-                            Join us as we reflect on a year of innovation, elect the new executive committee, and set the vision for the future of IEEE Sahrdaya SB.
-                        </p>
-
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
-                            <div className="flex space-x-4 font-mono text-sm shadow-inner bg-black/20 p-2 rounded-lg backdrop-blur-sm border border-white/10">
-                                <div className="text-center px-1">
-                                    <span className="block text-2xl font-bold text-white">27</span>
-                                    <span className="text-[10px] text-gray-300 tracking-wider">FEB</span>
-                                </div>
-                                <span className="text-2xl font-bold text-gray-400 pb-2">:</span>
-                                <div className="text-center px-1">
-                                    <span className="block text-2xl font-bold text-white">02</span>
-                                    <span className="text-[10px] text-gray-300 tracking-wider">March</span>
-                                </div>
-                                <span className="text-2xl font-bold text-gray-400 pb-2">:</span>
-                                <div className="text-center px-1">
-                                    <span className="block text-2xl font-bold text-white">02</span>
-                                    <span className="text-[10px] text-gray-300 tracking-wider">PM</span>
-                                </div>
+                        {loading ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <span className="text-sm">Loading latest event...</span>
                             </div>
+                        ) : latestEvent ? (
+                            <>
+                                <div className="inline-block px-3 py-1 bg-ieee-blue text-white text-[10px] font-mono tracking-wider rounded-sm mb-3 w-max uppercase">
+                                    {latestEvent.tag}
+                                </div>
+                                <h2 className="font-bold text-3xl md:text-5xl font-sans mb-2 drop-shadow-lg">
+                                    {latestEvent.shortTitle || latestEvent.title.split(' ').slice(0, 4).join(' ')}
+                                </h2>
+                                <p className="text-gray-200 text-sm md:text-base mb-6 max-w-md line-clamp-3">
+                                    {latestEvent.description}
+                                </p>
 
-                            <TransitionLink href="/events" className="glass-btn bg-white/10 backdrop-blur-sm border border-white/20 px-6 py-2 rounded-lg text-white font-medium text-sm hover:bg-white/20 hover:scale-105 transition-all flex items-center space-x-2 group">
-                                <span>Register Now</span>
-                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </TransitionLink>
-                        </div>
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
+                                    {dateParts && (
+                                        <div className="flex space-x-4 font-mono text-sm shadow-inner bg-black/20 p-2 rounded-lg backdrop-blur-sm border border-white/10">
+                                            <div className="text-center px-1">
+                                                <span className="block text-2xl font-bold text-white">{dateParts.day}</span>
+                                                <span className="text-[10px] text-gray-300 tracking-wider">{dateParts.month}</span>
+                                            </div>
+                                            <span className="text-2xl font-bold text-gray-400 pb-2">:</span>
+                                            <div className="text-center px-1">
+                                                <span className="block text-2xl font-bold text-white">{dateParts.hour}</span>
+                                                <span className="text-[10px] text-gray-300 tracking-wider">{dateParts.ampm}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <TransitionLink href="/events" className="glass-btn bg-white/10 backdrop-blur-sm border border-white/20 px-6 py-2 rounded-lg text-white font-medium text-sm hover:bg-white/20 hover:scale-105 transition-all flex items-center space-x-2 group">
+                                        <span>Register Now</span>
+                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                    </TransitionLink>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="inline-block px-3 py-1 bg-ieee-blue text-white text-[10px] font-mono tracking-wider rounded-sm mb-3 w-max">NO UPCOMING EVENTS</div>
+                                <h2 className="font-bold text-3xl md:text-5xl font-sans mb-2 drop-shadow-lg">Stay Tuned!</h2>
+                                <p className="text-gray-200 text-sm md:text-base mb-6 max-w-md">
+                                    Check back soon for exciting upcoming events from IEEE Sahrdaya SB.
+                                </p>
+                                <TransitionLink href="/events" className="glass-btn bg-white/10 backdrop-blur-sm border border-white/20 px-6 py-2 rounded-lg text-white font-medium text-sm hover:bg-white/20 hover:scale-105 transition-all flex items-center space-x-2 group w-max">
+                                    <span>View Past Events</span>
+                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                </TransitionLink>
+                            </>
+                        )}
                     </div>
                 </div>
 
