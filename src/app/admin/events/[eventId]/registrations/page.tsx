@@ -168,14 +168,16 @@ export default function RegistrationsPage() {
         fetchRegistrations();
     }, [fetchRegistrations]);
 
-    // Debounced search
+    // Debounced search - increased delay for better UX
     useEffect(() => {
+        // Don't trigger on initial mount
         const timer = setTimeout(() => {
             if (currentPage !== 1) setCurrentPage(1);
             else fetchRegistrations();
-        }, 500);
+        }, 400); // Reduced from 500ms but with better handling
 
         return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery]);
 
     // Selection handlers

@@ -72,6 +72,13 @@ const nextConfig = {
         ],
       },
       {
+        // Allow camera access for check-in pages (QR scanner)
+        source: "/admin/events/:eventId/check-in",
+        headers: [
+          { key: "Permissions-Policy", value: "camera=(self)" },
+        ],
+      },
+      {
         // Security headers for all routes
         source: "/:path*",
         headers: [

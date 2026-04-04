@@ -21,27 +21,45 @@ interface RouteParams {
   params: Promise<{ eventId: string }>;
 }
 
-// Helper function to check if user is chair of the event
+// Cache for chair authorization (TTL: 2 minutes)
+const authCache = new Map<string, { isAuthorized: boolean; expires: number }>();
+const AUTH_CACHE_TTL = 2 * 60 * 1000;
+
+// Helper function to check if user is chair of the event (with caching)
 async function isUserChairOfEvent(userId: string, eventId: string): Promise<boolean> {
+    const cacheKey = `${userId}_${eventId}`;
+    const cached = authCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+      return cached.isAuthorized;
+    }
+    
     const databases = getDatabases();
     const users = getUsers();
 
     try {
-        const event = await databases.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-        const memberships = await users.listMemberships(userId);
+        const [event, memberships] = await Promise.all([
+            databases.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId),
+            users.listMemberships(userId)
+        ]);
 
         const isGlobalAdmin = memberships.memberships.some(
             m => m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
         );
-        if (isGlobalAdmin) return true;
+        if (isGlobalAdmin) {
+            authCache.set(cacheKey, { isAuthorized: true, expires: Date.now() + AUTH_CACHE_TTL });
+            return true;
+        }
 
         try {
             const society = await databases.getDocument(DATABASE_ID, SOCIETIES_COLLECTION_ID, event.society_id as string);
             const chairTeamId = `chair_${society.slug}`;
-            return memberships.memberships.some(
+            const isChair = memberships.memberships.some(
                 m => m.teamId === chairTeamId || m.teamName === chairTeamId
             );
+            authCache.set(cacheKey, { isAuthorized: isChair, expires: Date.now() + AUTH_CACHE_TTL });
+            return isChair;
         } catch {
+            authCache.set(cacheKey, { isAuthorized: false, expires: Date.now() + AUTH_CACHE_TTL });
             return false;
         }
     } catch (error) {
@@ -64,6 +82,7 @@ interface SearchResult {
 /**
  * GET /api/admin/check-in/[eventId]/search
  * Search for registrations by name, email, or ticket ID
+ * OPTIMIZED: Caching, reduced limit, early termination
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
   const { eventId } = await params;
@@ -79,7 +98,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check authorization
+    // Check authorization (cached)
     const isAuthorized = await isUserChairOfEvent(user.$id, eventId);
     if (!isAuthorized) {
       log.warn('Unauthorized search attempt', { userId: user.$id, eventId });
@@ -101,89 +120,108 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
     const db = getDatabases();
 
-    // Get all registrations for this event
+    // OPTIMIZATION: Reduce limit for faster response
     const registrationsResult = await db.listDocuments(
       DATABASE_ID,
       EVENT_REGISTRATIONS_COLLECTION_ID,
       [
         Query.equal('event_id', eventId),
         Query.equal('registration_status', 'confirmed'),
-        Query.limit(500),
+        Query.limit(200), // Reduced from 500
       ]
     );
 
-    // Filter by search query
+    // Filter by search query with early termination
     const queryLower = query.toLowerCase();
-    const matchingRegistrations = registrationsResult.documents.filter(reg => {
+    const matchingRegistrations: typeof registrationsResult.documents = [];
+    const maxResults = 20;
+    
+    for (const reg of registrationsResult.documents) {
+      if (matchingRegistrations.length >= maxResults * 2) break; // Stop early
+      
+      let matches = false;
+      
+      // Check ticket_id first (most specific)
+      if (reg.ticket_id && (reg.ticket_id as string).toLowerCase().includes(queryLower)) {
+        matches = true;
+      }
+      
+      // Check registration ID
+      if (!matches && reg.$id.toLowerCase().includes(queryLower)) {
+        matches = true;
+      }
+      
       // Check user_name field
-      const userName = (reg.user_name as string || '').toLowerCase();
-      if (userName.includes(queryLower)) return true;
-
-      // Check user_email field
-      const userEmail = (reg.user_email as string || '').toLowerCase();
-      if (userEmail.includes(queryLower)) return true;
-
-      // Check form_responses for name/email (new schema uses form_responses)
-      try {
-        const formResponses = reg.form_responses ? JSON.parse(reg.form_responses as string) : {};
-        if (formResponses.name?.toLowerCase().includes(queryLower)) return true;
-        if (formResponses.email?.toLowerCase().includes(queryLower)) return true;
-      } catch {
-        // Ignore parse errors
+      if (!matches) {
+        const userName = (reg.user_name as string || '').toLowerCase();
+        if (userName.includes(queryLower)) matches = true;
       }
 
-      // Check registration ID
-      if (reg.$id.toLowerCase().includes(queryLower)) return true;
-      
-      // Check ticket_id if present (embedded ticket)
-      if (reg.ticket_id && (reg.ticket_id as string).toLowerCase().includes(queryLower)) return true;
+      // Check user_email field
+      if (!matches) {
+        const userEmail = (reg.user_email as string || '').toLowerCase();
+        if (userEmail.includes(queryLower)) matches = true;
+      }
 
-      return false;
-    });
+      // Check form_responses for name/email
+      if (!matches) {
+        try {
+          const formResponses = reg.form_responses ? JSON.parse(reg.form_responses as string) : {};
+          if (formResponses.name?.toLowerCase().includes(queryLower) ||
+              formResponses.email?.toLowerCase().includes(queryLower)) {
+            matches = true;
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+
+      if (matches) {
+        matchingRegistrations.push(reg);
+      }
+    }
 
     // Get ticket IDs from current registration model
-    const results: SearchResult[] = await Promise.all(
-      matchingRegistrations.slice(0, 20).map(async (rawReg) => {
-        const reg = rawReg as unknown as RegistrationDocument;
-        
-        // Prefer embedded ticket ID, then registration ticket_id
-        let ticketId = reg.$id; // Default to registration ID
-        
-        // Check for embedded ticket first (new schema)
-        const embeddedTicket = parseEmbeddedTicket(reg);
-        if (embeddedTicket) {
-          ticketId = embeddedTicket.ticket_id;
-        } else if (reg.ticket_id) {
-          ticketId = reg.ticket_id;
-        }
+    const results: SearchResult[] = matchingRegistrations.slice(0, maxResults).map((rawReg) => {
+      const reg = rawReg as unknown as RegistrationDocument;
+      
+      // Prefer embedded ticket ID, then registration ticket_id
+      let ticketId = reg.$id; // Default to registration ID
+      
+      // Check for embedded ticket first (new schema)
+      const embeddedTicket = parseEmbeddedTicket(reg);
+      if (embeddedTicket) {
+        ticketId = embeddedTicket.ticket_id;
+      } else if (reg.ticket_id) {
+        ticketId = reg.ticket_id;
+      }
 
-        // Get name and email from form_responses (new schema)
-        let studentName = reg.user_name || 'Unknown';
-        let email = reg.user_email || '';
+      // Get name and email from form_responses (new schema)
+      let studentName = reg.user_name || 'Unknown';
+      let email = reg.user_email || '';
 
-        try {
-          const formResponses = reg.form_responses ? JSON.parse(reg.form_responses) : {};
-          studentName = formResponses.name || studentName;
-          email = formResponses.email || email;
-        } catch {
-          // Ignore
-        }
+      try {
+        const formResponses = reg.form_responses ? JSON.parse(reg.form_responses) : {};
+        studentName = formResponses.name || studentName;
+        email = formResponses.email || email;
+      } catch {
+        // Ignore
+      }
 
-        // Get location history for checked-in registrations
-        const locationHistory = reg.checked_in ? getLocationRecency(reg) : undefined;
+      // Get location history for checked-in registrations
+      const locationHistory = reg.checked_in ? getLocationRecency(reg) : undefined;
 
-        return {
-          registrationId: reg.$id,
-          ticketId,
-          studentName,
-          email,
-          isCheckedIn: false, // Always allow check-in, multiple check-ins supported
-          checkedInAt: reg.check_in_time || reg.checked_in_at || undefined,
-          lastLocation: reg.last_check_in_location || 'entrance',
-          locationHistory,
-        };
-      })
-    );
+      return {
+        registrationId: reg.$id,
+        ticketId,
+        studentName,
+        email,
+        isCheckedIn: Boolean(reg.checked_in),
+        checkedInAt: reg.check_in_time || reg.checked_in_at || undefined,
+        lastLocation: reg.last_check_in_location || 'entrance',
+        locationHistory,
+      };
+    });
 
     log.info('Search completed', { 
       eventId, 

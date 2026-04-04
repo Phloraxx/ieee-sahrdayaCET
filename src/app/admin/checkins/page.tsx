@@ -59,6 +59,12 @@ interface OverviewStats {
     };
 }
 
+interface LocationRecencyItem {
+    location: string;
+    checkedInAt?: string;
+    timeAgo?: string;
+}
+
 interface SearchResult {
     registrationId: string;
     ticketId: string;
@@ -67,8 +73,11 @@ interface SearchResult {
     isCheckedIn: boolean;
     checkedInAt?: string;
     lastLocation?: string;
+    locationHistory?: LocationRecencyItem[];
     eventId: string;
     eventTitle: string;
+    eventDate?: string;
+    checkInCount?: number;
 }
 
 export default function CheckinsPage() {
@@ -383,7 +392,7 @@ export default function CheckinsPage() {
                                                             Event
                                                         </th>
                                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Status
+                                                            Check-in Details
                                                         </th>
                                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Actions
@@ -401,21 +410,66 @@ export default function CheckinsPage() {
                                                                     <span className="text-xs text-gray-500">
                                                                         {result.email}
                                                                     </span>
+                                                                    <span className="text-xs text-gray-400 font-mono mt-0.5">
+                                                                        {result.ticketId.substring(0, 12)}...
+                                                                    </span>
                                                                 </div>
                                                             </td>
-                                                            <td className="px-4 py-3 text-sm text-gray-600">
-                                                                {result.eventTitle}
+                                                            <td className="px-4 py-3">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-sm text-gray-900">{result.eventTitle}</span>
+                                                                    {result.eventDate && (
+                                                                        <span className="text-xs text-gray-500">{formatDate(result.eventDate)}</span>
+                                                                    )}
+                                                                </div>
                                                             </td>
                                                             <td className="px-4 py-3">
                                                                 {result.isCheckedIn ? (
-                                                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                                                                        <CheckSquare className="w-3 h-3" />
-                                                                        Checked In
-                                                                    </span>
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium w-fit">
+                                                                            <CheckSquare className="w-3 h-3" />
+                                                                            Checked In
+                                                                            {(result.checkInCount || 0) > 1 && (
+                                                                                <span className="ml-1 text-green-600">({result.checkInCount}x)</span>
+                                                                            )}
+                                                                        </span>
+                                                                        {result.checkedInAt && (
+                                                                            <span className="text-xs text-gray-500 flex items-center gap-1">
+                                                                                <Clock className="w-3 h-3" />
+                                                                                Last: {formatRelativeTime(result.checkedInAt)}
+                                                                            </span>
+                                                                        )}
+                                                                        {result.lastLocation && (
+                                                                            <span className="text-xs text-gray-500 flex items-center gap-1">
+                                                                                <MapPin className="w-3 h-3" />
+                                                                                {result.lastLocation}
+                                                                            </span>
+                                                                        )}
+                                                                        {result.locationHistory && result.locationHistory.length > 1 && (
+                                                                            <details className="text-xs text-gray-500 mt-1">
+                                                                                <summary className="cursor-pointer hover:text-gray-700">
+                                                                                    View all locations ({result.locationHistory.length})
+                                                                                </summary>
+                                                                                <ul className="mt-1 ml-4 space-y-0.5">
+                                                                                    {result.locationHistory.map((loc, idx) => (
+                                                                                        <li key={idx} className="flex items-center gap-1">
+                                                                                            <MapPin className="w-2.5 h-2.5" />
+                                                                                            {loc.location}
+                                                                                            {loc.checkedInAt && (
+                                                                                                <span className="text-gray-400">
+                                                                                                    - {formatRelativeTime(loc.checkedInAt)}
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </li>
+                                                                                    ))}
+                                                                                </ul>
+                                                                            </details>
+                                                                        )}
+                                                                    </div>
                                                                 ) : (
                                                                     <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
                                                                         <Clock className="w-3 h-3" />
-                                                                        Pending
+                                                                        Not Checked In
                                                                     </span>
                                                                 )}
                                                             </td>

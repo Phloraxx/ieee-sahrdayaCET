@@ -16,7 +16,8 @@ import {
     XCircle,
     Loader2,
     ChevronLeft,
-    RefreshCw
+    RefreshCw,
+    Download
 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StatsCard } from '@/components/admin/StatsCard';
@@ -108,6 +109,7 @@ export default function CheckInPage({ params }: PageProps) {
     const [scanLocked, setScanLocked] = useState(false);
     const [scanLocation, setScanLocation] = useState('entrance');
     const scanLocationRef = React.useRef('entrance');
+    const [exporting, setExporting] = useState(false);
 
     const getCompactTimeSince = useCallback((isoString: string): string => {
         const diff = Date.now() - new Date(isoString).getTime();
@@ -590,6 +592,48 @@ export default function CheckInPage({ params }: PageProps) {
         }
     };
 
+    // Export check-in data as CSV
+    const handleExport = async (checkedInOnly: boolean = false) => {
+        try {
+            setExporting(true);
+            const queryParams = checkedInOnly ? '?checkedInOnly=true' : '';
+            const response = await authFetch(`/api/admin/check-in/${eventId}/export${queryParams}`, {
+                method: 'GET',
+            });
+            
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error || 'Export failed');
+            }
+            
+            // Get filename from Content-Disposition header or use default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = `checkin-export-${eventId}.csv`;
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename="?([^";\n]+)"?/);
+                if (match) filename = match[1];
+            }
+            
+            // Download the CSV
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            toast.success(checkedInOnly ? 'Exported checked-in attendees' : 'Exported all registrations');
+        } catch (err) {
+            console.error('Export error:', err);
+            toast.error(err instanceof Error ? err.message : 'Export failed');
+        } finally {
+            setExporting(false);
+        }
+    };
+
     // Format date
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -728,8 +772,39 @@ export default function CheckInPage({ params }: PageProps) {
                         </div>
                     </div>
 
-                    {/* Controls - sessionless mode, only refresh button */}
-                    <div className="flex items-center gap-3">
+                    {/* Controls - sessionless mode, refresh and export buttons */}
+                    <div className="flex items-center gap-2">
+                        {/* Export dropdown */}
+                        <div className="relative group">
+                            <button
+                                disabled={exporting}
+                                className="flex items-center gap-1.5 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                                title="Export data"
+                            >
+                                {exporting ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <Download className="w-4 h-4" />
+                                )}
+                                <span className="hidden sm:inline">Export</span>
+                            </button>
+                            <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-10">
+                                <button
+                                    onClick={() => handleExport(false)}
+                                    disabled={exporting}
+                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg"
+                                >
+                                    Export All Registrations
+                                </button>
+                                <button
+                                    onClick={() => handleExport(true)}
+                                    disabled={exporting}
+                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg border-t border-gray-100"
+                                >
+                                    Export Checked-in Only
+                                </button>
+                            </div>
+                        </div>
                         <button
                             onClick={refreshData}
                             disabled={entriesLoading}
