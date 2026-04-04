@@ -40,6 +40,7 @@ const RAW_RUNTIME_STATE =
           ["@types/qrcode", "npm:1.5.6"],\
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:19.2.3"],\
+          ["@types/react-is", "npm:19.2.0"],\
           ["@types/uuid", "npm:10.0.0"],\
           ["appwrite", "npm:22.4.1"],\
           ["autoprefixer", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:10.4.27"],\
@@ -66,6 +67,7 @@ const RAW_RUNTIME_STATE =
           ["react-dom", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:19.2.4"],\
           ["react-hook-form", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:7.72.1"],\
           ["react-hot-toast", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:2.6.0"],\
+          ["react-is", "npm:19.2.4"],\
           ["react-pageflip", "npm:2.0.3"],\
           ["recharts", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:3.8.1"],\
           ["resend", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:6.10.0"],\
@@ -1999,6 +2001,16 @@ const RAW_RUNTIME_STATE =
         ],\
         "packagePeers": [\
           "@types/react"\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@types/react-is", [\
+      ["npm:19.2.0", {\
+        "packageLocation": "../../../AppData/Local/Yarn/Berry/cache/@types-react-is-npm-19.2.0-d33ff4d231-10c0.zip/node_modules/@types/react-is/",\
+        "packageDependencies": [\
+          ["@types/react", "npm:19.2.14"],\
+          ["@types/react-is", "npm:19.2.0"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -4482,6 +4494,7 @@ const RAW_RUNTIME_STATE =
           ["@types/qrcode", "npm:1.5.6"],\
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:19.2.3"],\
+          ["@types/react-is", "npm:19.2.0"],\
           ["@types/uuid", "npm:10.0.0"],\
           ["appwrite", "npm:22.4.1"],\
           ["autoprefixer", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:10.4.27"],\
@@ -4508,6 +4521,7 @@ const RAW_RUNTIME_STATE =
           ["react-dom", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:19.2.4"],\
           ["react-hook-form", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:7.72.1"],\
           ["react-hot-toast", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:2.6.0"],\
+          ["react-is", "npm:19.2.4"],\
           ["react-pageflip", "npm:2.0.3"],\
           ["recharts", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:3.8.1"],\
           ["resend", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:6.10.0"],\
@@ -6292,6 +6306,13 @@ const RAW_RUNTIME_STATE =
           ["react-is", "npm:16.13.1"]\
         ],\
         "linkType": "HARD"\
+      }],\
+      ["npm:19.2.4", {\
+        "packageLocation": "../../../AppData/Local/Yarn/Berry/cache/react-is-npm-19.2.4-9fb594121c-10c0.zip/node_modules/react-is/",\
+        "packageDependencies": [\
+          ["react-is", "npm:19.2.4"]\
+        ],\
+        "linkType": "HARD"\
       }]\
     ]],\
     ["react-pageflip", [\
@@ -6366,7 +6387,7 @@ const RAW_RUNTIME_STATE =
           ["@reduxjs/toolkit", "virtual:b9bed71403178db4d1549d7b21daa0c54e821c988b66f1e8ea8a30251421341109cf4c416e31cd4a3dd5b8c8cc3a8e8885ccc4b6073e94c4bcf86cbf633fce2c#npm:2.11.2"],\
           ["@types/react", "npm:19.2.14"],\
           ["@types/react-dom", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:19.2.3"],\
-          ["@types/react-is", null],\
+          ["@types/react-is", "npm:19.2.0"],\
           ["clsx", "npm:2.1.1"],\
           ["decimal.js-light", "npm:2.5.1"],\
           ["es-toolkit", "npm:1.45.1"],\
@@ -6374,7 +6395,7 @@ const RAW_RUNTIME_STATE =
           ["immer", "npm:10.2.0"],\
           ["react", "npm:19.2.4"],\
           ["react-dom", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:19.2.4"],\
-          ["react-is", null],\
+          ["react-is", "npm:19.2.4"],\
           ["react-redux", "virtual:b9bed71403178db4d1549d7b21daa0c54e821c988b66f1e8ea8a30251421341109cf4c416e31cd4a3dd5b8c8cc3a8e8885ccc4b6073e94c4bcf86cbf633fce2c#npm:9.2.0"],\
           ["recharts", "virtual:dda3a8c2eab81af7dcbb11f1ebce05fc30952a5dc83803b5e7a804557e8bbee7958b8aca988906855cb5c5bdae0e22ba6f63240f84ca67c2717f01318972e8f1#npm:3.8.1"],\
           ["reselect", "npm:5.1.1"],\

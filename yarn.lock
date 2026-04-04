@@ -1610,7 +1610,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:^19.0.10":
+"@types/react-is@npm:^19":
+  version: 19.2.0
+  resolution: "@types/react-is@npm:19.2.0"
+  dependencies:
+    "@types/react": "npm:*"
+  checksum: 10c0/ff49ac8b8d439c3377e11d2f9f491ed4f8c8ee800225a40093c7941715ca8ccbde1b3833c5435354a8e39305fd0a163019d97f033c9402bc4b46f515851d2290
+  languageName: node
+  linkType: hard
+
+"@types/react@npm:*, @types/react@npm:^19.0.10":
   version: 19.2.14
   resolution: "@types/react@npm:19.2.14"
   dependencies:
@@ -3775,6 +3784,7 @@ __metadata:
     "@types/qrcode": "npm:^1.5.6"
     "@types/react": "npm:^19.0.10"
     "@types/react-dom": "npm:^19.0.5"
+    "@types/react-is": "npm:^19"
     "@types/uuid": "npm:^10.0.0"
     appwrite: "npm:^22.3.1"
     autoprefixer: "npm:^10.4.20"
@@ -3800,6 +3810,7 @@ __metadata:
     react-dom: "npm:^19.2.4"
     react-hook-form: "npm:^7.72.0"
     react-hot-toast: "npm:^2.6.0"
+    react-is: "npm:^19.2.4"
     react-pageflip: "npm:^2.0.3"
     recharts: "npm:^3.8.0"
     resend: "npm:^6.9.4"
@@ -5287,6 +5298,13 @@ __metadata:
   version: 16.13.1
   resolution: "react-is@npm:16.13.1"
   checksum: 10c0/33977da7a5f1a287936a0c85639fec6ca74f4f15ef1e59a6bc20338fc73dc69555381e211f7a3529b8150a1f71e4225525b41b60b52965bda53ce7d47377ada1
+  languageName: node
+  linkType: hard
+
+"react-is@npm:^19.2.4":
+  version: 19.2.4
+  resolution: "react-is@npm:19.2.4"
+  checksum: 10c0/477a7cfc900f24194606e315fa353856a3a13487ea8eca841678817cad4daef64339ea0d1e84e58459fc75dbe0d9ba00bb0cc626db3d07e0cf31edc64cb4fa37
   languageName: node
   linkType: hard
 
