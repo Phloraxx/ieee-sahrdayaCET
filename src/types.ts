@@ -168,8 +168,6 @@ export interface EventFAQ {
 export interface EventSettings {
     require_approval?: boolean;
     allow_waitlist?: boolean;
-    send_reminders?: boolean;
-    reminder_hours_before?: number[];
     check_in_enabled?: boolean;
     certificate_enabled?: boolean;
     self_check_in?: boolean;
@@ -309,7 +307,7 @@ export interface RegistrationPayment {
  * Notification tracking within registration
  */
 export interface RegistrationNotification {
-    type: 'confirmation' | 'ticket' | 'reminder' | 'cancellation';
+    type: 'confirmation' | 'ticket' | 'cancellation';
     sent_at: string;
     channel: 'email' | 'sms';
 }
@@ -386,7 +384,7 @@ export interface EmailNotification {
     org_id: string;
     
     // Email details
-    type: 'registration_confirmation' | 'ticket' | 'reminder' | 'cancellation' | 'announcement';
+    type: 'registration_confirmation' | 'ticket' | 'cancellation' | 'announcement';
     subject: string;
     template_id?: string;
     template_data?: Record<string, unknown>;
