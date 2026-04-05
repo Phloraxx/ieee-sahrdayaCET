@@ -11,6 +11,7 @@ import {
     Calendar,
     Users,
     DollarSign,
+    TrendingUp,
     Plus,
     ArrowRight,
     Clock,

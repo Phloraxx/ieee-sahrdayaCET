@@ -87,6 +87,24 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                 
                 readerRef.current = new BrowserQRCodeReader(hints);
 
+                // Explicitly request camera permission once so browser can prompt user.
+                // Without this, some browsers return an empty device list and never start scanning.
+                try {
+                    const permissionStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    permissionStream.getTracks().forEach(track => track.stop());
+                } catch (permissionErr) {
+                    const name = permissionErr instanceof DOMException ? permissionErr.name : '';
+                    const message =
+                        name === 'NotAllowedError'
+                            ? 'Camera permission denied. Please allow camera access in browser settings.'
+                            : name === 'NotFoundError'
+                                ? 'No camera found on this device.'
+                                : 'Unable to access camera. Please check browser permissions.';
+                    setError(message);
+                    onError?.(message);
+                    return;
+                }
+
                 // Get available cameras using static method
                 const videoInputDevices = await BrowserQRCodeReader.listVideoInputDevices();
                 setCameras(videoInputDevices);
@@ -99,6 +117,10 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                         device.label.toLowerCase().includes('environment')
                     );
                     setSelectedCamera(backCamera?.deviceId || videoInputDevices[0].deviceId);
+                } else {
+                    const message = 'No camera found on this device.';
+                    setError(message);
+                    onError?.(message);
                 }
             } catch (err) {
                 console.error('Error initializing camera:', err);
@@ -129,7 +151,7 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
     }, []);
 
     const startScanner = useCallback(async () => {
-        if (!videoRef.current || !selectedCamera || !readerRef.current) return;
+        if (!videoRef.current || !readerRef.current) return;
 
         try {
             setError(null);
@@ -139,9 +161,18 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                 await stopScanner();
             }
 
+            const cameraId = selectedCamera || cameras[0]?.deviceId;
+            if (!cameraId) {
+                const message = 'No camera available. Please connect/enable a camera and retry.';
+                setError(message);
+                onError?.(message);
+                setIsScanning(false);
+                return;
+            }
+
             // Decode continuously with better focus handling
             const controls = await readerRef.current.decodeFromVideoDevice(
-                selectedCamera,
+                cameraId,
                 videoRef.current,
                 (result: Result | null, error?: Error) => {
                     if (result) {
@@ -276,7 +307,7 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
             onError?.(errorMessage);
             setIsScanning(false);
         }
-    }, [onError, onScan, selectedCamera, stopScanner]);
+    }, [cameras, onError, onScan, selectedCamera, stopScanner]);
 
     // Start/stop scanner based on isActive
     useEffect(() => {
