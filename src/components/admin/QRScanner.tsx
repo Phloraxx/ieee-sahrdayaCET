@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
 import { Result, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, CameraOff, RefreshCw, Volume2, VolumeX, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Camera, CameraOff, RefreshCw, Volume2, VolumeX, CheckCircle2, XCircle, AlertTriangle, Flashlight, FlashlightOff } from 'lucide-react';
 
 interface QRScannerProps {
     onScan: (data: string) => void;
@@ -26,8 +26,11 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
     const [selectedCamera, setSelectedCamera] = useState<string>('');
+    const [torchEnabled, setTorchEnabled] = useState(false);
+    const [torchSupported, setTorchSupported] = useState(false);
     const lastScannedRef = useRef<string>('');
     const lastScanTimeRef = useRef<number>(0);
+    const videoTrackRef = useRef<MediaStreamTrack | null>(null);
     
     // Audio context for beeps
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -170,6 +173,7 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
             if (stream) {
                 const videoTrack = stream.getVideoTracks()[0];
                 if (videoTrack) {
+                    videoTrackRef.current = videoTrack;
                     const capabilities = videoTrack.getCapabilities();
                     const constraints: MediaTrackConstraints = {};
 
@@ -178,17 +182,20 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                         constraints.focusMode = 'continuous';
                     }
 
-                    // Enable torch/flash in low light if supported
+                    // Check torch support and apply torch state
                     if ('torch' in capabilities) {
+                        setTorchSupported(true);
                         try {
                             await videoTrack.applyConstraints({ 
                                 // @ts-ignore - torch is not in TypeScript types yet
-                                advanced: [{ torch: true }] 
+                                advanced: [{ torch: torchEnabled }] 
                             });
-                            console.log('Torch enabled');
+                            console.log(`Torch ${torchEnabled ? 'enabled' : 'disabled'}`);
                         } catch (torchErr) {
                             console.debug('Torch not available or failed:', torchErr);
                         }
+                    } else {
+                        setTorchSupported(false);
                     }
 
                     // Auto exposure and brightness for challenging lighting
@@ -298,6 +305,21 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
         setSelectedCamera(cameras[nextIndex].deviceId);
     };
 
+    const toggleTorch = async () => {
+        if (!videoTrackRef.current || !torchSupported) return;
+        
+        const newTorchState = !torchEnabled;
+        try {
+            await videoTrackRef.current.applyConstraints({
+                // @ts-ignore - torch is not in TypeScript types yet
+                advanced: [{ torch: newTorchState }]
+            });
+            setTorchEnabled(newTorchState);
+        } catch (err) {
+            console.error('Failed to toggle torch:', err);
+        }
+    };
+
     const getResultIcon = () => {
         if (!lastScanResult) return null;
         switch (lastScanResult.type) {
@@ -389,14 +411,31 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
 
                 {/* Controls overlay */}
                 <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
-                    {/* Sound toggle */}
-                    <button
-                        onClick={() => setSoundEnabled(!soundEnabled)}
-                        className="p-2 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
-                        title={soundEnabled ? 'Mute sounds' : 'Enable sounds'}
-                    >
-                        {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {/* Sound toggle */}
+                        <button
+                            onClick={() => setSoundEnabled(!soundEnabled)}
+                            className="p-2 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
+                            title={soundEnabled ? 'Mute sounds' : 'Enable sounds'}
+                        >
+                            {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                        </button>
+
+                        {/* Flashlight toggle (only if supported) */}
+                        {torchSupported && isScanning && (
+                            <button
+                                onClick={toggleTorch}
+                                className={`p-2 rounded-full transition-colors ${
+                                    torchEnabled 
+                                        ? 'bg-yellow-500 text-white hover:bg-yellow-600' 
+                                        : 'bg-black/50 text-white hover:bg-black/70'
+                                }`}
+                                title={torchEnabled ? 'Turn off flashlight' : 'Turn on flashlight'}
+                            >
+                                {torchEnabled ? <Flashlight className="w-5 h-5" /> : <FlashlightOff className="w-5 h-5" />}
+                            </button>
+                        )}
+                    </div>
 
                     {/* Camera switch (only if multiple cameras) */}
                     {cameras.length > 1 && (
