@@ -3,7 +3,7 @@
 import React, { memo } from 'react';
 import Image from 'next/image';
 import { Event, Society } from '@/types';
-import { Calendar, MapPin, Users, Edit, Eye, CheckSquare, BarChart3, Trash2 } from 'lucide-react';
+import { Calendar, MapPin, Users, Edit, Eye, CheckSquare, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface AdminEventCardProps {
@@ -12,7 +12,6 @@ interface AdminEventCardProps {
     onEdit?: () => void;
     onViewRegistrations?: () => void;
     onCheckin?: () => void;
-    onAnalytics?: () => void;
     onDelete?: () => void;
 }
 
@@ -22,7 +21,6 @@ export const AdminEventCard = memo(function AdminEventCard({
     onEdit,
     onViewRegistrations,
     onCheckin,
-    onAnalytics,
     onDelete,
 }: AdminEventCardProps) {
     const eventDate = new Date(event.date);
@@ -182,13 +180,6 @@ export const AdminEventCard = memo(function AdminEventCard({
                                 Check-in
                             </button>
                         )}
-                        <button
-                            onClick={onAnalytics}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors"
-                        >
-                            <BarChart3 className="w-4 h-4" />
-                            Analytics
-                        </button>
                         <button
                             onClick={onDelete}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-auto"

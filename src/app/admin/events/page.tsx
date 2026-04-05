@@ -356,7 +356,6 @@ export default function AdminEventsPage() {
                                     onEdit={() => router.push(`/admin/events/${event.$id}/edit`)}
                                     onViewRegistrations={() => router.push(`/admin/events/${event.$id}/registrations`)}
                                     onCheckin={() => router.push(`/admin/events/${event.$id}/check-in`)}
-                                    onAnalytics={() => router.push(`/admin/events/${event.$id}/analytics`)}
                                     onDelete={() => setDeleteDialog({ isOpen: true, eventId: event.$id })}
                                 />
                             </motion.div>
