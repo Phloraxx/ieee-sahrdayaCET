@@ -44,7 +44,6 @@ import { account } from '@/lib/appwrite';
 
 const notificationsSchema = z.object({
     emailNotifications: z.boolean(),
-    reminderTiming: z.enum(['none', '24h', '1h', 'both']),
     smsNotifications: z.boolean(),
     newRegistration: z.boolean(),
     eventUpdates: z.boolean(),
@@ -83,7 +82,6 @@ interface AdminSettings {
 const defaultSettings: AdminSettings = {
     notifications: {
         emailNotifications: true,
-        reminderTiming: 'both',
         smsNotifications: false,
         newRegistration: true,
         eventUpdates: true,
@@ -320,46 +318,6 @@ export default function SettingsPage() {
                             className="w-5 h-5 text-ieee-blue rounded focus:ring-2 focus:ring-ieee-blue"
                         />
                     </div>
-                </div>
-            </div>
-
-            {/* Reminder Timing */}
-            <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    Event Reminder Timing
-                </h3>
-                
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                        { value: 'none', label: 'None' },
-                        { value: '24h', label: '24h Before' },
-                        { value: '1h', label: '1h Before' },
-                        { value: 'both', label: 'Both' },
-                    ].map((option) => (
-                        <label
-                            key={option.value}
-                            className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                                notificationsForm.watch('reminderTiming') === option.value
-                                    ? 'border-ieee-blue bg-ieee-blue/5'
-                                    : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                        >
-                            <input
-                                type="radio"
-                                value={option.value}
-                                {...notificationsForm.register('reminderTiming')}
-                                className="sr-only"
-                            />
-                            <span className={`text-sm font-medium ${
-                                notificationsForm.watch('reminderTiming') === option.value
-                                    ? 'text-ieee-blue'
-                                    : 'text-gray-700'
-                            }`}>
-                                {option.label}
-                            </span>
-                        </label>
-                    ))}
                 </div>
             </div>
 

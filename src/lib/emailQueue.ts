@@ -706,30 +706,6 @@ export function queuePaymentEmail(
 }
 
 /**
- * Queue event reminder email
- */
-export function queueReminderEmail(
-  to: string,
-  variables: Record<string, string | number | undefined>,
-  templateHtml: string,
-  templateType: 'event_reminder_24h' | 'event_reminder_1h',
-  eventId: string,
-  registrationId: string
-): QueueEmailResult {
-  const defaultTemplate = getDefaultTemplate(templateType);
-  const html = renderTemplate(templateHtml || defaultTemplate.body, variables);
-  const subject = renderTemplate(defaultTemplate.subject, variables);
-  const attachments = getInlineQrAttachment(variables);
-
-  const jobId = queueEmail(
-    { to, subject, html, attachments },
-    { event_id: eventId, registration_id: registrationId, template_type: templateType }
-  );
-
-  return { job_id: jobId, status: 'pending' };
-}
-
-/**
  * Queue payment receipt email with PDF attachment
  */
 export function queueReceiptEmail(
