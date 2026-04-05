@@ -125,12 +125,34 @@ async function send24HourReminders(db: ReturnType<typeof getDatabases>) {
       const template = getDefaultTemplate('event_reminder_24h');
       const users = getUsers();
 
+      // Fetch all unique users in batches to avoid N+1 queries
+      const userIds = Array.from(new Set((registrations.documents as unknown as RegistrationDoc[]).map(r => r.user_id)));
+      const userMap = new Map<string, any>();
+
+      for (let i = 0; i < userIds.length; i += 100) {
+        const batchIds = userIds.slice(i, i + 100);
+        try {
+          const batchUsers = await users.list([
+            Query.equal('$id', batchIds),
+            Query.limit(100)
+          ]);
+          batchUsers.users.forEach(u => userMap.set(u.$id, u));
+        } catch (batchError) {
+          logger.error('Failed to fetch user batch', batchError instanceof Error ? batchError : new Error(String(batchError)));
+        }
+      }
+
       // Send reminder to each registered user
       for (const registration of registrations.documents as unknown as RegistrationDoc[]) {
         try {
-          // Get user details
-          const user = await users.get(registration.user_id);
-          if (!user.email) continue;
+          // Get user details from map
+          const user = userMap.get(registration.user_id);
+          if (!user || !user.email) {
+            if (!user) {
+              logger.warn('User not found for registration', { userId: registration.user_id, registrationId: registration.$id });
+            }
+            continue;
+          }
 
           // Generate QR code
           const qrCodeUrl = await generateQRCode(registration.ticket_id);
@@ -250,12 +272,34 @@ async function send1HourReminders(db: ReturnType<typeof getDatabases>) {
       const template = getDefaultTemplate('event_reminder_1h');
       const users = getUsers();
 
+      // Fetch all unique users in batches to avoid N+1 queries
+      const userIds = Array.from(new Set((registrations.documents as unknown as RegistrationDoc[]).map(r => r.user_id)));
+      const userMap = new Map<string, any>();
+
+      for (let i = 0; i < userIds.length; i += 100) {
+        const batchIds = userIds.slice(i, i + 100);
+        try {
+          const batchUsers = await users.list([
+            Query.equal('$id', batchIds),
+            Query.limit(100)
+          ]);
+          batchUsers.users.forEach(u => userMap.set(u.$id, u));
+        } catch (batchError) {
+          logger.error('Failed to fetch user batch', batchError instanceof Error ? batchError : new Error(String(batchError)));
+        }
+      }
+
       // Send reminder to each registered user
       for (const registration of registrations.documents as unknown as RegistrationDoc[]) {
         try {
-          // Get user details
-          const user = await users.get(registration.user_id);
-          if (!user.email) continue;
+          // Get user details from map
+          const user = userMap.get(registration.user_id);
+          if (!user || !user.email) {
+            if (!user) {
+              logger.warn('User not found for registration', { userId: registration.user_id, registrationId: registration.$id });
+            }
+            continue;
+          }
 
           // Prepare template variables
           const eventDate = new Date(event.start_date);
