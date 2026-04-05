@@ -17,7 +17,8 @@
     "update:contacts": "npx tsx scripts/update-execom-contacts.ts",
     "seed:test": "npx tsx scripts/seed-test-data.ts",
     "seed:cleanup": "npx tsx scripts/seed-test-data.ts --cleanup",
-    "verify:deployment": "npx tsx scripts/verify-deployment.ts"
+    "verify:deployment": "npx tsx scripts/verify-deployment.ts",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

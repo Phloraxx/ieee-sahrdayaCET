@@ -87,3 +87,5 @@ opencode.json
 test-client-sdk.ts
 test-collections.js
 test-mcp.js
+.wrangler*
+/.open-next/*
