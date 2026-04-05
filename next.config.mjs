@@ -10,14 +10,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  webpack: (config, { isServer }) => {
-    // Fix for pdfjs-dist in client-side builds (if ever imported from npm)
-    if (!isServer) {
-      config.resolve.alias.canvas = false;
-      config.resolve.alias.encoding = false;
-    }
-    return config;
-  },
   allowedDevOrigins: ["10.221.180.47", "*.10.221.180.47"],
   experimental: {
     optimizePackageImports: ["lucide-react", "framer-motion"],

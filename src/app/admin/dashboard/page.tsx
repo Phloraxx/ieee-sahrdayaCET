@@ -10,12 +10,12 @@ import { AdminLayout, StatsCard } from '@/components/admin';
 import {
     Calendar,
     Users,
-    TrendingUp,
     DollarSign,
     Plus,
     ArrowRight,
     Clock,
     Loader2,
+    Settings,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -398,10 +398,10 @@ export default function AdminDashboard() {
                             href="/admin/settings"
                             className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-ieee-blue hover:bg-ieee-blue/5 transition-colors group"
                         >
-                            <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
-                                <TrendingUp className="w-5 h-5 text-purple-600" />
+                            <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-gray-200 transition-colors">
+                                <Settings className="w-5 h-5 text-gray-600" />
                             </div>
-                            <span className="font-medium text-gray-900">Analytics</span>
+                            <span className="font-medium text-gray-900">Settings</span>
                         </Link>
                     </div>
                 </div>

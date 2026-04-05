@@ -4,7 +4,7 @@
   "version": "3.5.0",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --turbo",
     "start": "next start",
     "lint": "next lint",
     "setup:appwrite": "npx tsx scripts/setup-appwrite.ts",
@@ -53,7 +53,6 @@
     "react-hot-toast": "^2.6.0",
     "react-is": "^19.2.4",
     "react-pageflip": "^2.0.3",
-    "recharts": "^3.8.0",
     "resend": "^6.9.4",
     "uuid": "^13.0.0",
     "zod": "^4.3.6"

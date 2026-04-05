@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { motion, AnimatePresence, Variants, useInView } from 'framer-motion';
 import {
     Sparkles, QrCode, Users, Layout, Terminal, Share2, CheckCircle,
@@ -13,8 +14,16 @@ import Footer from '@/components/Footer';
 import { databases, DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { Event, Society } from '@/types';
-import EventRegistrationModal from '@/components/EventRegistrationModal';
-import { MyTicketsSection } from '@/components/tickets/MyTicketsSection';
+
+const EventRegistrationModal = dynamic(
+    () => import('@/components/EventRegistrationModal'),
+    { ssr: false, loading: () => null }
+);
+
+const MyTicketsSection = dynamic(
+    () => import('@/components/tickets/MyTicketsSection').then((mod) => mod.MyTicketsSection),
+    { ssr: false, loading: () => null }
+);
 
 // ==================== TYPES ====================
 interface EventWithSociety extends Event {
