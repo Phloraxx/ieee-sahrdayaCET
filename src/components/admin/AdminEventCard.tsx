@@ -171,15 +171,13 @@ export const AdminEventCard = memo(function AdminEventCard({
                             <Eye className="w-4 h-4" />
                             Registrations
                         </button>
-                        {!isPast && (
-                            <button
-                                onClick={onCheckin}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-100 hover:bg-green-200 rounded-lg transition-colors"
-                            >
-                                <CheckSquare className="w-4 h-4" />
-                                Check-in
-                            </button>
-                        )}
+                        <button
+                            onClick={onCheckin}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-100 hover:bg-green-200 rounded-lg transition-colors"
+                        >
+                            <CheckSquare className="w-4 h-4" />
+                            Check-in
+                        </button>
                         <button
                             onClick={onDelete}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-auto"
