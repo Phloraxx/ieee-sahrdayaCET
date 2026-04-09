@@ -79,10 +79,23 @@ interface SearchResult {
   locationHistory?: LocationRecencyInfo[];
 }
 
+function parseFormResponses(raw: unknown): Record<string, unknown> {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+  return raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+}
+
 /**
  * GET /api/admin/check-in/[eventId]/search
  * Search for registrations by name, email, or ticket ID
- * OPTIMIZED: Caching, reduced limit, early termination
+ * OPTIMIZED: Caching, paginated fetch, early termination
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
   const { eventId } = await params;
@@ -120,71 +133,79 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
     const db = getDatabases();
 
-    // OPTIMIZATION: Reduce limit for faster response
-    const registrationsResult = await db.listDocuments(
-      DATABASE_ID,
-      EVENT_REGISTRATIONS_COLLECTION_ID,
-      [
-        Query.equal('event_id', eventId),
-        Query.equal('registration_status', 'confirmed'),
-        Query.limit(200), // Reduced from 500
-      ]
-    );
-
-    // Filter by search query with early termination
     const queryLower = query.toLowerCase();
-    const matchingRegistrations: typeof registrationsResult.documents = [];
+    const matchingRegistrations: RegistrationDocument[] = [];
     const maxResults = 20;
-    
-    for (const reg of registrationsResult.documents) {
-      if (matchingRegistrations.length >= maxResults * 2) break; // Stop early
-      
-      let matches = false;
-      
-      // Check ticket_id first (most specific)
-      if (reg.ticket_id && (reg.ticket_id as string).toLowerCase().includes(queryLower)) {
-        matches = true;
-      }
-      
-      // Check registration ID
-      if (!matches && reg.$id.toLowerCase().includes(queryLower)) {
-        matches = true;
-      }
-      
-      // Check user_name field
-      if (!matches) {
-        const userName = (reg.user_name as string || '').toLowerCase();
-        if (userName.includes(queryLower)) matches = true;
-      }
 
-      // Check user_email field
-      if (!matches) {
-        const userEmail = (reg.user_email as string || '').toLowerCase();
-        if (userEmail.includes(queryLower)) matches = true;
-      }
+    // Paginate through registrations so search includes the full attendee list.
+    const pageSize = 100;
+    let offset = 0;
+    while (true) {
+      const registrationsResult = await db.listDocuments(
+        DATABASE_ID,
+        EVENT_REGISTRATIONS_COLLECTION_ID,
+        [
+          Query.equal('event_id', eventId),
+          Query.equal('registration_status', 'confirmed'),
+          Query.limit(pageSize),
+          Query.offset(offset),
+        ]
+      );
 
-      // Check form_responses for name/email
-      if (!matches) {
-        try {
-          const formResponses = reg.form_responses ? JSON.parse(reg.form_responses as string) : {};
-          if (formResponses.name?.toLowerCase().includes(queryLower) ||
-              formResponses.email?.toLowerCase().includes(queryLower)) {
+      for (const rawReg of registrationsResult.documents) {
+        if (matchingRegistrations.length >= maxResults * 2) break; // Stop early
+        const reg = rawReg as unknown as RegistrationDocument;
+        const formResponses = parseFormResponses(reg.form_responses);
+        const formName = typeof formResponses.name === 'string' ? formResponses.name : '';
+        const formEmail = typeof formResponses.email === 'string' ? formResponses.email : '';
+
+        let matches = false;
+
+        // Check ticket_id first (most specific)
+        if (reg.ticket_id && reg.ticket_id.toLowerCase().includes(queryLower)) {
+          matches = true;
+        }
+
+        // Check registration ID
+        if (!matches && reg.$id.toLowerCase().includes(queryLower)) {
+          matches = true;
+        }
+
+        // Check user_name field
+        if (!matches) {
+          const userName = (reg.user_name || '').toLowerCase();
+          if (userName.includes(queryLower)) matches = true;
+        }
+
+        // Check user_email field
+        if (!matches) {
+          const userEmail = (reg.user_email || '').toLowerCase();
+          if (userEmail.includes(queryLower)) matches = true;
+        }
+
+        // Check form_responses for name/email
+        if (!matches) {
+          if (formName.toLowerCase().includes(queryLower) || formEmail.toLowerCase().includes(queryLower)) {
             matches = true;
           }
-        } catch {
-          // Ignore parse errors
+        }
+
+        if (matches) {
+          matchingRegistrations.push(reg);
         }
       }
 
-      if (matches) {
-        matchingRegistrations.push(reg);
+      if (
+        registrationsResult.documents.length < pageSize ||
+        matchingRegistrations.length >= maxResults * 2
+      ) {
+        break;
       }
+      offset += pageSize;
     }
 
     // Get ticket IDs from current registration model
-    const results: SearchResult[] = matchingRegistrations.slice(0, maxResults).map((rawReg) => {
-      const reg = rawReg as unknown as RegistrationDocument;
-      
+    const results: SearchResult[] = matchingRegistrations.slice(0, maxResults).map((reg) => {
       // Prefer embedded ticket ID, then registration ticket_id
       let ticketId = reg.$id; // Default to registration ID
       
@@ -200,12 +221,12 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       let studentName = reg.user_name || 'Unknown';
       let email = reg.user_email || '';
 
-      try {
-        const formResponses = reg.form_responses ? JSON.parse(reg.form_responses) : {};
-        studentName = formResponses.name || studentName;
-        email = formResponses.email || email;
-      } catch {
-        // Ignore
+      const formResponses = parseFormResponses(reg.form_responses);
+      if (typeof formResponses.name === 'string' && formResponses.name.trim()) {
+        studentName = formResponses.name;
+      }
+      if (typeof formResponses.email === 'string' && formResponses.email.trim()) {
+        email = formResponses.email;
       }
 
       // Get location history for checked-in registrations

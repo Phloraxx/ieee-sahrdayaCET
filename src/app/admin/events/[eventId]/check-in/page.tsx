@@ -548,6 +548,7 @@ export default function CheckInPage({ params }: PageProps) {
                         prev.map(r => r.registrationId === registration.registrationId 
                             ? { 
                                 ...r,
+                                isCheckedIn: true,
                                 checkedInAt: data.registration?.check_in_time || new Date().toISOString(), 
                                 lastLocation: data.location || currentLocation,
                                 locationHistory: [
@@ -930,12 +931,13 @@ export default function CheckInPage({ params }: PageProps) {
                                                             {result.email}
                                                         </p>
                                                     </div>
-                                                    {result.isCheckedIn ? (
-                                                        <span className="flex items-center gap-1 text-green-600 text-sm">
-                                                            <CheckCircle2 className="w-4 h-4" />
-                                                            Checked in
-                                                        </span>
-                                                    ) : (
+                                                    <div className="flex flex-col items-end gap-2">
+                                                        {result.isCheckedIn && (
+                                                            <span className="flex items-center gap-1 text-green-600 text-sm">
+                                                                <CheckCircle2 className="w-4 h-4" />
+                                                                Checked in
+                                                            </span>
+                                                        )}
                                                         <button
                                                             onClick={() => handleManualCheckIn(result)}
                                                             disabled={processingTickets.has(result.ticketId)}
@@ -946,9 +948,9 @@ export default function CheckInPage({ params }: PageProps) {
                                                             ) : (
                                                                 <UserCheck className="w-4 h-4" />
                                                             )}
-                                                            Check In
+                                                            {result.isCheckedIn ? 'Check In Here' : 'Check In'}
                                                         </button>
-                                                    )}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
