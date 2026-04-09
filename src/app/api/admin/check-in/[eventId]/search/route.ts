@@ -140,10 +140,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
     // Paginate through registrations so search includes the full attendee list.
     const pageSize = 200;
-    const maxPages = 10;
-    let page = 0;
     let offset = 0;
-    while (page < maxPages && matchingRegistrations.length < maxMatches) {
+    let hasMorePages = true;
+    while (hasMorePages && matchingRegistrations.length < maxMatches) {
       const registrationsResult = await db.listDocuments(
         DATABASE_ID,
         EVENT_REGISTRATIONS_COLLECTION_ID,
@@ -154,7 +153,6 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           Query.offset(offset),
         ]
       );
-      page += 1;
 
       for (const rawReg of registrationsResult.documents) {
         if (matchingRegistrations.length >= maxMatches) break; // Stop early
@@ -166,7 +164,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         let matches = false;
 
         // Check ticket_id first (most specific)
-        if (reg.ticket_id && reg.ticket_id.toLowerCase().includes(queryLower)) {
+        if (typeof reg.ticket_id === 'string' && reg.ticket_id.toLowerCase().includes(queryLower)) {
           matches = true;
         }
 
@@ -199,10 +197,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         }
       }
 
-      if (registrationsResult.documents.length < pageSize) {
-        break;
-      }
-      offset += pageSize;
+      hasMorePages = registrationsResult.documents.length === pageSize;
+      if (hasMorePages) offset += pageSize;
     }
 
     // Get ticket IDs from current registration model
