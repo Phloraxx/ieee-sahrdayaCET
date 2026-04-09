@@ -134,15 +134,16 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const db = getDatabases();
 
     const queryLower = query.toLowerCase();
-    const matchingRegistrations: RegistrationDocument[] = [];
+    const matchingRegistrations: unknown[] = [];
     const maxResults = 20;
     const maxMatches = maxResults * 2;
 
     // Paginate through registrations so search includes the full attendee list.
     const pageSize = 200;
+    const maxPages = 10;
+    let page = 0;
     let offset = 0;
-    let hasMorePages = true;
-    while (hasMorePages && matchingRegistrations.length < maxMatches) {
+    while (page < maxPages && matchingRegistrations.length < maxMatches) {
       const registrationsResult = await db.listDocuments(
         DATABASE_ID,
         EVENT_REGISTRATIONS_COLLECTION_ID,
@@ -153,6 +154,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
           Query.offset(offset),
         ]
       );
+      page += 1;
 
       for (const rawReg of registrationsResult.documents) {
         if (matchingRegistrations.length >= maxMatches) break; // Stop early
@@ -197,14 +199,15 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         }
       }
 
-      hasMorePages = registrationsResult.documents.length === pageSize;
-      if (hasMorePages) {
-        offset += pageSize;
+      if (registrationsResult.documents.length < pageSize) {
+        break;
       }
+      offset += pageSize;
     }
 
     // Get ticket IDs from current registration model
-    const results: SearchResult[] = matchingRegistrations.slice(0, maxResults).map((reg) => {
+    const results: SearchResult[] = matchingRegistrations.slice(0, maxResults).map((rawReg) => {
+      const reg = rawReg as RegistrationDocument;
       // Prefer embedded ticket ID, then registration ticket_id
       let ticketId = reg.$id; // Default to registration ID
       
