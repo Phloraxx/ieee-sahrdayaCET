@@ -175,13 +175,13 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
         // Check user_name field
         if (!matches) {
-          const userName = (reg.user_name || '').toLowerCase();
+          const userName = typeof reg.user_name === 'string' ? reg.user_name.toLowerCase() : '';
           if (userName.includes(queryLower)) matches = true;
         }
 
         // Check user_email field
         if (!matches) {
-          const userEmail = (reg.user_email || '').toLowerCase();
+          const userEmail = typeof reg.user_email === 'string' ? reg.user_email.toLowerCase() : '';
           if (userEmail.includes(queryLower)) matches = true;
         }
 
