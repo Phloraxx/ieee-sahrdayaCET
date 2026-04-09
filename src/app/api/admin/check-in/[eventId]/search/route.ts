@@ -138,9 +138,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const maxResults = 20;
 
     // Paginate through registrations so search includes the full attendee list.
-    const pageSize = 100;
+    const pageSize = 200;
     let offset = 0;
-    while (true) {
+    paginationLoop: while (true) {
       const registrationsResult = await db.listDocuments(
         DATABASE_ID,
         EVENT_REGISTRATIONS_COLLECTION_ID,
@@ -153,7 +153,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       );
 
       for (const rawReg of registrationsResult.documents) {
-        if (matchingRegistrations.length >= maxResults * 2) break; // Stop early
+        if (matchingRegistrations.length >= maxResults * 2) break paginationLoop; // Stop early
         const reg = rawReg as unknown as RegistrationDocument;
         const formResponses = parseFormResponses(reg.form_responses);
         const formName = typeof formResponses.name === 'string' ? formResponses.name : '';
