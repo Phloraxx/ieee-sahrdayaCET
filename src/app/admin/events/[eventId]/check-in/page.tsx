@@ -948,7 +948,7 @@ export default function CheckInPage({ params }: PageProps) {
                                                             ) : (
                                                                 <UserCheck className="w-4 h-4" />
                                                             )}
-                                                            {result.isCheckedIn ? 'Check In Here' : 'Check In'}
+                                                            {result.isCheckedIn ? 'Check In at This Location' : 'Check In'}
                                                         </button>
                                                     </div>
                                                 </div>
