@@ -134,7 +134,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const db = getDatabases();
 
     const queryLower = query.toLowerCase();
-    const matchingRegistrations: unknown[] = [];
+    const matchingRegistrations: RegistrationDocument[] = [];
     const maxResults = 20;
     const maxMatches = maxResults * 2;
 
@@ -158,7 +158,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
       for (const rawReg of registrationsResult.documents) {
         if (matchingRegistrations.length >= maxMatches) break; // Stop early
-        const reg = rawReg as unknown as RegistrationDocument;
+        const reg = rawReg as RegistrationDocument;
         const formResponses = parseFormResponses(reg.form_responses);
         const formName = typeof formResponses.name === 'string' ? formResponses.name : '';
         const formEmail = typeof formResponses.email === 'string' ? formResponses.email : '';
@@ -206,8 +206,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     }
 
     // Get ticket IDs from current registration model
-    const results: SearchResult[] = matchingRegistrations.slice(0, maxResults).map((rawReg) => {
-      const reg = rawReg as RegistrationDocument;
+    const results: SearchResult[] = matchingRegistrations.slice(0, maxResults).map((reg) => {
       // Prefer embedded ticket ID, then registration ticket_id
       let ticketId = reg.$id; // Default to registration ID
       
