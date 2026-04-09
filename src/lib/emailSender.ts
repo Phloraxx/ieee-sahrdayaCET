@@ -152,11 +152,12 @@ export async function sendRegistrationEmailDirect(
   try {
     const template = getDefaultTemplate('registration_confirmation');
     const html = renderTemplate(templateBody, variables);
+    const subject = renderTemplate(template.subject, variables);
     const qrAttachment = getInlineQrAttachment(variables);
 
     const result = await sendEmailDirect({
       to,
-      subject: template.subject,
+      subject,
       html,
       attachments: qrAttachment,
     });
@@ -182,11 +183,12 @@ export async function sendPaymentEmailDirect(
   try {
     const template = getDefaultTemplate('payment_confirmation');
     const html = renderTemplate(templateBody, variables);
+    const subject = renderTemplate(template.subject, variables);
     const qrAttachment = getInlineQrAttachment(variables);
 
     const result = await sendEmailDirect({
       to,
-      subject: template.subject,
+      subject,
       html,
       attachments: qrAttachment,
     });
@@ -214,10 +216,11 @@ export async function sendReceiptEmailDirect(
   try {
     const template = getDefaultTemplate('payment_receipt');
     const html = renderTemplate(templateBody, variables);
+    const subject = renderTemplate(template.subject, variables);
 
     const result = await sendEmailDirect({
       to,
-      subject: template.subject,
+      subject,
       html,
       attachments: [
         {
