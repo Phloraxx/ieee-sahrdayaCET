@@ -79,6 +79,52 @@ interface SearchResult {
   locationHistory?: LocationRecencyInfo[];
 }
 
+const NAME_KEYS = ['name', 'full_name', 'fullName', 'student_name', 'studentName', 'attendee_name', 'attendeeName'] as const;
+const EMAIL_KEYS = ['email', 'user_email', 'userEmail', 'student_email', 'studentEmail'] as const;
+
+function parseJsonObject(value: unknown): Record<string, unknown> {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function pickFirstString(obj: Record<string, unknown>, keys: readonly string[]): string | undefined {
+  for (const key of keys) {
+    const value = obj[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function getRegistrationIdentity(reg: RegistrationDocument): { studentName: string; email: string } {
+  const formResponses = parseJsonObject(reg.form_responses);
+  const legacyFormData = parseJsonObject(reg.form_data);
+
+  const studentName =
+    pickFirstString(formResponses, NAME_KEYS) ||
+    pickFirstString(legacyFormData, NAME_KEYS) ||
+    reg.user_name ||
+    'Unknown';
+
+  const email =
+    pickFirstString(formResponses, EMAIL_KEYS) ||
+    pickFirstString(legacyFormData, EMAIL_KEYS) ||
+    reg.user_email ||
+    '';
+
+  return { studentName, email };
+}
+
 /**
  * GET /api/admin/check-in/[eventId]/search
  * Search for registrations by name, email, or ticket ID
@@ -165,14 +211,13 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
       // Check form_responses for name/email
       if (!matches) {
-        try {
-          const formResponses = reg.form_responses ? JSON.parse(reg.form_responses as string) : {};
-          if (formResponses.name?.toLowerCase().includes(queryLower) ||
-              formResponses.email?.toLowerCase().includes(queryLower)) {
-            matches = true;
-          }
-        } catch {
-          // Ignore parse errors
+        const normalizedReg = reg as unknown as RegistrationDocument;
+        const identity = getRegistrationIdentity(normalizedReg);
+        if (
+          identity.studentName.toLowerCase().includes(queryLower) ||
+          identity.email.toLowerCase().includes(queryLower)
+        ) {
+          matches = true;
         }
       }
 
@@ -196,17 +241,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         ticketId = reg.ticket_id;
       }
 
-      // Get name and email from form_responses (new schema)
-      let studentName = reg.user_name || 'Unknown';
-      let email = reg.user_email || '';
-
-      try {
-        const formResponses = reg.form_responses ? JSON.parse(reg.form_responses) : {};
-        studentName = formResponses.name || studentName;
-        email = formResponses.email || email;
-      } catch {
-        // Ignore
-      }
+      const { studentName, email } = getRegistrationIdentity(reg);
 
       // Get location history for checked-in registrations
       const locationHistory = reg.checked_in ? getLocationRecency(reg) : undefined;
