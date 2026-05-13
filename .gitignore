@@ -77,6 +77,14 @@ next-env.d.ts
 # CSV data files
 *.csv
 
+# Document files (personal)
+*.docx
+*.doc
+
+# Apple raw photos (JPG versions preferred)
+*.HEIC
+*.heic
+
 certificates
 backups/
 diagnose-collections.js
