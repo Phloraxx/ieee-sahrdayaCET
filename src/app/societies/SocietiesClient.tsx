@@ -402,10 +402,9 @@ export default function SocietiesClient() {
                                                     src={society.logo_url}
                                                     alt={society.name}
                                                     fill
-                                                    sizes="(max-width: 640px) 40vw, (max-width: 1024px) 20vw, 12vw"
-                                                    className="object-contain"
-                                                    unoptimized
-                                                />
+                                                sizes="(max-width: 640px) 40vw, (max-width: 1024px) 20vw, 12vw"
+                                                className="object-contain"
+                                            />
                                             </motion.div>
                                             
                                             {/* Glow Effect */}
@@ -482,7 +481,6 @@ export default function SocietiesClient() {
                                         fill
                                         sizes="(max-width: 768px) 100vw, 50vw"
                                         className="object-cover"
-                                        unoptimized
                                     />
                                 ) : (
                                     <div className="absolute inset-0 flex items-center justify-center">
@@ -493,7 +491,6 @@ export default function SocietiesClient() {
                                                 fill
                                                 sizes="128px"
                                                 className="object-contain"
-                                                unoptimized
                                             />
                                         </div>
                                     </div>
@@ -519,7 +516,6 @@ export default function SocietiesClient() {
                                             fill
                                             sizes="96px"
                                             className="object-contain"
-                                            unoptimized
                                         />
                                     </div>
                                 </motion.div>
@@ -726,7 +722,6 @@ export default function SocietiesClient() {
                                                 fill
                                                 sizes="(max-width: 768px) 100vw, 50vw"
                                                 className="object-cover object-top"
-                                                unoptimized
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center">

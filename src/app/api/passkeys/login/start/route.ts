@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as SimpleWebAuthnServer from '@simplewebauthn/server';
 import crypto from 'crypto';
 import { createLogger } from '@/lib/api/logger';
+import { handleError } from '@/lib/errorHandler';
 import { getCredentials, getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 
 const log = createLogger({ action: 'passkey-login-start' });
@@ -83,8 +84,7 @@ export async function POST(req: NextRequest) {
       options,
     });
   } catch (err) {
-    log.error('Passkey login/start error', err as Error);
-    return NextResponse.json({ error: 'LOGIN_START_FAILED' }, { status: 500 });
+    return handleError(err);
   }
 }
 

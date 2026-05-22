@@ -7,13 +7,13 @@ import {
   DATABASE_ID,
   EVENTS_COLLECTION_ID,
   EVENT_REGISTRATIONS_COLLECTION_ID,
-  SOCIETIES_COLLECTION_ID,
   getLocationRecency,
   type RegistrationDocument,
   type LocationRecencyInfo,
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
 import { handleError } from '@/lib/errorHandler';
+import { getUserSocietyIds, hasAdminAccess } from '@/lib/api/shared-utils';
 
 export const runtime = 'nodejs';
 
@@ -32,67 +32,9 @@ interface SearchResult {
   checkInCount?: number;
 }
 
-// Cache for user society data (TTL: 2 minutes)
-const societyCache = new Map<string, { data: { ids: string[]; isAdmin: boolean }; expires: number }>();
-const SOCIETY_CACHE_TTL = 2 * 60 * 1000;
-
 // Cache for events (TTL: 5 minutes)
 const eventsCache = new Map<string, { data: Map<string, { title: string; date: string }>; eventIds: string[]; expires: number }>();
 const EVENTS_CACHE_TTL = 5 * 60 * 1000;
-
-/**
- * Get user's accessible society IDs (with caching)
- */
-async function getUserSocietyIds(userId: string): Promise<{ ids: string[]; isAdmin: boolean }> {
-  // Check cache
-  const cached = societyCache.get(userId);
-  if (cached && cached.expires > Date.now()) {
-    return cached.data;
-  }
-  
-  try {
-    const users = getUsers();
-    const memberships = await users.listMemberships(userId);
-    
-    const db = getDatabases();
-    const societiesRes = await db.listDocuments(
-      DATABASE_ID,
-      SOCIETIES_COLLECTION_ID,
-      [Query.limit(100)]
-    );
-    
-    // Check if user is admin
-    const isAdmin = memberships.memberships.some(m => 
-      m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-    );
-    
-    let result: { ids: string[]; isAdmin: boolean };
-    
-    // If admin, return all society IDs
-    if (isAdmin) {
-      result = { ids: societiesRes.documents.map(s => s.$id), isAdmin: true };
-    } else {
-      // Extract chair team slugs
-      const chairSlugs = memberships.memberships
-        .filter(m => m.teamId?.startsWith('chair_') || m.teamName?.startsWith('chair_'))
-        .map(m => (m.teamId?.replace('chair_', '') || m.teamName?.replace('chair_', '') || ''));
-      
-      // Return society IDs user is chair of
-      const ids = societiesRes.documents
-        .filter(s => chairSlugs.includes((s as unknown as { slug: string }).slug))
-        .map(s => s.$id);
-        
-      result = { ids, isAdmin: false };
-    }
-    
-    // Cache result
-    societyCache.set(userId, { data: result, expires: Date.now() + SOCIETY_CACHE_TTL });
-    return result;
-  } catch (error) {
-    console.error('Error getting user societies:', error);
-    return { ids: [], isAdmin: false };
-  }
-}
 
 /**
  * Get user's accessible events (with caching)
@@ -150,9 +92,10 @@ export async function GET(req: NextRequest) {
     const db = getDatabases();
     const userId = user.$id;
     
-    // Get user's accessible society IDs (cached)
-    const { ids: societyIds, isAdmin } = await getUserSocietyIds(userId);
-    if (societyIds.length === 0) {
+    // Get user's accessible society IDs
+    const societyIds = await getUserSocietyIds(userId, getDatabases());
+    const isAdmin = await hasAdminAccess(userId, getUsers());
+    if (societyIds.length === 0 && !isAdmin) {
       return NextResponse.json({
         results: [],
         total: 0,

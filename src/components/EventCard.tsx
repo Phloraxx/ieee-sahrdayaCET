@@ -59,7 +59,6 @@ const EventCard = memo(function EventCard({
                             fill
                             sizes="240px"
                             className="object-cover object-center group-hover:scale-110 transition-transform duration-300"
-                            unoptimized
                         />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -129,7 +128,6 @@ const EventCard = memo(function EventCard({
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover object-center group-hover:scale-110 transition-transform duration-300"
-                        unoptimized
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -161,7 +159,6 @@ const EventCard = memo(function EventCard({
                                 fill
                                 sizes="32px"
                                 className="object-contain"
-                                unoptimized
                             />
                         </div>
                     </div>

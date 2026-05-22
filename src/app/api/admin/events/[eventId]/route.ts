@@ -8,6 +8,7 @@ import {
 import { createLogger } from '@/lib/api/logger';
 import { z } from 'zod';
 import { isUserChairOfEvent } from '@/lib/api/auth-check';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
@@ -67,19 +68,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ event });
   } catch (error) {
-    const appwriteError = error as { code?: number };
-    if (appwriteError.code === 404) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: 'Event not found.' },
-        { status: 404 }
-      );
-    }
-    
-    log.error('Failed to get event', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to retrieve event.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 
@@ -143,19 +132,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
       message: 'Event updated successfully.',
     });
   } catch (error) {
-    const appwriteError = error as { code?: number };
-    if (appwriteError.code === 404) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: 'Event not found.' },
-        { status: 404 }
-      );
-    }
-
-    log.error('Failed to update event', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to update event.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 
@@ -208,19 +185,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       message: 'Event deleted successfully.',
     });
   } catch (error) {
-    const appwriteError = error as { code?: number };
-    if (appwriteError.code === 404) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: 'Event not found.' },
-        { status: 404 }
-      );
-    }
-
-    log.error('Failed to delete event', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to delete event.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 

@@ -5,28 +5,13 @@ import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import { getDatabases, DATABASE_ID, EVENTS_COLLECTION_ID, REGISTRATIONS_COLLECTION_ID } from '@/lib/api/appwrite-admin';
 import { isUserChairOfEvent } from '@/lib/api/auth-check';
 import { createLogger } from '@/lib/api/logger';
+import { formatDate, getPhoneValue } from '@/lib/api/shared-utils';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
 interface RouteParams {
     params: Promise<{ eventId: string }>;
-}
-
-// Format date for export
-function formatDate(dateString: string | null | undefined): string {
-    if (!dateString) return '-';
-    try {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    } catch {
-        return '-';
-    }
 }
 
 // Parse form responses safely
@@ -37,28 +22,6 @@ function parseFormResponses(formResponses: string | null | undefined): Record<st
     } catch {
         return {};
     }
-}
-
-function getPhoneValue(registration: Record<string, unknown>, formData: Record<string, unknown> = {}): string {
-    const candidates = [
-        registration.user_phone,
-        registration.user_phone_,
-        formData.user_phone,
-        formData.user_phone_,
-        formData.phone,
-    ];
-
-    for (const value of candidates) {
-        if (typeof value === 'string') {
-            const trimmed = value.trim();
-            if (trimmed) return trimmed;
-        }
-        if (typeof value === 'number') {
-            return String(value);
-        }
-    }
-
-    return '-';
 }
 
 /**
@@ -157,7 +120,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                 'S.No': index + 1,
                 'Name': r.user_name || '-',
                 'Email': r.user_email || '-',
-                'Phone': getPhoneValue(r),
+                'Phone': getPhoneValue({ ...r }),
             }));
             filename = `export_${eventId}_${timestamp}.csv`;
         } else if (filter === 'checked_in') {
@@ -169,7 +132,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                     'Ticket ID': r.ticket_id || '-',
                     'Name': r.user_name || '-',
                     'Email': r.user_email || '-',
-                    'Phone': getPhoneValue(r, formData),
+                    'Phone': getPhoneValue({ ...r, ...formData }),
                     'Department': formData.department || formData.dept || '-',
                     'Semester': formData.semester || formData.sem || '-',
                     'Check-in Time': formatDate(r.check_in_time as string),
@@ -188,7 +151,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                     'Ticket ID': r.ticket_id || '-',
                     'Name': r.user_name || '-',
                     'Email': r.user_email || '-',
-                    'Phone': getPhoneValue(r, formData),
+                    'Phone': getPhoneValue({ ...r, ...formData }),
                     'Registration Date': formatDate(r.registration_date as string),
                     'Registration Status': r.registration_status || '-',
                     'Payment Status': r.payment_status || '-',
@@ -250,10 +213,6 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
             },
         });
     } catch (error) {
-        createLogger({ action: 'admin-events-export' }).error('Export API error', error instanceof Error ? error : new Error(String(error)));
-        return NextResponse.json(
-            { error: 'INTERNAL_ERROR', message: 'Failed to export data' },
-            { status: 500 }
-        );
+        return handleError(error);
     }
 }

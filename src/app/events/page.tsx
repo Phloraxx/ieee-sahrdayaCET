@@ -434,7 +434,6 @@ export default function Events1Page() {
                                                 alt={event.title}
                                                 fill
                                                 className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-                                                unoptimized
                                             />
                                         ) : (
                                             <div className="w-full h-full bg-gradient-to-br from-[#00629B] to-[#4285F4] flex items-center justify-center">

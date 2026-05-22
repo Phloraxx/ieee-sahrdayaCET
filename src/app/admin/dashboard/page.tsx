@@ -21,6 +21,9 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger({ action: 'AdminDashboard' });
 
 interface DashboardStats {
     totalEvents: number;
@@ -137,15 +140,10 @@ export default function AdminDashboard() {
                 }));
                 setUpcomingEvents(upcomingWithSociety);
 
-                // Mock recent registrations (replace with real data)
-                setRecentRegistrations([
-                    { id: '1', userName: 'John Doe', eventName: 'Web Dev Workshop', date: new Date().toISOString(), status: 'confirmed' },
-                    { id: '2', userName: 'Jane Smith', eventName: 'AI Hackathon', date: new Date().toISOString(), status: 'pending' },
-                    { id: '3', userName: 'Bob Wilson', eventName: 'Cloud Computing 101', date: new Date().toISOString(), status: 'confirmed' },
-                ]);
+                // Real registrations will be fetched from the API
 
             } catch (error) {
-                console.error('Error fetching dashboard data:', error);
+                log.error('Error fetching dashboard data', error instanceof Error ? error : new Error(String(error)));
             } finally {
                 setLoading(false);
             }
@@ -328,7 +326,6 @@ export default function AdminDashboard() {
                                                         alt={event.title}
                                                         fill
                                                         className="object-cover"
-                                                        unoptimized
                                                     />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center">
@@ -425,7 +422,6 @@ export default function AdminDashboard() {
                                                 alt={society.name}
                                                 fill
                                                 className="object-contain"
-                                                unoptimized
                                             />
                                         </div>
                                     )}

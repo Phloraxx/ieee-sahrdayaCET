@@ -11,6 +11,7 @@ import {
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
 import { z } from 'zod';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
@@ -103,11 +104,7 @@ export async function GET(req: NextRequest) {
       total: eventsResult.total,
     });
   } catch (error) {
-    log.error('Failed to list events', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to retrieve events.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 
@@ -195,11 +192,7 @@ export async function POST(req: NextRequest) {
       message: 'Event created successfully.',
     }, { status: 201 });
   } catch (error) {
-    log.error('Failed to create event', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to create event.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 

@@ -5,6 +5,7 @@ import type { AuthenticationResponseJSON } from '@simplewebauthn/browser';
 import crypto from 'crypto';
 
 import { createLogger } from '@/lib/api/logger';
+import { handleError } from '@/lib/errorHandler';
 
 import {
   createSessionToken,
@@ -191,13 +192,21 @@ export async function POST(req: NextRequest) {
 
     const token = await createSessionToken(userId);
 
-    return NextResponse.json({
+    // Set the session secret as an HttpOnly cookie ONLY (not returned in body — prevents XSS theft)
+    const response = NextResponse.json({
       userId,
-      secret: token.secret,
+      ok: true,
     });
+    response.cookies.set('appwrite-session', token.secret, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    return response;
   } catch (err) {
-    log.error('Passkey login/finish error', err as Error);
-    return NextResponse.json({ error: 'LOGIN_FINISH_FAILED' }, { status: 500 });
+    return handleError(err);
   }
 }
 

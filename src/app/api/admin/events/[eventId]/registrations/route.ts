@@ -11,6 +11,7 @@ import {
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
 import { isUserChairOfEvent } from '@/lib/api/auth-check';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
@@ -354,19 +355,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    const appwriteError = error as { code?: number };
-    if (appwriteError.code === 404) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: 'Event not found.' },
-        { status: 404 }
-      );
-    }
-    
-    log.error('Failed to fetch registrations', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to fetch registrations.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 
@@ -563,19 +552,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       message: 'Registration created successfully.',
     });
   } catch (error) {
-    const appwriteError = error as { code?: number };
-    if (appwriteError.code === 404) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: 'Event not found.' },
-        { status: 404 }
-      );
-    }
-    
-    log.error('Failed to create manual registration', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to create registration.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 

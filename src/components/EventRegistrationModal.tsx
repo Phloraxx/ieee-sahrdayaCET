@@ -17,6 +17,9 @@ import DynamicRegistrationForm from './DynamicRegistrationForm';
 import PaymentModal, { PaymentData } from './PaymentModal';
 import TicketDisplay from './TicketDisplay';
 import toast from 'react-hot-toast';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger({ action: 'EventRegistrationModal' });
 
 interface EventRegistrationModalProps {
     event: (Event & { society?: Society }) | null;
@@ -350,7 +353,7 @@ export default function EventRegistrationModal({
                 await fetchFormTemplate();
                 setCurrentStep('form');
             } catch (err) {
-                console.error('Error checking registration:', err);
+                log.error('Error checking registration', err instanceof Error ? err : new Error(String(err)));
                 // Proceed to form anyway
                 await fetchFormTemplate();
                 setCurrentStep('form');
@@ -369,7 +372,7 @@ export default function EventRegistrationModal({
         try {
             await login();
         } catch (err) {
-            console.error('Login failed:', err);
+            log.error('Login failed', err instanceof Error ? err : new Error(String(err)));
             toast.error('Login failed. Please try again.');
         } finally {
             setIsLoading(false);
@@ -482,7 +485,7 @@ export default function EventRegistrationModal({
                             }
                         }
                     } catch (fetchExistingError) {
-                        console.error('Failed to fetch existing registration after duplicate:', fetchExistingError);
+                        log.error('Failed to fetch existing registration after duplicate', fetchExistingError instanceof Error ? fetchExistingError : new Error(String(fetchExistingError)));
                     }
                 }
                 throw new Error(errorData.message || 'Registration failed');
@@ -598,7 +601,7 @@ export default function EventRegistrationModal({
                     }
                 }
             } catch (err) {
-                console.error('Failed to complete payment:', err);
+                log.error('Failed to complete payment', err instanceof Error ? err : new Error(String(err)));
                 toast.error('Payment confirmed but ticket generation failed. Please contact support.');
             }
         }

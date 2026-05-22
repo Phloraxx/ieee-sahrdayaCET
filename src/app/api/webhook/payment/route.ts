@@ -4,28 +4,9 @@
  * Handles payment confirmation webhooks from the payment gateway
  * (https://payment-api.nerdpixel.workers.dev/api).
  * 
- * This endpoint is called when a payment is completed via the external
- * payment gateway. The payment gateway monitors bank SMS/emails and
- * detects payments using Dynamic Decimal Matching (DDM).
- * 
- * Flow:
- * 1. Verify webhook signature/secret (timing-safe comparison)
- * 2. Parse payment data from the webhook payload
- * 3. Find registration by ticket_id (payment gateway ticket ID stored during registration)
- * 4. Verify amount matches (prevent underpayment attacks)
- * 5. Check for duplicate webhooks (idempotency)
- * 6. Update registration: payment_status = 'completed', registration_status = 'confirmed'
- * 7. Confirm registration and increment current_registrations
- * 8. Generate ticket and QR code
- * 9. Send confirmation email
- * 10. Return 200 OK
- * 
- * Webhook URL to configure in payment gateway:
- *   POST https://your-domain.com/api/webhook/payment?secret=YOUR_WEBHOOK_SECRET
- * 
  * Headers expected:
  *   Content-Type: application/json
- *   X-Webhook-Secret: YOUR_WEBHOOK_SECRET (optional, can use query param)
+ *   X-Webhook-Secret: YOUR_PAYMENT_WEBHOOK_SECRET
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -40,6 +21,7 @@ import { logger } from '@/lib/api/logger';
 import { sendRegistrationConfirmation, sendPaymentReceipt } from '@/lib/emailIntegration';
 import { randomUUID, timingSafeEqual as cryptoTimingSafeEqual } from 'crypto';
 import { PAYMENT_API_URL } from '@/lib/constants/endpoints';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
@@ -55,14 +37,6 @@ interface PaymentWebhookPayload {
   transactionId?: string;    // Bank transaction reference
   rrn?: string;              // UPI Reference Number
   upiId?: string;            // Payer's UPI ID
-  
-  // SMS-based payment detection (legacy format)
-  sms?: string;
-  body?: string;
-  message?: string;
-  
-  // Webhook secret (can be in body as well)
-  secret_key?: string;
 }
 
 /**
@@ -82,7 +56,7 @@ function timingSafeEqual(a: string, b: string): boolean {
 /**
  * Verify webhook secret for security
  */
-function verifyWebhookSecret(request: NextRequest, body?: PaymentWebhookPayload): boolean {
+function verifyWebhookSecret(request: NextRequest): boolean {
   const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET || process.env.WEBHOOK_SECRET;
   if (!webhookSecret) {
     logger.warn('PAYMENT_WEBHOOK_SECRET not configured - rejecting all webhooks');
@@ -102,26 +76,7 @@ function verifyWebhookSecret(request: NextRequest, body?: PaymentWebhookPayload)
     return true;
   }
 
-  // Check body field (for payment gateway compatibility)
-  if (body?.secret_key && timingSafeEqual(body.secret_key, webhookSecret)) {
-    return true;
-  }
-
   return false;
-}
-
-/**
- * Parse SMS text to extract ticket ID and amount (legacy format)
- */
-function parseSmsPayment(text: string): { ticketId: string | null; amount: number | null } {
-  // Match pattern like "TICKET1234567890...₹100" or "TICKET1234567890...Rs.100"
-  const ticketMatch = text.match(/([A-Z]+\d+)/);
-  const amountMatch = text.match(/[₹Rs.]+\s*(\d+(?:\.\d{2})?)/);
-  
-  return {
-    ticketId: ticketMatch ? ticketMatch[1] : null,
-    amount: amountMatch ? parseFloat(amountMatch[1]) : null,
-  };
 }
 
 /**
@@ -139,8 +94,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
   }
   
-  // Verify webhook secret (pass body for secret_key check)
-  if (!verifyWebhookSecret(request, payload)) {
+  // Verify webhook secret (headers only, never from body)
+  if (!verifyWebhookSecret(request)) {
     logger.warn('Unauthorized webhook attempt', {
       ip: request.headers.get('x-forwarded-for') || 'unknown',
     });
@@ -156,16 +111,7 @@ export async function POST(request: NextRequest) {
       rrn: payload.rrn || 'N/A',
     });
 
-    // Handle SMS-based payment detection (legacy format)
-    let ticketId = payload.ticketId;
-    let amount = payload.amount;
-    
-    const smsText = payload.sms || payload.body || payload.message;
-    if (smsText && (!ticketId || !amount)) {
-      const parsed = parseSmsPayment(smsText);
-      ticketId = ticketId || parsed.ticketId || undefined;
-      amount = amount || parsed.amount || 0;
-    }
+    const ticketId = payload.ticketId;
 
     // Validate required fields
     if (!ticketId && !payload.registration_id) {
@@ -440,13 +386,7 @@ export async function POST(request: NextRequest) {
       });
 
   } catch (error) {
-    const errorMessage = process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined;
-    logger.error('Payment webhook failed', error instanceof Error ? error : new Error(error instanceof Error ? error.message : String(error)));
-
-    return NextResponse.json(
-      { success: false, error: 'An unexpected error occurred', ...(errorMessage ? { details: errorMessage } : {}) },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 

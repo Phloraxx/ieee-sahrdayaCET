@@ -6,6 +6,9 @@ import { DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/constants/collections'
 import { User, TeamMembership, AuthContextType } from '@/types';
 import { OAuthProvider, Query } from 'appwrite';
 import toast from 'react-hot-toast';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger({ action: 'AuthContext' });
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -79,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 redirectUrl
             );
         } catch (error) {
-            console.error('Login failed:', error);
+            log.error('Login failed', error instanceof Error ? error : new Error(String(error)));
             throw error;
         }
     };
@@ -91,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUserTeams([]);
             setProfileCompleted(null);
         } catch (error) {
-            console.error('Logout failed:', error);
+            log.error('Logout failed', error instanceof Error ? error : new Error(String(error)));
             throw error;
         }
     };
@@ -109,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Get JWT for API calls - creates one if needed, uses cache otherwise
     const getJWT = useCallback(async (): Promise<string | null> => {
         if (!user) {
-            console.warn('[AuthContext] getJWT called but user is null');
+            log.warn('getJWT called but user is null');
             return null;
         }
         
@@ -131,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             return result.jwt;
         } catch (error) {
-            console.error('[AuthContext] Failed to create JWT:', error);
+            log.error('Failed to create JWT', error instanceof Error ? error : new Error(String(error)));
             return null;
         }
     }, [user]);

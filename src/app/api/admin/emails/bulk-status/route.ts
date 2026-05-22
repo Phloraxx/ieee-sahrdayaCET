@@ -1,70 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
-import { getDatabases, getUsers, DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID, Query } from '@/lib/api/appwrite-admin';
+import { getDatabases, getUsers, DATABASE_ID, EVENTS_COLLECTION_ID, Query } from '@/lib/api/appwrite-admin';
 import { EMAIL_LOGS_COLLECTION_ID } from '@/lib/constants/collections';
 import { getBatchStatus, getQueueStats } from '@/lib/emailQueue';
 import { createLogger } from '@/lib/api/logger';
+import { getUserSocietyIds, hasAdminAccess } from '@/lib/api/shared-utils';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
 const log = createLogger({ action: 'bulk-email-status-api' });
-
-/**
- * Check if user has admin access
- */
-async function hasAdminAccess(userId: string): Promise<boolean> {
-  try {
-    const users = getUsers();
-    const memberships = await users.listMemberships(userId);
-    
-    return memberships.memberships.some(
-      (m) =>
-        m.teamId === 'admins' ||
-        m.teamName?.toLowerCase() === 'admins' ||
-        m.teamId?.startsWith('chair_') ||
-        m.teamName?.startsWith('chair_')
-    );
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Get user's accessible society IDs
- */
-async function getUserSocietyIds(userId: string): Promise<{ ids: string[]; isAdmin: boolean }> {
-  try {
-    const users = getUsers();
-    const memberships = await users.listMemberships(userId);
-
-    const db = getDatabases();
-    const societiesRes = await db.listDocuments(
-      DATABASE_ID,
-      SOCIETIES_COLLECTION_ID,
-      [Query.limit(100)]
-    );
-
-    const isAdmin = memberships.memberships.some(m =>
-      m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-    );
-
-    if (isAdmin) {
-      return { ids: societiesRes.documents.map(s => s.$id), isAdmin: true };
-    }
-
-    const chairSlugs = memberships.memberships
-      .filter(m => m.teamId?.startsWith('chair_') || m.teamName?.startsWith('chair_'))
-      .map(m => (m.teamId?.replace('chair_', '') || m.teamName?.replace('chair_', '') || ''));
-
-    const ids = societiesRes.documents
-      .filter(s => chairSlugs.includes((s as unknown as { slug: string }).slug))
-      .map(s => s.$id);
-
-    return { ids, isAdmin: false };
-  } catch {
-    return { ids: [], isAdmin: false };
-  }
-}
 
 export interface BulkStatusResponse {
   success: boolean;
@@ -113,7 +58,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { ids: societyIds, isAdmin } = await getUserSocietyIds(user.$id);
+    const db = getDatabases();
+    const societyIds = await getUserSocietyIds(user.$id, db);
+    const isAdmin = await hasAdminAccess(user.$id, getUsers());
     if (societyIds.length === 0 && !isAdmin) {
       return NextResponse.json(
         { error: 'FORBIDDEN', message: 'Admin access required.' },
@@ -124,7 +71,6 @@ export async function GET(req: NextRequest) {
     // Scope by user's societies
     let scopedEventIds: string[] | undefined;
     if (!isAdmin) {
-      const db = getDatabases();
       const eventsRes = await db.listDocuments(DATABASE_ID, EVENTS_COLLECTION_ID, [
         Query.equal('society_id', societyIds),
         Query.limit(500),
@@ -154,7 +100,6 @@ export async function GET(req: NextRequest) {
     const queueStatus = getBatchStatus(batchId);
 
     // Get persisted status from database
-    const db = getDatabases();
     const persistedStatus = { total: 0, sent: 0, failed: 0, pending: 0 };
     const failedRecipients: BulkStatusResponse['failed_recipients'] = [];
 
@@ -225,10 +170,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    log.error('Failed to get bulk status', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to get bulk email status.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

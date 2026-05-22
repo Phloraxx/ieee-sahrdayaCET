@@ -3,6 +3,7 @@ import * as SimpleWebAuthnServer from '@simplewebauthn/server';
 import * as SimpleWebAuthnServerHelpers from '@simplewebauthn/server/helpers';
 
 import { createLogger } from '@/lib/api/logger';
+import { handleError } from '@/lib/errorHandler';
 
 import {
   createChallenge,
@@ -31,7 +32,6 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    await upsertMemberFromSignedInUser(signedInUser);
     const existingCredentials = await getCredentials(signedInUser.$id);
 
     return NextResponse.json({
@@ -41,8 +41,7 @@ export async function GET(req: NextRequest) {
       hasPasskey: existingCredentials.length > 0,
     });
   } catch (err) {
-    log.error('Passkey register/start status error', err as Error);
-    return NextResponse.json({ error: 'PASSKEY_STATUS_FAILED' }, { status: 500 });
+    return handleError(err);
   }
 }
 
@@ -85,8 +84,7 @@ export async function POST(req: NextRequest) {
       existingPasskeys: existingCredentials.length,
     });
   } catch (err) {
-    log.error('Passkey register/start error', err as Error);
-    return NextResponse.json({ error: 'REGISTER_START_FAILED' }, { status: 500 });
+    return handleError(err);
   }
 }
 

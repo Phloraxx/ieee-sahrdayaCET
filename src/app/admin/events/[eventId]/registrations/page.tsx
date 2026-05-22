@@ -30,6 +30,9 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { account } from '@/lib/appwrite';
 import Papa from 'papaparse';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger({ action: 'RegistrationsPage' });
 
 interface Registration {
     id: string;
@@ -125,7 +128,7 @@ export default function RegistrationsPage() {
                 headers['x-appwrite-jwt'] = jwtResponse.jwt;
             }
         } catch (error) {
-            console.error('Failed to generate JWT:', error);
+            log.error('Failed to generate JWT', error instanceof Error ? error : new Error(String(error)));
         }
         return headers;
     };
@@ -157,7 +160,7 @@ export default function RegistrationsPage() {
             setTotal(data.total);
             setPages(data.pages);
         } catch (error) {
-            console.error('Error fetching registrations:', error);
+            log.error('Error fetching registrations', error instanceof Error ? error : new Error(String(error)));
             toast.error('Failed to load registrations');
         } finally {
             setLoading(false);
@@ -215,7 +218,7 @@ export default function RegistrationsPage() {
             setSelectAllPages(true);
             toast.success(`Selected all ${allIds.length} registrations`);
         } catch (error) {
-            console.error('Error selecting all:', error);
+            log.error('Error selecting all', error instanceof Error ? error : new Error(String(error)));
             toast.error('Failed to select all registrations');
         }
     }, [eventId, searchQuery, paymentFilter, checkinFilter, dateFrom, dateTo]);
@@ -323,7 +326,7 @@ export default function RegistrationsPage() {
                 setSelectedIds(new Set()); // Clear selection
             }
         } catch (error) {
-            console.error('Bulk action error:', error);
+            log.error('Bulk action error', error instanceof Error ? error : new Error(String(error)));
             toast.error('Failed to complete action');
         } finally {
             setActionLoading(false);
@@ -344,7 +347,7 @@ export default function RegistrationsPage() {
 
             toast.success('Email sent successfully');
         } catch (error) {
-            console.error('Error resending email:', error);
+            log.error('Error resending email', error instanceof Error ? error : new Error(String(error)));
             toast.error('Failed to send email');
         }
     };
@@ -363,7 +366,7 @@ export default function RegistrationsPage() {
             toast.success('Marked as checked in');
             fetchRegistrations();
         } catch (error) {
-            console.error('Error checking in:', error);
+            log.error('Error checking in', error instanceof Error ? error : new Error(String(error)));
             toast.error('Failed to check in');
         }
     };
@@ -383,7 +386,7 @@ export default function RegistrationsPage() {
             toast.success('Registration deleted');
             fetchRegistrations();
         } catch (error) {
-            console.error('Error deleting:', error);
+            log.error('Error deleting', error instanceof Error ? error : new Error(String(error)));
             toast.error('Failed to delete registration');
         }
     };
@@ -425,7 +428,7 @@ export default function RegistrationsPage() {
             });
             fetchRegistrations();
         } catch (error) {
-            console.error('Error creating registration:', error);
+            log.error('Error creating registration', error instanceof Error ? error : new Error(String(error)));
             toast.error(error instanceof Error ? error.message : 'Failed to create registration');
         } finally {
             setManualRegLoading(false);
@@ -482,9 +485,7 @@ export default function RegistrationsPage() {
                 
                 // Log detailed errors to console for review
                 if (data.failures && data.failures.length > 0) {
-                    console.group('❌ CSV Import Errors:');
-                    console.table(data.failures);
-                    console.groupEnd();
+                    log.info('CSV Import Errors', { failures: data.failures });
                     
                     // Also show a summary alert with first few errors
                     const errorDetails = data.failures.slice(0, 5).map((f: any) => 
@@ -500,7 +501,7 @@ export default function RegistrationsPage() {
             }
             fetchRegistrations();
         } catch (error) {
-            console.error('CSV import error:', error);
+            log.error('CSV import error', error instanceof Error ? error : new Error(String(error)));
             toast.error(error instanceof Error ? error.message : 'Failed to import CSV');
         } finally {
             setCsvImportLoading(false);

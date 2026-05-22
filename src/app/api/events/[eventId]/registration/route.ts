@@ -5,6 +5,7 @@ import {
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
@@ -21,15 +22,15 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const { eventId } = await params;
   const log = createLogger({ action: 'check-registration', eventId });
 
-  const user = await getSignedInUserFromRequest(req);
-  if (!user) {
-    return NextResponse.json(
-      { error: 'UNAUTHORIZED', message: 'Authentication required.' },
-      { status: 401 }
-    );
-  }
-
   try {
+    const user = await getSignedInUserFromRequest(req);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: 'Authentication required.' },
+        { status: 401 }
+      );
+    }
+
     const registration = await getUserRegistrationForEvent(user.$id, eventId);
 
     if (!registration) {
@@ -50,13 +51,6 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       log.warn('Registrations collection not found — DB may not be set up yet');
       return NextResponse.json({});
     }
-    log.error(
-      'Failed to check registration',
-      error instanceof Error ? error : new Error(String(error))
-    );
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

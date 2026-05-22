@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getNormalizedTicketById, getEvent, getUsers } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
@@ -105,10 +106,6 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    log.error('Failed to fetch ticket', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

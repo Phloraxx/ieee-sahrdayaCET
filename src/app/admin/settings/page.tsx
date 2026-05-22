@@ -37,6 +37,9 @@ import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { account } from '@/lib/appwrite';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger({ action: 'SettingsPage' });
 
 // ============================================================================
 // Types & Schemas
@@ -127,7 +130,7 @@ export default function SettingsPage() {
                 // Apply theme
                 applyTheme(parsed.appearance?.theme || 'light');
             } catch (error) {
-                console.error('Failed to load settings:', error);
+                log.error('Failed to load settings', error instanceof Error ? error : new Error(String(error)));
             }
         }
     }, []);
@@ -143,7 +146,7 @@ export default function SettingsPage() {
             const sessions = await account.listSessions();
             setActiveSessions(sessions.sessions);
         } catch (error) {
-            console.error('Failed to load sessions:', error);
+            log.error('Failed to load sessions', error instanceof Error ? error : new Error(String(error)));
         } finally {
             setLoadingSessions(false);
         }
@@ -210,7 +213,7 @@ export default function SettingsPage() {
             
             toast.success('Settings saved successfully!');
         } catch (error) {
-            console.error('Failed to save settings:', error);
+            log.error('Failed to save settings', error instanceof Error ? error : new Error(String(error)));
             toast.error('Failed to save settings');
         } finally {
             setIsSaving(false);
@@ -234,7 +237,7 @@ export default function SettingsPage() {
             toast.success('Session terminated successfully');
             loadActiveSessions();
         } catch (error) {
-            console.error('Failed to delete session:', error);
+            log.error('Failed to delete session', error instanceof Error ? error : new Error(String(error)));
             toast.error('Failed to terminate session');
         }
     };

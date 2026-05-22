@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { Event, Society } from '@/types';
 import { Registration } from '@/types/registration';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger({ action: 'PaymentModal' });
 
 // Payment data returned from the registration API
 export interface PaymentData {
@@ -63,7 +66,7 @@ const QRCodeCanvas: React.FC<{
                 });
                 setLoaded(true);
             } catch (err) {
-                console.error('QR generation error:', err);
+                log.error('QR generation error', err instanceof Error ? err : new Error(String(err)));
                 // Fallback: use QR code API
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
@@ -183,7 +186,7 @@ export default function PaymentModal({
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch (err) {
-            console.error('Failed to copy:', err);
+            log.error('Failed to copy to clipboard', err instanceof Error ? err : new Error(String(err)));
         }
     };
 
@@ -262,7 +265,7 @@ export default function PaymentModal({
                 setPaymentStatus('pending');
             }
         } catch (err) {
-            console.error('Error checking payment:', err);
+            log.error('Error checking payment', err instanceof Error ? err : new Error(String(err)));
             setPaymentStatus('pending');
         }
     }, [registration.$id, paymentStatus, paymentData?.status_url, paymentTicketId, onPaymentComplete, onError]);
@@ -291,18 +294,18 @@ export default function PaymentModal({
                             ws.close();
                         }
                     } catch (err) {
-                        console.error('Failed to parse WebSocket message:', err);
+                        log.error('Failed to parse WebSocket message', err instanceof Error ? err : new Error(String(err)));
                     }
                 };
 
                 ws.onclose = () => {};
 
                 ws.onerror = (error) => {
-                    console.error('Payment WebSocket error:', error);
+                    log.error('Payment WebSocket error', error instanceof Error ? error : new Error(String(error)));
                     // WebSocket failed, will rely on polling as fallback
                 };
             } catch (err) {
-                console.error('Failed to connect WebSocket:', err);
+                log.error('Failed to connect WebSocket', err instanceof Error ? err : new Error(String(err)));
             }
         };
 

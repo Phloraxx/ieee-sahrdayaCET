@@ -19,16 +19,21 @@ import {
     RefreshCw,
     Download
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StatsCard } from '@/components/admin/StatsCard';
-import { QRScanner } from '@/components/admin/QRScanner';
 import { CheckInLog } from '@/components/admin/CheckInLog';
+
+const QRScanner = dynamic(() => import('@/components/admin/QRScanner').then(mod => ({ default: mod.QRScanner })), { ssr: false });
 import AnimatedTick from '@/components/AnimatedTick';
 import { client } from '@/lib/appwrite';
 import { DATABASE_ID, EVENT_REGISTRATIONS_COLLECTION_ID } from '@/lib/constants/collections';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthFetch } from '@/hooks/useAuthFetch';
 import toast from 'react-hot-toast';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger({ action: 'CheckInPage' });
 
 interface CheckInEntry {
     id: string;
@@ -215,7 +220,7 @@ export default function CheckInPage({ params }: PageProps) {
                 setCheckInEntries((data.recentCheckIns || []).map((entry: unknown) => normalizeCheckInEntry(entry)));
                 // Sessionless mode - no active session to restore
             } catch (err) {
-                console.error('Error fetching event:', err);
+                log.error('Error fetching event', err instanceof Error ? err : new Error(String(err)));
                 setEventError(err instanceof Error ? err.message : 'Failed to load event');
             } finally {
                 setEventLoading(false);
@@ -440,7 +445,7 @@ export default function CheckInPage({ params }: PageProps) {
             // Note: Real-time subscription will add to the log
 
         } catch (err) {
-            console.error('Scan error:', err);
+            log.error('Scan error', err instanceof Error ? err : new Error(String(err)));
             setLastScanResult({
                 success: false,
                 message: 'Failed to process QR code',
@@ -487,7 +492,7 @@ export default function CheckInPage({ params }: PageProps) {
                     }))
                 );
         } catch (err) {
-            console.error('Search error:', err);
+            log.error('Search error', err instanceof Error ? err : new Error(String(err)));
             toast.error('Search failed');
         } finally {
             setSearchLoading(false);
@@ -564,7 +569,7 @@ export default function CheckInPage({ params }: PageProps) {
                         )
                     );
         } catch (err) {
-            console.error('Manual check-in error:', err);
+            log.error('Manual check-in error', err instanceof Error ? err : new Error(String(err)));
             toast.error('Check-in failed');
         } finally {
             setProcessingTickets(prev => {
@@ -587,7 +592,7 @@ export default function CheckInPage({ params }: PageProps) {
                 setCheckInEntries((data.recentCheckIns || []).map((entry: unknown) => normalizeCheckInEntry(entry)));
             }
         } catch (err) {
-            console.error('Refresh error:', err);
+            log.error('Refresh error', err instanceof Error ? err : new Error(String(err)));
         } finally {
             setEntriesLoading(false);
         }
@@ -628,7 +633,7 @@ export default function CheckInPage({ params }: PageProps) {
             
             toast.success(checkedInOnly ? 'Exported checked-in attendees' : 'Exported all registrations');
         } catch (err) {
-            console.error('Export error:', err);
+            log.error('Export error', err instanceof Error ? err : new Error(String(err)));
             toast.error(err instanceof Error ? err.message : 'Export failed');
         } finally {
             setExporting(false);

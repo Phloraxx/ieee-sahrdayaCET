@@ -10,6 +10,8 @@ import { Query } from 'node-appwrite';
 import Papa from 'papaparse';
 import { createLogger } from '@/lib/api/logger';
 import { isUserChairOfEvent } from '@/lib/api/auth-check';
+import { formatDate, getPhoneValue } from '@/lib/api/shared-utils';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
@@ -22,23 +24,6 @@ interface BulkOperationRequest {
   event_id?: string; // Support both formats
 }
 
-// Format date for export
-function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return '-';
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return '-';
-  }
-}
-
 // Parse form responses safely
 function parseFormResponses(formResponses: string | null | undefined): Record<string, unknown> {
   if (!formResponses) return {};
@@ -47,29 +32,6 @@ function parseFormResponses(formResponses: string | null | undefined): Record<st
   } catch {
     return {};
   }
-}
-
-// Get phone value from multiple possible fields
-function getPhoneValue(registration: Record<string, unknown>, formData: Record<string, unknown> = {}): string {
-  const candidates = [
-    registration.user_phone,
-    registration.user_phone_,
-    formData.user_phone,
-    formData.user_phone_,
-    formData.phone,
-  ];
-
-  for (const value of candidates) {
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (trimmed) return trimmed;
-    }
-    if (typeof value === 'number') {
-      return String(value);
-    }
-  }
-
-  return '-';
 }
 
 /**
@@ -177,7 +139,7 @@ export async function POST(req: NextRequest) {
             'Ticket ID': r.ticket_id || '-',
             'Name': r.user_name || '-',
             'Email': r.user_email || '-',
-            'Phone': getPhoneValue(r, formData),
+            'Phone': getPhoneValue({ ...r, ...formData }),
             'Registration Date': formatDate(r.registration_date as string),
             'Registration Status': r.registration_status || '-',
             'Payment Status': r.payment_status || '-',
@@ -328,13 +290,6 @@ export async function POST(req: NextRequest) {
         );
     }
   } catch (error) {
-    logger.error('Bulk operation failed', { error });
-    return NextResponse.json(
-      {
-        error: 'INTERNAL_ERROR',
-        message: error instanceof Error ? error.message : 'An unexpected error occurred',
-      },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

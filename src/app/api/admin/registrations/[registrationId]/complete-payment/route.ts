@@ -19,6 +19,7 @@ import { sendRegistrationConfirmation, sendPaymentReceipt } from '@/lib/emailInt
 import { isUserChairOfEvent } from '@/lib/api/auth-check';
 import { ID } from 'node-appwrite';
 import { PAYMENT_API_URL } from '@/lib/constants/endpoints';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
@@ -253,10 +254,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     });
 
   } catch (error) {
-    log.error('Failed to complete payment', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'SERVER_ERROR', message: 'Failed to complete payment.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

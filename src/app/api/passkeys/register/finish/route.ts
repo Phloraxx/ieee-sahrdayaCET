@@ -4,6 +4,7 @@ import * as SimpleWebAuthnServerHelpers from '@simplewebauthn/server/helpers';
 import type { RegistrationResponseJSON } from '@simplewebauthn/browser';
 
 import { createLogger } from '@/lib/api/logger';
+import { handleError } from '@/lib/errorHandler';
 
 import {
   deleteChallenge,
@@ -78,8 +79,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    log.error('Passkey register/finish error', err as Error);
-    return NextResponse.json({ error: 'REGISTER_FINISH_FAILED' }, { status: 500 });
+    return handleError(err);
   }
 }
 

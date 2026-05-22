@@ -1,69 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
-import { getDatabases, getUsers, DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID, Query } from '@/lib/api/appwrite-admin';
+import { getDatabases, getUsers, DATABASE_ID, EVENTS_COLLECTION_ID, Query } from '@/lib/api/appwrite-admin';
 import { EMAIL_LOGS_COLLECTION_ID } from '@/lib/constants/collections';
 import { createLogger } from '@/lib/api/logger';
+import { getUserSocietyIds, hasAdminAccess } from '@/lib/api/shared-utils';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
 const log = createLogger({ action: 'email-logs-api' });
-
-/**
- * Check if user has admin access (is in admins team or any chair team)
- */
-async function hasAdminAccess(userId: string): Promise<boolean> {
-  try {
-    const users = getUsers();
-    const memberships = await users.listMemberships(userId);
-    
-    return memberships.memberships.some(
-      (m) =>
-        m.teamId === 'admins' ||
-        m.teamName?.toLowerCase() === 'admins' ||
-        m.teamId?.startsWith('chair_') ||
-        m.teamName?.startsWith('chair_')
-    );
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Get user's accessible society IDs
- */
-async function getUserSocietyIds(userId: string): Promise<{ ids: string[]; isAdmin: boolean }> {
-  try {
-    const users = getUsers();
-    const memberships = await users.listMemberships(userId);
-
-    const db = getDatabases();
-    const societiesRes = await db.listDocuments(
-      DATABASE_ID,
-      SOCIETIES_COLLECTION_ID,
-      [Query.limit(100)]
-    );
-
-    const isAdmin = memberships.memberships.some(m =>
-      m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-    );
-
-    if (isAdmin) {
-      return { ids: societiesRes.documents.map(s => s.$id), isAdmin: true };
-    }
-
-    const chairSlugs = memberships.memberships
-      .filter(m => m.teamId?.startsWith('chair_') || m.teamName?.startsWith('chair_'))
-      .map(m => (m.teamId?.replace('chair_', '') || m.teamName?.replace('chair_', '') || ''));
-
-    const ids = societiesRes.documents
-      .filter(s => chairSlugs.includes((s as unknown as { slug: string }).slug))
-      .map(s => s.$id);
-
-    return { ids, isAdmin: false };
-  } catch {
-    return { ids: [], isAdmin: false };
-  }
-} 
 
 /**
  * GET /api/admin/emails/logs
@@ -89,7 +34,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { ids: societyIds, isAdmin } = await getUserSocietyIds(user.$id);
+    const db = getDatabases();
+    const societyIds = await getUserSocietyIds(user.$id, db);
+    const isAdmin = await hasAdminAccess(user.$id, getUsers());
     if (societyIds.length === 0 && !isAdmin) {
       return NextResponse.json(
         { error: 'FORBIDDEN', message: 'Admin access required.' },
@@ -100,7 +47,6 @@ export async function GET(req: NextRequest) {
     // Scope by user's societies
     let scopedEventIds: string[] | undefined;
     if (!isAdmin) {
-      const db = getDatabases();
       const eventsRes = await db.listDocuments(DATABASE_ID, EVENTS_COLLECTION_ID, [
         Query.equal('society_id', societyIds),
         Query.limit(500),
@@ -159,8 +105,6 @@ export async function GET(req: NextRequest) {
     queries.push(Query.limit(limit));
     queries.push(Query.offset((page - 1) * limit));
 
-    const db = getDatabases();
-
     try {
       const result = await db.listDocuments(DATABASE_ID, EMAIL_LOGS_COLLECTION_ID, queries);
 
@@ -199,11 +143,7 @@ export async function GET(req: NextRequest) {
       throw error;
     }
   } catch (error) {
-    log.error('Failed to fetch email logs', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to fetch email logs.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 
@@ -226,7 +166,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { ids: societyIds, isAdmin } = await getUserSocietyIds(user.$id);
+    const db = getDatabases();
+    const societyIds = await getUserSocietyIds(user.$id, db);
+    const isAdmin = await hasAdminAccess(user.$id, getUsers());
     if (societyIds.length === 0 && !isAdmin) {
       return NextResponse.json(
         { error: 'FORBIDDEN', message: 'Admin access required.' },
@@ -236,7 +178,6 @@ export async function POST(req: NextRequest) {
 
     let scopedEventIds: string[] | undefined;
     if (!isAdmin) {
-      const db = getDatabases();
       const eventsRes = await db.listDocuments(DATABASE_ID, EVENTS_COLLECTION_ID, [
         Query.equal('society_id', societyIds),
         Query.limit(500),
@@ -252,7 +193,6 @@ export async function POST(req: NextRequest) {
 
     if (retry_all_failed) {
       // Retry all failed emails
-      const db = getDatabases();
       const queries = [Query.equal('status', 'failed')];
       if (event_id) {
         queries.push(Query.equal('event_id', event_id));
@@ -329,10 +269,6 @@ export async function POST(req: NextRequest) {
       message: `Queued ${result.queued} email(s) for retry.`,
     });
   } catch (error) {
-    log.error('Failed to retry emails', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to retry emails.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

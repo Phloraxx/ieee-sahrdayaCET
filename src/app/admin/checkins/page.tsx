@@ -24,6 +24,9 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { account } from '@/lib/appwrite';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger({ action: 'CheckinsPage' });
 
 // Types
 interface CheckInEntry {
@@ -118,7 +121,7 @@ export default function CheckinsPage() {
                     headers['x-appwrite-jwt'] = jwt.jwt;
                 }
             } catch (error) {
-                console.error('Failed to generate JWT:', error);
+                log.error('Failed to generate JWT', error instanceof Error ? error : new Error(String(error)));
             }
 
             const response = await fetch('/api/admin/check-in/overview', {
@@ -140,7 +143,7 @@ export default function CheckinsPage() {
             });
             setLastRefresh(new Date());
         } catch (err) {
-            console.error('Error fetching overview:', err);
+            log.error('Error fetching overview', err instanceof Error ? err : new Error(String(err)));
             setError(err instanceof Error ? err.message : 'Failed to load check-in data');
         } finally {
             setLoading(false);
@@ -168,7 +171,7 @@ export default function CheckinsPage() {
                     headers['x-appwrite-jwt'] = jwt.jwt;
                 }
             } catch (error) {
-                console.error('Failed to generate JWT:', error);
+                log.error('Failed to generate JWT', error instanceof Error ? error : new Error(String(error)));
             }
 
             const response = await fetch(`/api/admin/check-in/search-all?q=${encodeURIComponent(query)}`, {
@@ -183,7 +186,7 @@ export default function CheckinsPage() {
             const data = await response.json();
             setSearchResults(data.results || []);
         } catch (err) {
-            console.error('Search error:', err);
+            log.error('Search error', err instanceof Error ? err : new Error(String(err)));
             setSearchResults([]);
         } finally {
             setSearchLoading(false);

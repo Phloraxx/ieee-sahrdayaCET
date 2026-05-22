@@ -64,13 +64,12 @@ export const AdminEventCard = memo(function AdminEventCard({
                 {/* Event Image */}
                 <div className="relative w-full sm:w-48 h-32 sm:h-auto bg-gray-100 flex-shrink-0">
                     {event.banner_url ? (
-                        <Image
-                            src={event.banner_url}
-                            alt={event.title}
-                            fill
-                            className="object-cover"
-                            unoptimized
-                        />
+                            <Image
+                                src={event.banner_url}
+                                alt={event.title}
+                                fill
+                                className="object-cover"
+                            />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center">
                             <Calendar className="w-12 h-12 text-gray-300" />

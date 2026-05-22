@@ -4,6 +4,7 @@ import { getRegistration, getEvent, getTicketByRegistration, isUserAdmin } from 
 import { createLogger } from '@/lib/api/logger';
 import { editRegistrationSchema } from '@/lib/api/validation';
 import { updateRegistration } from '@/lib/api/appwrite-admin';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
@@ -110,11 +111,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    log.error('Failed to get registration', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 
@@ -211,11 +208,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    log.error('Failed to edit registration', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 

@@ -5,6 +5,9 @@ import { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
 import { Result, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, CameraOff, RefreshCw, Volume2, VolumeX, CheckCircle2, XCircle, AlertTriangle, Flashlight, FlashlightOff } from 'lucide-react';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger({ action: 'QRScanner' });
 
 interface QRScannerProps {
     onScan: (data: string) => void;
@@ -72,7 +75,7 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                 navigator.vibrate(success ? [50, 50, 50] : [200]);
             }
         } catch (e) {
-            console.warn('Audio playback failed:', e);
+            log.warn('Audio playback failed', { error: e instanceof Error ? e.message : String(e) });
         }
     }, [soundEnabled]);
 
@@ -123,7 +126,7 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                     onError?.(message);
                 }
             } catch (err) {
-                console.error('Error initializing camera:', err);
+                log.error('Error initializing camera', err instanceof Error ? err : new Error(String(err)));
                 setError('Unable to access cameras. Please check permissions.');
                 onError?.('Unable to access cameras. Please check permissions.');
             }
@@ -144,7 +147,7 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                 controlsRef.current.stop();
                 controlsRef.current = null;
             } catch (err) {
-                console.error('Error stopping scanner:', err);
+                log.error('Error stopping scanner', err instanceof Error ? err : new Error(String(err)));
             }
         }
         setIsScanning(false);
@@ -267,7 +270,7 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                     try {
                         await videoTrack.applyConstraints(constraints);
                     } catch (constraintErr) {
-                        console.warn('Could not apply all constraints:', constraintErr);
+                        log.warn('Could not apply all constraints', { error: constraintErr instanceof Error ? constraintErr.message : String(constraintErr) });
                         // Fallback: try basic constraints
                         try {
                             await videoTrack.applyConstraints({
@@ -276,13 +279,13 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                                 height: { ideal: 1080 }
                             });
                         } catch (fallbackErr) {
-                            console.warn('Fallback constraints also failed:', fallbackErr);
+                            log.warn('Fallback constraints also failed', { error: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr) });
                         }
                     }
                 }
             }
         } catch (err) {
-            console.error('Error starting scanner:', err);
+            log.error('Error starting scanner', err instanceof Error ? err : new Error(String(err)));
             const errorMessage = err instanceof Error ? err.message : 'Failed to start camera';
             setError(errorMessage);
             onError?.(errorMessage);
@@ -327,7 +330,7 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
             });
             setTorchEnabled(newTorchState);
         } catch (err) {
-            console.error('Failed to toggle torch:', err);
+            log.error('Failed to toggle torch', err instanceof Error ? err : new Error(String(err)));
         }
     };
 

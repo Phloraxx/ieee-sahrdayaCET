@@ -4,6 +4,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import HTMLFlipBook from 'react-pageflip';
 import { ChevronLeft, ChevronRight, RefreshCw, Loader2 } from 'lucide-react';
+import { createLogger } from '@/lib/api/logger';
+
+const log = createLogger({ action: 'PDFFlipbook' });
 
 interface PDFFlipbookProps {
   pdfUrl: string;
@@ -373,7 +376,7 @@ export default function PDFFlipbook({ pdfUrl, isEmbed = false }: PDFFlipbookProp
         return objectUrl;
       } catch (error) {
         if (signal?.aborted) return null;
-        console.error(`Failed to render page ${pageNumber}:`, error);
+        log.error(`Failed to render page ${pageNumber}`, error instanceof Error ? error : new Error(String(error)));
         return null;
       } finally {
         renderingPagesRef.current.delete(pageNumber);
@@ -598,7 +601,7 @@ export default function PDFFlipbook({ pdfUrl, isEmbed = false }: PDFFlipbookProp
               }
             }
           } catch (error) {
-            console.error(`Failed to preload page ${pageNum}:`, error);
+            log.error(`Failed to preload page ${pageNum}`, error instanceof Error ? error : new Error(String(error)));
           } finally {
             renderingPagesRef.current.delete(pageNum);
             setLoadingPages(prev => {

@@ -128,10 +128,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
         if (!name || (!email && !phone)) {
           skippedCount++;
-          const rowData = `Name: ${name || 'N/A'}, Email: ${rawEmail || 'N/A'}, Phone: ${phoneRaw || 'N/A'}`;
           failures.push({
             row: i + 2,
-            reason: `Missing required values (name and email/phone) - ${rowData}`,
+            reason: `Missing required values (name and email/phone) on row ${i + 2}`,
           });
           continue;
         }
