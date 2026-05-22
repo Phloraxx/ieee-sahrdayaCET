@@ -1,11 +1,10 @@
 'use client';
 
-import React, { memo, useMemo } from 'react';
+import React, { memo } from 'react';
 import Image from 'next/image';
 import { Event, Society } from '@/types';
 import { Calendar, MapPin, IndianRupee, ChevronRight, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CapacityIndicator } from './CapacityIndicator';
 import { UrgencyTag } from './UrgencyTag';
 
 type UrgencyType = 'early-bird' | 'last-chance' | 'hot-event' | null;
@@ -38,13 +37,6 @@ const EventCard = memo(function EventCard({
 
     const isCompleted = event.status === 'completed';
     const isClickable = !!onClick;
-
-    // Mock data for capacity (will be replaced with real data from Appwrite)
-    const mockCapacity = useMemo(() => ({
-        limit: 150,
-        registrations: 87,
-        seatsLeft: 63,
-    }), []);
 
     if (variant === 'compact') {
         return (
@@ -223,13 +215,6 @@ const EventCard = memo(function EventCard({
                             className="overflow-hidden"
                         >
                             <div className="space-y-3 pt-3 border-t border-gray-100">
-                                {/* Capacity Indicator */}
-                                <CapacityIndicator
-                                    capacityLimit={mockCapacity.limit}
-                                    currentRegistrations={mockCapacity.registrations}
-                                    seatsLeft={mockCapacity.seatsLeft}
-                                />
-
                                 {/* Friends Attending (Mock) */}
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }}

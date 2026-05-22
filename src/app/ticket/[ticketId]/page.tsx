@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { motion } from 'framer-motion';
-import QRCode from 'qrcode';
 import { 
     Calendar, 
     MapPin, 
@@ -76,6 +75,7 @@ export default function TicketPage({ params }: PageProps) {
 
                 // Generate QR code
                 const ticketUrl = `${window.location.origin}/ticket/${ticketId}`;
+                const QRCode = await import('qrcode').then(m => m.default);
                 const qr = await QRCode.toDataURL(ticketUrl, {
                     width: 400,
                     margin: 2,
