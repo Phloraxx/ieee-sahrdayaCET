@@ -132,17 +132,4 @@ export function getClientIP(headers: Headers): string {
   return 'unknown';
 }
 
-/**
- * Format rate limit error response
- */
-export function rateLimitError(result: RateLimitResult) {
-  const retryAfter = Math.ceil((result.resetAt - Date.now()) / 1000);
-  return {
-    error: 'RATE_LIMIT_EXCEEDED',
-    message: result.limitType === 'user' 
-      ? 'You have made too many registration attempts. Please try again later.'
-      : 'Too many requests from this IP address. Please try again later.',
-    retry_after: retryAfter,
-    reset_at: new Date(result.resetAt).toISOString(),
-  };
-}
+

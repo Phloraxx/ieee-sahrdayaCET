@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as SimpleWebAuthnServer from '@simplewebauthn/server';
 import crypto from 'crypto';
+import { createLogger } from '@/lib/api/logger';
 import { getCredentials, getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
+
+const log = createLogger({ action: 'passkey-login-start' });
 
 export const runtime = 'nodejs';
 
@@ -15,8 +18,8 @@ function getExpectedOrigin(req: NextRequest) {
 }
 
 function requireChallengeSecret() {
-  const secret = process.env.APPWRITE_API_KEY;
-  if (!secret) throw new Error('Missing required env var: APPWRITE_API_KEY');
+  const secret = process.env.PASSKEY_HMAC_SECRET;
+  if (!secret) throw new Error('Missing required env var: PASSKEY_HMAC_SECRET');
   return secret;
 }
 
@@ -80,8 +83,7 @@ export async function POST(req: NextRequest) {
       options,
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('Passkey login/start error:', err);
+    log.error('Passkey login/start error', err as Error);
     return NextResponse.json({ error: 'LOGIN_START_FAILED' }, { status: 500 });
   }
 }

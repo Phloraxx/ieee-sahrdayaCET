@@ -3,12 +3,16 @@ import * as SimpleWebAuthnServer from '@simplewebauthn/server';
 import * as SimpleWebAuthnServerHelpers from '@simplewebauthn/server/helpers';
 import type { RegistrationResponseJSON } from '@simplewebauthn/browser';
 
+import { createLogger } from '@/lib/api/logger';
+
 import {
   deleteChallenge,
   getChallenge,
   addCredential,
   getSignedInUserFromRequest,
 } from '@/lib/passkeys/passkeyStore';
+
+const log = createLogger({ action: 'passkey-register-finish' });
 
 export const runtime = 'nodejs';
 
@@ -74,8 +78,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('Passkey register/finish error:', err);
+    log.error('Passkey register/finish error', err as Error);
     return NextResponse.json({ error: 'REGISTER_FINISH_FAILED' }, { status: 500 });
   }
 }

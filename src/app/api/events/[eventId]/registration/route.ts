@@ -4,6 +4,7 @@ import {
   getTicketByRegistration,
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
+import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 
 export const runtime = 'nodejs';
 
@@ -12,35 +13,29 @@ interface RouteParams {
 }
 
 /**
- * GET /api/events/[eventId]/registration?userId=<userId>
- * Check if a user is already registered for an event.
+ * GET /api/events/[eventId]/registration
+ * Check if the authenticated user is registered for an event.
  * Returns { registration, ticket } if registered, or {} if not.
- * Public-ish endpoint – userId is passed as a query param;
- * the admin SDK is used so no user-level auth token is required.
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
   const { eventId } = await params;
   const log = createLogger({ action: 'check-registration', eventId });
 
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('userId');
-
-  if (!userId) {
+  const user = await getSignedInUserFromRequest(req);
+  if (!user) {
     return NextResponse.json(
-      { error: 'BAD_REQUEST', message: 'userId query parameter is required.' },
-      { status: 400 }
+      { error: 'UNAUTHORIZED', message: 'Authentication required.' },
+      { status: 401 }
     );
   }
 
   try {
-    const registration = await getUserRegistrationForEvent(userId, eventId);
+    const registration = await getUserRegistrationForEvent(user.$id, eventId);
 
     if (!registration) {
-      // Not registered – return empty body with 200 so frontend knows to show the form
       return NextResponse.json({});
     }
 
-    // Fetch ticket (embedded ticket is supported even if ticket_id is missing)
     const ticket = await getTicketByRegistration(registration.$id);
 
     log.info('Existing registration found', {
@@ -51,7 +46,6 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ registration, ticket });
   } catch (error) {
     const appwriteError = error as { code?: number; message?: string };
-    // 404 = collection doesn't exist yet (DB not fully set up) — treat same as "not registered"
     if (appwriteError.code === 404) {
       log.warn('Registrations collection not found — DB may not be set up yet');
       return NextResponse.json({});

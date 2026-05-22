@@ -20,6 +20,7 @@ import {
 import { checkRegistrationRateLimit, getClientIP } from '@/lib/api/rate-limiter';
 import { createLogger } from '@/lib/api/logger';
 import { sendRegistrationConfirmation } from '@/lib/emailIntegration';
+import { PAYMENT_API_URL, PAYMENT_WS_URL, PAYMENT_STATUS_URL, UPI_ID, MERCHANT_NAME } from '@/lib/constants/endpoints';
 
 export const runtime = 'nodejs';
 
@@ -185,9 +186,7 @@ class PaymentError extends Error {
 
 // Create payment ticket with payment API
 async function createPaymentTicket(amount: number, metadata: Record<string, unknown>) {
-  const paymentApiUrl = process.env.PAYMENT_API_URL || 'https://payment-api.nerdpixel.workers.dev/api';
-  
-  const response = await fetch(`${paymentApiUrl}/ticket`, {
+  const response = await fetch(`${PAYMENT_API_URL}/ticket`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ 
@@ -253,8 +252,8 @@ async function handlePaidRegistration(
   }
 
   // Build UPI string for QR code
-  const upiId = process.env.NEXT_PUBLIC_UPI_ID || 'souravpbijoy-3@oksbi';
-  const merchantName = process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || 'IEEE Sahrdaya SB';
+  const upiId = UPI_ID;
+  const merchantName = MERCHANT_NAME;
   const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(merchantName)}&am=${paymentTicket.amount}&tn=${paymentTicket.ticketId}&cu=INR`;
 
   log.info('Paid registration created', { 
@@ -276,8 +275,8 @@ async function handlePaidRegistration(
       upi_string: upiString,
       upi_id: upiId,
       merchant_name: merchantName,
-      websocket_url: `wss://payment-api.nerdpixel.workers.dev/api/ws?ticketId=${paymentTicket.ticketId}`,
-      status_url: `https://payment-api.nerdpixel.workers.dev/api/status/${paymentTicket.ticketId}`,
+      websocket_url: `${PAYMENT_WS_URL}?ticketId=${paymentTicket.ticketId}`,
+      status_url: `${PAYMENT_STATUS_URL}${paymentTicket.ticketId}`,
     },
     amount: paymentTicket.amount,
     currency: 'INR',

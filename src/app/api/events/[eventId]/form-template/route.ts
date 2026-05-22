@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEvent } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
-import type { FormTemplate } from '@/lib/api/validation';
+import type { FormTemplate } from '@/lib/validation/schemas';
 
 export const runtime = 'nodejs';
 
