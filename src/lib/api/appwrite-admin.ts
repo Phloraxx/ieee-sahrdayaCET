@@ -65,6 +65,7 @@ export interface EventDocument {
   title: string;
   description?: string;
   date: string;
+  start_date?: string;
   venue?: string;
   price: number;
   banner_url?: string;
@@ -192,6 +193,7 @@ export interface RegistrationDocument {
   
   // Payment details
   payment_ticket_id?: string;
+  payment_reference?: string;
 }
 
 /**

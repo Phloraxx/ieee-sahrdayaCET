@@ -132,7 +132,10 @@ export default function EmailDashboardPage() {
         Authorization: `Bearer ${jwt.jwt}`,
       };
     } catch {
-      return { 'Content-Type': 'application/json' };
+      return {
+        'Content-Type': 'application/json',
+        Authorization: '',
+      };
     }
   }, []);
 

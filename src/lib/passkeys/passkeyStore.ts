@@ -69,7 +69,7 @@ export async function getSignedInUserFromRequest(req: NextRequest) {
     try {
       return await mapAccount(getBaseClient().setJWT(jwt));
     } catch (error) {
-      logger.warn('JWT validation failed', error instanceof Error ? error : new Error(String(error)));
+      logger.warn('JWT validation failed', { error: error instanceof Error ? error.message : String(error) });
       // Fall back to cookie-based session check.
     }
   }
@@ -83,7 +83,7 @@ export async function getSignedInUserFromRequest(req: NextRequest) {
   try {
     return await mapAccount(getBaseClient().setSession(session));
   } catch (error) {
-    logger.warn('Session validation failed', error instanceof Error ? error : new Error(String(error)));
+    logger.warn('Session validation failed', { error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }

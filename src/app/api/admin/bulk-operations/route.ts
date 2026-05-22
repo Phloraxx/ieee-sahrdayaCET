@@ -15,7 +15,7 @@ import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
-const logger = createLogger('bulk-operations');
+const logger = createLogger({ action: 'bulk-operations' });
 
 interface BulkOperationRequest {
   action: 'export' | 'check-in' | 'checkin' | 'delete';
@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
             );
             results.success++;
           } catch (error) {
-            logger.error('Failed to check-in registration', { regId, error });
+            logger.error('Failed to check-in registration', error instanceof Error ? error : new Error(String(error)), { regId });
             results.failed++;
             results.failed_ids.push(regId);
           }
@@ -268,7 +268,7 @@ export async function POST(req: NextRequest) {
             );
             results.success++;
           } catch (error) {
-            logger.error('Failed to delete registration', { regId, error });
+            logger.error('Failed to delete registration', error instanceof Error ? error : new Error(String(error)), { regId });
             results.failed++;
             results.failed_ids.push(regId);
           }

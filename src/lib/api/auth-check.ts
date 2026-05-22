@@ -2,7 +2,7 @@ import { createLogger } from '@/lib/api/logger';
 import { getDatabases } from '@/lib/api/appwrite-admin';
 import { DATABASE_ID, EVENTS_COLLECTION_ID, MEMBERS_COLLECTION_ID } from '@/lib/constants/collections';
 
-const log = createLogger('auth-check');
+const log = createLogger({ action: 'auth-check' });
 
 export async function isUserChairOfEvent(userId: string, eventId: string): Promise<boolean> {
   try {
@@ -29,7 +29,7 @@ export async function isUserChairOfEvent(userId: string, eventId: string): Promi
 
     return memberTeams.some(team => team.startsWith(eventTeamId));
   } catch (error) {
-    log.error('Error checking if user is chair of event', { error: error instanceof Error ? error.message : String(error) });
+    log.error('Error checking if user is chair of event', error instanceof Error ? error : new Error(String(error)));
     return false;
   }
 }

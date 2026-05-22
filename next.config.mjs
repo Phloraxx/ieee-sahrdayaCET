@@ -6,7 +6,6 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   output: "standalone",
-  turbopack: {},
   typescript: {
     ignoreBuildErrors: true,
   },
