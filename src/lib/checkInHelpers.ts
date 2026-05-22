@@ -8,11 +8,6 @@
  */
 
 import { 
-  getDatabases, 
-  Query, 
-  DATABASE_ID,
-  EVENTS_COLLECTION_ID,
-  EVENT_REGISTRATIONS_COLLECTION_ID,
   getNormalizedTicketById,
   getLocationRecency,
   formatTimeAgo,
@@ -20,9 +15,7 @@ import {
   type NormalizedTicket,
   type LocationRecencyInfo,
 } from './api/appwrite-admin';
-
-// Query is used by checkEventCapacity below
-void Query;
+import { logger } from './api/logger';
 
 // Re-export for convenience
 export { getLocationRecency, formatTimeAgo, type LocationRecencyInfo };
@@ -159,62 +152,9 @@ export async function verifyQRCode(
     
     return { valid: false, error: 'TICKET_NOT_FOUND' };
   } catch (error) {
-    console.error('Error verifying QR code:', error);
+    logger.error('Error verifying QR code', error instanceof Error ? error : new Error(String(error)));
     return { valid: false, error: 'INVALID_TICKET' };
   }
 }
 
-interface CapacityResult {
-  available: number;
-  total: number;
-  full: boolean;
-  current_registrations: number;
-}
 
-/**
- * Check event capacity
- * Returns current capacity status
- */
-export async function checkEventCapacity(eventId: string): Promise<CapacityResult> {
-  try {
-    const db = getDatabases();
-
-    // Get event
-    const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-    const maxCapacity = (event.max_capacity as number) || 0;
-
-    // Unlimited capacity
-    if (maxCapacity === 0) {
-      return {
-        available: Infinity,
-        total: 0,
-        full: false,
-        current_registrations: (event.current_registrations as number) || 0,
-      };
-    }
-
-    // Count confirmed registrations
-    const registrationsResult = await db.listDocuments(
-      DATABASE_ID,
-      EVENT_REGISTRATIONS_COLLECTION_ID,
-      [
-        Query.equal('event_id', eventId),
-        Query.equal('registration_status', 'confirmed'),
-        Query.limit(1),
-      ]
-    );
-    const currentRegistrations = registrationsResult.total;
-
-    const available = maxCapacity - currentRegistrations;
-
-    return {
-      available: Math.max(0, available),
-      total: maxCapacity,
-      full: available <= 0,
-      current_registrations: currentRegistrations,
-    };
-  } catch (error) {
-    console.error('Error checking capacity:', error);
-    throw error;
-  }
-}
