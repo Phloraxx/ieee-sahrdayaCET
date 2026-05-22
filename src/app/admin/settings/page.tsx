@@ -220,9 +220,7 @@ export default function SettingsPage() {
     const handleTestNotification = async () => {
         setTestingEmail(true);
         try {
-            // Simulate sending test email
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            toast.success('Test notification sent to your email!');
+            toast.success('Notification test feature coming soon');
         } catch (error) {
             toast.error('Failed to send test notification');
         } finally {

@@ -3,7 +3,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { databases, DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/appwrite';
+import { databases } from '@/lib/appwrite';
+import { DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/constants/collections';
 import { Query } from 'appwrite';
 import { Event, Society } from '@/types';
 import { AdminLayout, StatsCard } from '@/components/admin';

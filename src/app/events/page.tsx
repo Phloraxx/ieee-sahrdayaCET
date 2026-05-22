@@ -11,7 +11,8 @@ import {
 import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { databases, DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/appwrite';
+import { databases } from '@/lib/appwrite';
+import { DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/constants/collections';
 import { Query } from 'appwrite';
 import { Event, Society } from '@/types';
 

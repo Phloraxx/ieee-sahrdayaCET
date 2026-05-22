@@ -1,9 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
-import { account, teams, databases, DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/appwrite';
+import { account, teams, databases } from '@/lib/appwrite';
+import { DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/constants/collections';
 import { User, TeamMembership, AuthContextType } from '@/types';
 import { OAuthProvider, Query } from 'appwrite';
+import toast from 'react-hot-toast';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -57,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Session cookie present but invalid/expired — clear it gracefully
             setUser(null);
             setUserTeams([]);
+            toast.error('Session expired. Please log in again.');
         } finally {
             setLoading(false);
         }
@@ -113,12 +116,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Check cache - use if we have at least 60 seconds before expiry
         const now = Date.now();
         if (jwtCacheRef.current && jwtCacheRef.current.expiresAt > now + 60000) {
-            console.log('[AuthContext] Using cached JWT');
             return jwtCacheRef.current.jwt;
         }
         
         try {
-            console.log('[AuthContext] Creating new JWT for user:', user.email);
             // Create new JWT (expires in 15 minutes by default)
             const result = await account.createJWT();
             
@@ -128,7 +129,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 expiresAt: now + (14 * 60 * 1000), // 14 minutes to be safe
             };
             
-            console.log('[AuthContext] JWT created successfully');
             return result.jwt;
         } catch (error) {
             console.error('[AuthContext] Failed to create JWT:', error);

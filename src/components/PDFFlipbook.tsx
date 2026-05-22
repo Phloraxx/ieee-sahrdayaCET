@@ -426,7 +426,6 @@ export default function PDFFlipbook({ pdfUrl, isEmbed = false }: PDFFlipbookProp
     };
 
     const boot = async () => {
-      console.log('[PDFFlipbook] boot() starting, pdfUrl:', pdfUrl);
       setIsLoaded(false);
       setLoadError(null);
       setLoadingProgress(0);
@@ -441,21 +440,15 @@ export default function PDFFlipbook({ pdfUrl, isEmbed = false }: PDFFlipbookProp
       backgroundRenderAbortRef.current?.abort();
 
       try {
-        console.log('[PDFFlipbook] Loading pdf.js library...');
         const pdfjs = await getPdfJs();
-        console.log('[PDFFlipbook] pdf.js loaded successfully');
         if (abortController.signal.aborted) {
-          console.log('[PDFFlipbook] Aborted after getPdfJs');
           return;
         }
 
-        console.log('[PDFFlipbook] Loading PDF document from:', pdfUrl);
         const loadingTask = pdfjs.getDocument({ url: pdfUrl });
         const pdf = await loadingTask.promise;
-        console.log('[PDFFlipbook] PDF loaded, numPages:', pdf.numPages);
 
         if (abortController.signal.aborted) {
-          console.log('[PDFFlipbook] Aborted after PDF load');
           await loadingTask.destroy?.();
           await pdf.destroy?.();
           return;
@@ -483,25 +476,20 @@ export default function PDFFlipbook({ pdfUrl, isEmbed = false }: PDFFlipbookProp
 
         const initialPagesToRender = Math.min(INITIAL_PAGES_TO_RENDER, pdf.numPages);
         
-        console.log('[PDFFlipbook] Rendering initial pages...');
         for (let pageNum = 1; pageNum <= initialPagesToRender; pageNum++) {
           if (abortController.signal.aborted) {
-            console.log('[PDFFlipbook] Aborted during initial render at page', pageNum);
             break;
           }
           
-          console.log('[PDFFlipbook] Rendering page', pageNum);
           await renderPageInternal(pageNum, pdf, scale, abortController.signal);
           syncFromCache();
           setLoadingProgress(Math.round((pageNum / pdf.numPages) * 100));
         }
 
         if (abortController.signal.aborted) {
-          console.log('[PDFFlipbook] Aborted after initial pages');
           return;
         }
 
-        console.log('[PDFFlipbook] Initial pages done, showing flipbook');
         setIsLoaded(true);
         setCurrentPage(0);
 
@@ -519,7 +507,6 @@ export default function PDFFlipbook({ pdfUrl, isEmbed = false }: PDFFlipbookProp
     void boot();
 
     return () => {
-      console.log('[PDFFlipbook] Cleanup: aborting boot effect');
       abortController.abort();
       backgroundRenderAbortRef.current?.abort();
     };

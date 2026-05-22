@@ -276,14 +276,9 @@ export default function PaymentModal({
                 const ws = new WebSocket(paymentData.websocket_url);
                 wsRef.current = ws;
 
-                ws.onopen = () => {
-                    console.log('Payment WebSocket connected');
-                };
-
                 ws.onmessage = (event) => {
                     try {
                         const payload = JSON.parse(event.data);
-                        console.log('Payment update received:', payload);
                         
                         if (payload.type === 'payment_update' && payload.status === 'paid') {
                             setPaymentStatus('completed');
@@ -300,9 +295,7 @@ export default function PaymentModal({
                     }
                 };
 
-                ws.onclose = () => {
-                    console.log('Payment WebSocket closed');
-                };
+                ws.onclose = () => {};
 
                 ws.onerror = (error) => {
                     console.error('Payment WebSocket error:', error);
@@ -320,19 +313,23 @@ export default function PaymentModal({
                 wsRef.current.close();
             }
         };
-    }, [paymentData?.websocket_url, paymentTicketId, onPaymentComplete]);
+    }, [paymentData?.websocket_url ?? '', paymentTicketId, onPaymentComplete]);
+
+    // Use ref to avoid stale closure in polling effect
+    const checkPaymentStatusRef = useRef(checkPaymentStatus);
+    checkPaymentStatusRef.current = checkPaymentStatus;
 
     // Start polling for payment status (as fallback for WebSocket)
     useEffect(() => {
         // Poll every 5 seconds
-        pollingRef.current = setInterval(checkPaymentStatus, 5000);
+        pollingRef.current = setInterval(() => checkPaymentStatusRef.current(), 5000);
 
         return () => {
             if (pollingRef.current) {
                 clearInterval(pollingRef.current);
             }
         };
-    }, [checkPaymentStatus]);
+    }, []);
 
     // Handle payment timeout
     const handleExpire = useCallback(() => {

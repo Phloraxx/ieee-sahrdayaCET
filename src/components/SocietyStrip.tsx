@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import TransitionLink from '@/components/PageTransition/TransitionLink';
 import { motion } from 'framer-motion';
-import { databases, DATABASE_ID, SOCIETIES_COLLECTION_ID } from '@/lib/appwrite';
+import { databases } from '@/lib/appwrite';
+import { DATABASE_ID, SOCIETIES_COLLECTION_ID } from '@/lib/constants/collections';
 import type { Society } from '@/types';
 
 // Helper to validate and fix logo URLs

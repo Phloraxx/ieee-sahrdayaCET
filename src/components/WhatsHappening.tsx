@@ -13,7 +13,8 @@ import {
     Loader2
 } from 'lucide-react';
 import { SocietyStrip } from './SocietyStrip';
-import { databases, DATABASE_ID, EVENTS_COLLECTION_ID } from '@/lib/appwrite';
+import { databases } from '@/lib/appwrite';
+import { DATABASE_ID, EVENTS_COLLECTION_ID } from '@/lib/constants/collections';
 import { Query } from 'appwrite';
 
 interface LatestEvent {

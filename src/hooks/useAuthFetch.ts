@@ -23,8 +23,6 @@ export function useAuthFetch() {
         
         if (!jwt) {
             console.error('[useAuthFetch] No JWT available for request to:', url);
-        } else {
-            console.log('[useAuthFetch] Making authenticated request to:', url);
         }
         
         // Merge headers
@@ -46,20 +44,4 @@ export function useAuthFetch() {
     return authFetch;
 }
 
-/**
- * Standalone function for getting auth headers (useful in callbacks)
- * Must be called with getJWT from useAuth
- */
-export async function getAuthHeaders(
-    getJWT: () => Promise<string | null>,
-    additionalHeaders: Record<string, string> = {}
-): Promise<Record<string, string>> {
-    const jwt = await getJWT();
-    const headers: Record<string, string> = { ...additionalHeaders };
-    
-    if (jwt) {
-        headers['Authorization'] = `Bearer ${jwt}`;
-    }
-    
-    return headers;
-}
+

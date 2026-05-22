@@ -525,7 +525,6 @@ export default function EventRegistrationModal({
                     qrCodeData: result.ticket_id, // Just the ticket ID for QR code
                     createdAt: new Date().toISOString(),
                 };
-                console.log('[EventRegistrationModal] Setting ticket:', ticketData);
                 setTicket(ticketData);
                 setCurrentStep('success');
                 toast.success('Registration successful!');
@@ -677,7 +676,6 @@ export default function EventRegistrationModal({
                 );
 
             case 'success':
-                console.log('[EventRegistrationModal] Rendering success step, ticket:', ticket);
                 if (!ticket) {
                     return (
                         <div className="flex flex-col items-center justify-center p-8 text-center">
@@ -733,6 +731,7 @@ export default function EventRegistrationModal({
                                                 }
                                             }}
                                             className="p-2 -ml-2 hover:bg-gray-100/80 active:bg-gray-200/80 rounded-full transition-all duration-200 group"
+                                            aria-label="Go back"
                                         >
                                             <ChevronLeft className="w-5 h-5 text-gray-500 group-hover:text-gray-900 group-hover:-translate-x-0.5 transition-transform" />
                                         </button>

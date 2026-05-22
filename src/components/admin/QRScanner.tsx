@@ -191,7 +191,7 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                     
                     // Ignore "not found" errors as they're normal during scanning
                     if (error && error.message && !error.message.includes('No MultiFormat Readers')) {
-                        console.debug('Scan error:', error.message);
+                        // scan error ignored (normal during scanning)
                     }
                 }
             );
@@ -218,54 +218,38 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                         setTorchSupported(true);
                         try {
                             await videoTrack.applyConstraints({ 
-                                // @ts-ignore - torch is not in TypeScript types yet
                                 advanced: [{ torch: torchEnabled }] 
                             });
-                            console.log(`Torch ${torchEnabled ? 'enabled' : 'disabled'}`);
                         } catch (torchErr) {
-                            console.debug('Torch not available or failed:', torchErr);
+                            // Torch not available
                         }
                     } else {
                         setTorchSupported(false);
                     }
 
                     // Auto exposure and brightness for challenging lighting
-                    // @ts-ignore - exposure/brightness types not standardized yet
                     if ('exposureMode' in capabilities) {
-                        // @ts-ignore
                         constraints.exposureMode = 'continuous';
                     }
                     
-                    // @ts-ignore
                     if ('exposureCompensation' in capabilities) {
-                        // @ts-ignore
                         const expCap = capabilities.exposureCompensation;
-                        // @ts-ignore
                         if (expCap && expCap.max !== undefined) {
-                            // @ts-ignore
-                            constraints.exposureCompensation = expCap.max / 2; // Boost exposure
+                            constraints.exposureCompensation = expCap.max / 2;
                         }
                     }
 
-                    // @ts-ignore
                     if ('brightness' in capabilities) {
-                        // @ts-ignore
                         const brightCap = capabilities.brightness;
-                        // @ts-ignore
                         if (brightCap && brightCap.max !== undefined) {
-                            // @ts-ignore
-                            constraints.brightness = brightCap.max * 0.7; // Increase brightness
+                            constraints.brightness = brightCap.max * 0.7;
                         }
                     }
 
-                    // @ts-ignore
                     if ('contrast' in capabilities) {
-                        // @ts-ignore
                         const contrastCap = capabilities.contrast;
-                        // @ts-ignore
                         if (contrastCap && contrastCap.max !== undefined) {
-                            // @ts-ignore
-                            constraints.contrast = contrastCap.max * 0.6; // Enhance contrast
+                            constraints.contrast = contrastCap.max * 0.6;
                         }
                     }
 
@@ -276,15 +260,12 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
                     }
 
                     // Advanced focusing options
-                    // @ts-ignore
                     if ('focusDistance' in capabilities) {
-                        // @ts-ignore
-                        constraints.focusDistance = 0; // Focus at infinity for QR codes at various distances
+                        constraints.focusDistance = 0;
                     }
 
                     try {
                         await videoTrack.applyConstraints(constraints);
-                        console.log('Applied enhanced camera constraints');
                     } catch (constraintErr) {
                         console.warn('Could not apply all constraints:', constraintErr);
                         // Fallback: try basic constraints
@@ -342,7 +323,6 @@ export function QRScanner({ onScan, onError, isActive, lastScanResult }: QRScann
         const newTorchState = !torchEnabled;
         try {
             await videoTrackRef.current.applyConstraints({
-                // @ts-ignore - torch is not in TypeScript types yet
                 advanced: [{ torch: newTorchState }]
             });
             setTorchEnabled(newTorchState);
