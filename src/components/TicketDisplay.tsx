@@ -84,8 +84,6 @@ export default function TicketDisplay({
     event,
     onClose,
 }: TicketDisplayProps) {
-    console.log('[TicketDisplay] Rendering with:', { ticket, event });
-    
     const ticketRef = useRef<HTMLDivElement>(null);
     const [showConfetti, setShowConfetti] = useState(true);
     const [isDownloading, setIsDownloading] = useState(false);

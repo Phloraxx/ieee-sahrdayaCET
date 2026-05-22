@@ -76,13 +76,4 @@ export async function generateQRCodeDataUrl(
   return `data:image/png;base64,${base64}`;
 }
 
-/**
- * Validate ticket ID format
- * Ticket IDs should be alphanumeric and reasonable length
- */
-export function isValidTicketId(ticketId: string): boolean {
-  // Allow alphanumeric, hyphens, underscores
-  // Length between 10-50 characters
-  const pattern = /^[a-zA-Z0-9_-]{10,50}$/;
-  return pattern.test(ticketId);
-}
+

@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { Society } from '@/types';
-import { databases, DATABASE_ID, SOCIETIES_COLLECTION_ID } from '@/lib/appwrite';
+import { databases } from '@/lib/appwrite';
+import { DATABASE_ID, SOCIETIES_COLLECTION_ID } from '@/lib/constants/collections';
 import { X, Loader2 } from 'lucide-react';
 
 interface EditSocietyModalProps {
@@ -56,6 +57,7 @@ export default function EditSocietyModal({ society, isOpen, onClose, onUpdate }:
                 {/* Close button */}
                 <button
                     onClick={onClose}
+                    aria-label="Close edit society modal"
                     className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10"
                     disabled={isLoading}
                 >

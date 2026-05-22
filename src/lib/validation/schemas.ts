@@ -64,11 +64,11 @@ export const fieldValidationSchema = z.object({
   min: z.number().optional(),
   max: z.number().optional(),
   pattern: z.string().optional(),
-  message: z.string().optional(),
+  message: z.string().max(500).optional(),
 });
 
 export const customFieldSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(500),
   type: customFieldTypeSchema,
   label: z.string().min(1, 'Label is required').max(200, 'Label is too long'),
   placeholder: z.string().max(200).optional(),
@@ -79,7 +79,7 @@ export const customFieldSchema = z.object({
 
 export const formTemplateSchema = z.object({
   questions: z.array(customFieldSchema).min(1, 'At least one question is required'),
-  version: z.string().default('1.0'),
+  version: z.string().max(50).default('1.0'),
 });
 
 // ============================================================================
@@ -177,7 +177,7 @@ export const checkInSchema = z.object({
 export const emailRequestSchema = z.object({
   to: z.array(emailSchema).min(1, 'At least one recipient is required'),
   subject: z.string().min(1, 'Subject is required').max(200, 'Subject is too long'),
-  body: z.string().min(1, 'Body is required'),
+  body: z.string().min(1, 'Body is required').max(5000, 'Body is too long'),
   html: z.boolean().default(false),
   event_id: z.string().optional(),
   registration_id: z.string().optional(),

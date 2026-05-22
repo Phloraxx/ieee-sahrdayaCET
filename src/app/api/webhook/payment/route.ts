@@ -29,9 +29,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  getDatabases, 
-  DATABASE_ID, 
+import {
+  getDatabases,
+  DATABASE_ID,
   REGISTRATIONS_COLLECTION_ID,
   EVENTS_COLLECTION_ID,
   Query,
@@ -39,6 +39,7 @@ import {
 import { logger } from '@/lib/api/logger';
 import { sendRegistrationConfirmation, sendPaymentReceipt } from '@/lib/emailIntegration';
 import { randomUUID, timingSafeEqual as cryptoTimingSafeEqual } from 'crypto';
+import { PAYMENT_API_URL } from '@/lib/constants/endpoints';
 
 export const runtime = 'nodejs';
 
@@ -82,17 +83,10 @@ function timingSafeEqual(a: string, b: string): boolean {
  * Verify webhook secret for security
  */
 function verifyWebhookSecret(request: NextRequest, body?: PaymentWebhookPayload): boolean {
-  const webhookSecret = process.env.WEBHOOK_SECRET;
+  const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET || process.env.WEBHOOK_SECRET;
   if (!webhookSecret) {
-    logger.warn('WEBHOOK_SECRET not configured - rejecting all webhooks');
+    logger.warn('PAYMENT_WEBHOOK_SECRET not configured - rejecting all webhooks');
     return false;
-  }
-
-  // Check query param
-  const url = new URL(request.url);
-  const querySecret = url.searchParams.get('secret');
-  if (querySecret && timingSafeEqual(querySecret, webhookSecret)) {
-    return true;
   }
 
   // Check header (X-Webhook-Secret)
@@ -274,8 +268,7 @@ export async function POST(request: NextRequest) {
 
     if (ticketId) {
       try {
-        const paymentApiUrl = process.env.PAYMENT_API_URL || 'https://payment-api.nerdpixel.workers.dev/api';
-        const statusResponse = await fetch(`${paymentApiUrl}/status/${ticketId}`);
+        const statusResponse = await fetch(`${PAYMENT_API_URL}/status/${ticketId}`);
         
         if (statusResponse.ok) {
           const paymentData = await statusResponse.json();
@@ -293,9 +286,9 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (error) {
-        logger.warn('Failed to fetch payment details from Payment API', 
-          error instanceof Error ? error : new Error(String(error))
-        );
+        logger.warn('Failed to fetch payment details from Payment API', {
+          error: error instanceof Error ? error.message : String(error),
+        });
         // Continue with webhook payload data
         paymentApiDetails = {
           amount: payload.amount,
@@ -447,11 +440,11 @@ export async function POST(request: NextRequest) {
       });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('Payment webhook failed', error instanceof Error ? error : new Error(errorMessage));
+    const errorMessage = process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined;
+    logger.error('Payment webhook failed', error instanceof Error ? error : new Error(error instanceof Error ? error.message : String(error)));
 
     return NextResponse.json(
-      { success: false, error: errorMessage },
+      { success: false, error: 'An unexpected error occurred', ...(errorMessage ? { details: errorMessage } : {}) },
       { status: 500 }
     );
   }
@@ -461,9 +454,5 @@ export async function POST(request: NextRequest) {
  * Handle GET requests (for webhook verification/health check)
  */
 export async function GET() {
-  return NextResponse.json({
-    status: 'ok',
-    endpoint: 'payment-webhook',
-    timestamp: new Date().toISOString(),
-  });
+  return NextResponse.json({ status: 'ok' });
 }

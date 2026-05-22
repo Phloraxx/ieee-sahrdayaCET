@@ -26,21 +26,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       team.name?.toLowerCase().startsWith("chair_"),
   );
 
-  // Debug logging
-  useEffect(() => {
-    if (user && !loading) {
-      // Log the raw data so you can see exactly what Appwrite provides
-      console.log("Raw userTeams data:", userTeams);
-
-      console.log("Admin auth check:", {
-        user: user.email,
-        // Notice the $id and name here!
-        teams: userTeams.map((t) => ({ id: t.$id, name: t.name })),
-        hasAdminAccess,
-      });
-    }
-  }, [user, loading, userTeams, hasAdminAccess]);
-
+  // Admin auth check
   useEffect(() => {
     if (!loading) {
       if (!user) {

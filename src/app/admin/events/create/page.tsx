@@ -3,7 +3,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { databases, storage, DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID, SOCIETY_IMAGES_BUCKET_ID } from '@/lib/appwrite';
+import { databases, storage, SOCIETY_IMAGES_BUCKET_ID } from '@/lib/appwrite';
+import { DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/constants/collections';
 import { Query, ID } from 'appwrite';
 import { Society } from '@/types';
 import { AdminLayout } from '@/components/admin';

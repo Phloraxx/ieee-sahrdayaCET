@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabases, DATABASE_ID, REGISTRATIONS_COLLECTION_ID, getEvent, Query, parseEmbeddedTicket } from '@/lib/api/appwrite-admin';
+import { getNormalizedTicketById, getEvent, getUsers } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
-import { RegistrationDocument } from '@/lib/api/appwrite-admin';
+import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 
 export const runtime = 'nodejs';
 
@@ -11,82 +11,28 @@ interface RouteParams {
 
 /**
  * GET /api/ticket/[ticketId]
- * Public endpoint to get ticket details for display
- * Used by the /ticket/[ticketId] page (accessible from email links)
- * Returns limited info - no sensitive user data
- * 
- * Simplified schema: Resolves ticket from registration embedded ticket only
+ * Returns ticket details. Optional auth — returns full data to owner, limited data to public.
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
   const { ticketId } = await params;
-  const log = createLogger({ action: 'get-ticket-public', ticketId });
+  const log = createLogger({ action: 'get-ticket', ticketId });
 
   try {
-    log.info('Fetching ticket (public)', { ticketId });
+    // Try auth (don't fail if unauthenticated — this is a public endpoint)
+    const user = await getSignedInUserFromRequest(req).catch(() => null);
+    log.info('Fetching ticket', { ticketId, userId: user?.$id });
 
-    const db = getDatabases();
-    
-    // Find registration by embedded ticket_id
-    let registration: RegistrationDocument | null = null;
-    
-    // First try: Look for registration with this ticket_id
-    try {
-      const result = await db.listDocuments(DATABASE_ID, REGISTRATIONS_COLLECTION_ID, [
-        Query.equal('ticket_id', ticketId),
-        Query.limit(1),
-      ]);
-      
-      if (result.documents.length > 0) {
-        registration = result.documents[0] as unknown as RegistrationDocument;
-      }
-    } catch {
-      // ticket_id index might not exist, continue to fallback
-    }
-    
-    // Second try: Search all registrations for embedded ticket (less efficient)
-    if (!registration) {
-      const allRegistrations = await db.listDocuments(DATABASE_ID, REGISTRATIONS_COLLECTION_ID, [
-        Query.limit(1000),
-      ]);
-      
-      for (const doc of allRegistrations.documents) {
-        const reg = doc as unknown as RegistrationDocument;
-        const embedded = parseEmbeddedTicket(reg);
-        if (embedded && (embedded.ticket_id === ticketId || embedded.ticket_code === ticketId)) {
-          registration = reg;
-          break;
-        }
-      }
-    }
-    
-    if (!registration) {
+    // Resolve ticket using shared helper (eliminates duplicate resolution logic)
+    const result = await getNormalizedTicketById(ticketId);
+    if (!result) {
       log.warn('Ticket not found');
       return NextResponse.json(
         { error: 'TICKET_NOT_FOUND', message: 'Ticket not found.' },
         { status: 404 }
       );
     }
-    
-    // Parse embedded ticket with fallback for legacy/manual rows with only ticket_id
-    const embeddedTicket = parseEmbeddedTicket(registration) ?? {
-      ticket_id: registration.ticket_id || ticketId,
-      ticket_code: registration.ticket_id || ticketId,
-      qr_code: JSON.stringify({
-        ticket_id: registration.ticket_id || ticketId,
-        registration_id: registration.$id,
-        event_id: registration.event_id,
-        timestamp: registration.registration_date || registration.$createdAt,
-      }),
-      qr_data: JSON.stringify({
-        ticket_id: registration.ticket_id || ticketId,
-        registration_id: registration.$id,
-        event_id: registration.event_id,
-        timestamp: registration.registration_date || registration.$createdAt,
-      }),
-      issued_at: registration.registration_date || registration.$createdAt,
-      is_scanned: registration.checked_in || false,
-      scanned_at: registration.checked_in_at || registration.check_in_time,
-    };
+
+    const { ticket, registration } = result;
 
     // Get event details
     const event = await getEvent(registration.event_id);
@@ -98,16 +44,50 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    log.info('Ticket fetched successfully (public)');
+    // Authenticated + owner: return full data
+    if (user && registration.user_id === user.$id) {
+      let userName = 'Unknown';
+      try {
+        const users = getUsers();
+        const ticketUser = await users.get(registration.user_id);
+        userName = ticketUser.name;
+      } catch {
+        log.warn('Could not fetch user details', { userId: registration.user_id });
+      }
 
-    // Return public ticket data
+      let qrData: { ticket_id: string; registration_id: string; event_id: string; timestamp: string } | null = null;
+      try {
+        qrData = JSON.parse(ticket.qr_data);
+      } catch {
+        // keep null
+      }
+
+      log.info('Ticket fetched successfully (authenticated)');
+      return NextResponse.json({
+        success: true,
+        ticket: {
+          ticket_id: ticket.id,
+          event_name: event.title,
+          student_name: userName,
+          event_date: event.date,
+          event_venue: event.venue,
+          qr_code: qrData?.ticket_id || ticket.id,
+          checked_in: ticket.is_scanned || false,
+          checked_in_at: ticket.scanned_at,
+          created_at: ticket.issued_at,
+        },
+      });
+    }
+
+    // Public: return limited data
+    log.info('Ticket fetched successfully (public)');
     return NextResponse.json({
       ticket: {
-        id: embeddedTicket.ticket_id,
-        qr_data: embeddedTicket.qr_data || embeddedTicket.qr_code,
-        is_scanned: embeddedTicket.is_scanned || false,
-        scanned_at: embeddedTicket.scanned_at,
-        created_at: embeddedTicket.issued_at,
+        id: ticket.id,
+        qr_data: ticket.qr_data,
+        is_scanned: ticket.is_scanned || false,
+        scanned_at: ticket.scanned_at,
+        created_at: ticket.issued_at,
       },
       event: {
         id: event.$id,

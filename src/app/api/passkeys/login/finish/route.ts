@@ -4,6 +4,8 @@ import * as SimpleWebAuthnServerHelpers from '@simplewebauthn/server/helpers';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/browser';
 import crypto from 'crypto';
 
+import { createLogger } from '@/lib/api/logger';
+
 import {
   createSessionToken,
   findUserIdByCredentialId,
@@ -11,6 +13,8 @@ import {
   getSignedInUserFromRequest,
   updateCredentialCounter,
 } from '@/lib/passkeys/passkeyStore';
+
+const log = createLogger({ action: 'passkey-login-finish' });
 
 export const runtime = 'nodejs';
 
@@ -33,8 +37,8 @@ type SignedChallenge = {
 };
 
 function requireChallengeSecret() {
-  const secret = process.env.APPWRITE_API_KEY;
-  if (!secret) throw new Error('Missing required env var: APPWRITE_API_KEY');
+  const secret = process.env.PASSKEY_HMAC_SECRET;
+  if (!secret) throw new Error('Missing required env var: PASSKEY_HMAC_SECRET');
   return secret;
 }
 
@@ -192,8 +196,7 @@ export async function POST(req: NextRequest) {
       secret: token.secret,
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('Passkey login/finish error:', err);
+    log.error('Passkey login/finish error', err as Error);
     return NextResponse.json({ error: 'LOGIN_FINISH_FAILED' }, { status: 500 });
   }
 }

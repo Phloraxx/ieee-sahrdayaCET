@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import QRCode from 'qrcode';
 import { 
     Calendar, 
     MapPin, 
@@ -46,6 +45,7 @@ export function TicketCard({ ticket, event, registration, variant = 'compact', o
         
         setIsGeneratingQR(true);
         try {
+            const { default: QRCode } = await import('qrcode');
             const dataUrl = await QRCode.toDataURL(ticket.id, {
                 width: 300,
                 margin: 2,

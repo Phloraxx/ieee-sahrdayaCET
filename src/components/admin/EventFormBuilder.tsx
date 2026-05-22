@@ -39,7 +39,8 @@ import {
     Loader2,
     HelpCircle,
 } from 'lucide-react';
-import { databases, DATABASE_ID } from '@/lib/appwrite';
+import { databases } from '@/lib/appwrite';
+import { DATABASE_ID } from '@/lib/constants/collections';
 import { ID } from 'appwrite';
 
 // Types

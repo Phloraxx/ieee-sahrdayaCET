@@ -5,7 +5,8 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import TransitionLink from '@/components/PageTransition/TransitionLink';
 import { Users, ArrowUpRight, Linkedin, Mail, Phone } from 'lucide-react';
-import { databases, DATABASE_ID, EXECOM_COLLECTION_ID } from '@/lib/appwrite';
+import { databases } from '@/lib/appwrite';
+import { DATABASE_ID, EXECOM_COLLECTION_ID } from '@/lib/constants/collections';
 import { Query, Models } from 'appwrite';
 
 interface Member {
@@ -160,6 +161,7 @@ const MemberCard: React.FC<{ member: Member; index: number }> = React.memo(({ me
                             target={member.linkedin ? "_blank" : "_self"}
                             rel="noopener noreferrer"
                             onClick={(e) => !member.linkedin && e.preventDefault()}
+                            aria-label="View on LinkedIn"
                             className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/40 transition-colors"
                         >
                             <Linkedin className="w-3.5 h-3.5 text-white" />
@@ -167,6 +169,7 @@ const MemberCard: React.FC<{ member: Member; index: number }> = React.memo(({ me
                         <a
                             href={member.email ? `mailto:${member.email}` : "#"}
                             onClick={(e) => !member.email && e.preventDefault()}
+                            aria-label="Send email"
                             className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/40 transition-colors"
                         >
                             <Mail className="w-3.5 h-3.5 text-white" />
@@ -174,6 +177,7 @@ const MemberCard: React.FC<{ member: Member; index: number }> = React.memo(({ me
                         <a
                             href={member.phone ? `tel:${member.phone}` : "#"}
                             onClick={(e) => !member.phone && e.preventDefault()}
+                            aria-label="Call"
                             className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/40 transition-colors"
                         >
                             <Phone className="w-3.5 h-3.5 text-white" />

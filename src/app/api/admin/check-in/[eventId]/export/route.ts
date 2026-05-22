@@ -2,52 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import { 
   getDatabases, 
-  getUsers, 
   Query, 
   DATABASE_ID,
   EVENTS_COLLECTION_ID,
   EVENT_REGISTRATIONS_COLLECTION_ID,
-  SOCIETIES_COLLECTION_ID,
   getLocationRecency,
   type RegistrationDocument,
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
+import { handleError } from '@/lib/errorHandler';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
 
 export const runtime = 'nodejs';
 
 interface RouteParams {
   params: Promise<{ eventId: string }>;
-}
-
-// Helper function to check if user is chair of the event
-async function isUserChairOfEvent(userId: string, eventId: string): Promise<boolean> {
-    const databases = getDatabases();
-    const users = getUsers();
-
-    try {
-        const [event, memberships] = await Promise.all([
-            databases.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId),
-            users.listMemberships(userId)
-        ]);
-
-        const isGlobalAdmin = memberships.memberships.some(
-            m => m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-        );
-        if (isGlobalAdmin) return true;
-
-        try {
-            const society = await databases.getDocument(DATABASE_ID, SOCIETIES_COLLECTION_ID, event.society_id as string);
-            const chairTeamId = `chair_${society.slug}`;
-            return memberships.memberships.some(
-                m => m.teamId === chairTeamId || m.teamName === chairTeamId
-            );
-        } catch {
-            return false;
-        }
-    } catch (error) {
-        console.error('Error verifying chair access:', error);
-        return false;
-    }
 }
 
 // Escape CSV field
@@ -251,18 +220,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    const appwriteError = error as { code?: number };
-    if (appwriteError.code === 404) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: 'Event not found.' },
-        { status: 404 }
-      );
-    }
-
     log.error('Export failed', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Export failed.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

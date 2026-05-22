@@ -1,4 +1,5 @@
 import { Client, Databases, Users, ID, Query } from "node-appwrite";
+import { logger } from "./logger";
 import {
   DATABASE_ID as CANONICAL_DATABASE_ID,
   EVENTS_COLLECTION_ID as CANONICAL_EVENTS_COLLECTION_ID,
@@ -7,7 +8,7 @@ import {
 } from "@/lib/constants/collections";
 
 // Environment variables
-const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "";
+const ENDPOINT = process.env.APPWRITE_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "";
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || "";
 const API_KEY = process.env.APPWRITE_API_KEY || "";
 
@@ -135,6 +136,7 @@ export interface EmbeddedTicket {
   ticket_code: string;
   qr_code: string;
   qr_data?: string;
+  qr_image_url?: string;
   issued_at: string;
   expires_at?: string;
   is_scanned?: boolean;
@@ -552,34 +554,9 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
       (m) => m.teamId === "admins" || m.teamName?.toLowerCase() === "admins",
     );
   } catch (error) {
-    console.error("Error checking admin status:", error);
+    logger.error("Error checking admin status", error instanceof Error ? error : new Error(String(error)));
     return false;
   }
-}
-
-/**
- * Get ticket by ID
- */
-export async function getTicket(
-  ticketId: string,
-): Promise<TicketDocument | null> {
-  const result = await getNormalizedTicketById(ticketId);
-  if (!result) return null;
-
-  const { ticket, registration } = result;
-  return {
-    $id: ticket.id,
-    $createdAt: ticket.issued_at,
-    $updatedAt: ticket.scanned_at || ticket.issued_at,
-    registration_id: registration.$id,
-    user_id: ticket.user_id,
-    event_id: ticket.event_id,
-    ticket_code: ticket.code,
-    qr_data: ticket.qr_data,
-    is_scanned: ticket.is_scanned,
-    scanned_at: ticket.scanned_at,
-    issued_at: ticket.issued_at,
-  };
 }
 
 // ============================================================================
@@ -640,13 +617,6 @@ export function parseCheckInHistory(registration: RegistrationDocument): CheckIn
   } catch {
     return [];
   }
-}
-
-/**
- * Serialize check-in history to JSON string for storage
- */
-export function serializeCheckInHistory(history: CheckInHistoryEntry[]): string {
-  return JSON.stringify(history);
 }
 
 /**
@@ -763,31 +733,6 @@ export function buildCheckInUpdatePayload(
 }
 
 /**
- * Increment event registration count (denormalized counter)
- */
-export async function incrementEventRegistrationCount(eventId: string): Promise<void> {
-  const db = getDatabases();
-  const event = await getEvent(eventId);
-  if (!event) return;
-  const eventRecord = event as unknown as Record<string, unknown>;
-
-  if ('current_registrations' in eventRecord) {
-    const currentCount = Number(eventRecord.current_registrations || 0);
-    await db.updateDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId, {
-      current_registrations: currentCount + 1,
-    });
-    return;
-  }
-
-  if ('registered_count' in eventRecord) {
-    const currentCount = Number(eventRecord.registered_count || 0);
-    await db.updateDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId, {
-      registered_count: currentCount + 1,
-    });
-  }
-}
-
-/**
  * Increment event check-in count (denormalized counter)
  */
 export async function incrementEventCheckInCount(eventId: string): Promise<void> {
@@ -810,85 +755,6 @@ export async function incrementEventCheckInCount(eventId: string): Promise<void>
       total_checked_in: currentCount + 1,
     });
   }
-}
-
-/**
- * Mark registration as checked in
- * All check-in state is stored in the registration document (no separate check_in_logs)
- */
-export async function markRegistrationCheckedIn(
-  registrationId: string,
-  performedBy: { userId: string; name?: string; method?: 'qr_scan' | 'manual' },
-  _options?: { location?: string; notes?: string }
-): Promise<RegistrationDocument> {
-  const db = getDatabases();
-  const now = new Date().toISOString();
-
-  // Build update payload
-  const updatePayload: Record<string, unknown> = {
-    checked_in: true,
-    check_in_time: now,
-    checked_in_by: performedBy.userId,
-  };
-
-  // Update registration with all check-in state
-  const registration = await db.updateDocument(
-    DATABASE_ID,
-    REGISTRATIONS_COLLECTION_ID,
-    registrationId,
-    updatePayload
-  ) as unknown as RegistrationDocument;
-
-  // No check-in log creation - all state in registration
-
-  // Increment event counter
-  await incrementEventCheckInCount(registration.event_id);
-
-  return registration;
-}
-
-// ============================================================================
-// Ticket Normalization Helpers
-// ============================================================================
-
-/**
- * Get normalized ticket from registration
- * Reads from embedded registration ticket only
- */
-export async function getNormalizedTicket(
-  registrationId: string
-): Promise<NormalizedTicket | null> {
-  const db = getDatabases();
-  
-  // First try embedded ticket from registration
-  try {
-    const registration = await db.getDocument(
-      DATABASE_ID,
-      REGISTRATIONS_COLLECTION_ID,
-      registrationId
-    ) as unknown as RegistrationDocument;
-    
-    const embedded = parseEmbeddedTicket(registration);
-    if (embedded) {
-      return {
-        id: embedded.ticket_id,
-        code: embedded.ticket_code,
-        qr_data: embedded.qr_data || embedded.qr_code,
-        registration_id: registrationId,
-        user_id: registration.user_id,
-        event_id: registration.event_id,
-        issued_at: embedded.issued_at,
-        expires_at: embedded.expires_at,
-        is_scanned: embedded.is_scanned || false,
-        scanned_at: embedded.scanned_at,
-        source: 'embedded',
-      };
-    }
-  } catch {
-    // Registration not found or unreadable
-  }
-  
-  return null;
 }
 
 /**
@@ -955,152 +821,13 @@ export async function getNormalizedTicketById(
         };
       }
     }
-  } catch {
-    // Query failed
+  } catch (error) {
+    logger.error('Ticket query failed', error instanceof Error ? error : new Error(String(error)));
   }
 
-  // Fallback: QR may contain registration ID (legacy/alternate payloads)
-  try {
-    const registration = await db.getDocument(
-      DATABASE_ID,
-      REGISTRATIONS_COLLECTION_ID,
-      ticketId
-    ) as unknown as RegistrationDocument;
-
-    const embedded = parseEmbeddedTicket(registration);
-    if (embedded) {
-      return {
-        ticket: {
-          id: embedded.ticket_id,
-          code: embedded.ticket_code,
-          qr_data: embedded.qr_data || embedded.qr_code,
-          registration_id: registration.$id,
-          user_id: registration.user_id,
-          event_id: registration.event_id,
-          issued_at: embedded.issued_at,
-          expires_at: embedded.expires_at,
-          is_scanned: embedded.is_scanned || false,
-          scanned_at: embedded.scanned_at,
-          source: 'embedded',
-        },
-        registration,
-      };
-    }
-  } catch {
-    // Not a registration ID
-  }
-  
   return null;
 }
 
-/**
- * Mark ticket as scanned on embedded registration ticket
- */
-export async function markTicketScanned(
-  registrationId: string,
-  ticketId: string
-): Promise<void> {
-  void ticketId;
-  const db = getDatabases();
-  const now = new Date().toISOString();
-  
-  // Update embedded ticket in registration
-  try {
-    const registration = await getRegistration(registrationId);
-    if (registration?.ticket) {
-      const embedded = parseEmbeddedTicket(registration);
-      if (embedded) {
-        embedded.is_scanned = true;
-        embedded.scanned_at = now;
-        await db.updateDocument(
-          DATABASE_ID,
-          REGISTRATIONS_COLLECTION_ID,
-          registrationId,
-          { ticket: JSON.stringify(embedded) }
-        );
-      }
-    }
-  } catch {
-    // Ignore scan update failure
-  }
-}
 
-// ============================================================================
-// Session-Less Check-In Helpers
-// ============================================================================
 
-export async function safeIncrementSessionCheckInCount(
-  sessionId: string | null | undefined
-): Promise<void> {
-  void sessionId;
-  return;
-}
 
-/**
- * Perform check-in without requiring a session
- * All check-in state is stored in the registration document (no separate check_in_logs)
- */
-export async function performSessionlessCheckIn(data: {
-  registration_id: string;
-  event_id: string;
-  performed_by_user_id: string;
-  performed_by_name?: string;
-  method?: 'qr_scan' | 'manual';
-  ticket_id?: string;
-  location?: string; // Multi-location support
-  notes?: string;
-}): Promise<{
-  success: boolean;
-  registration: RegistrationDocument;
-  log_id: string;
-}> {
-  const db = getDatabases();
-  const now = new Date().toISOString();
-  
-  // Get registration
-  const registration = await getRegistration(data.registration_id);
-  if (!registration) {
-    throw new Error('Registration not found');
-  }
-  
-  // Verify event matches
-  if (registration.event_id !== data.event_id) {
-    throw new Error('Registration does not belong to this event');
-  }
-  
-  // Check if already checked in
-  if (registration.checked_in) {
-    throw new Error('Already checked in');
-  }
-  
-  // Build update payload
-  const updatePayload: Record<string, unknown> = {
-    checked_in: true,
-    check_in_time: now,
-    checked_in_by: data.performed_by_user_id,
-  };
-  
-  // Update registration with all check-in state
-  const updatedRegistration = await db.updateDocument(
-    DATABASE_ID,
-    REGISTRATIONS_COLLECTION_ID,
-    data.registration_id,
-    updatePayload
-  ) as unknown as RegistrationDocument;
-  
-  // No check-in log creation - all state in registration
-  
-  // Increment event counter
-  await incrementEventCheckInCount(data.event_id);
-  
-  // Mark ticket as scanned if available
-  if (data.ticket_id || registration.ticket_id) {
-    await markTicketScanned(data.registration_id, data.ticket_id || registration.ticket_id || '');
-  }
-  
-  return {
-    success: true,
-    registration: updatedRegistration,
-    log_id: data.registration_id, // Use registration ID as reference (no separate log)
-  };
-}

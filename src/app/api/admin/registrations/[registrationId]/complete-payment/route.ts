@@ -16,7 +16,9 @@ import {
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
 import { sendRegistrationConfirmation, sendPaymentReceipt } from '@/lib/emailIntegration';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
 import { ID } from 'node-appwrite';
+import { PAYMENT_API_URL } from '@/lib/constants/endpoints';
 
 export const runtime = 'nodejs';
 
@@ -56,6 +58,16 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // Verify the admin is chair of this registration's event
+    const isChair = await isUserChairOfEvent(user.$id, registration.event_id);
+    if (!isChair) {
+      log.warn('User not authorized for this event', { userId: user.$id, eventId: registration.event_id });
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: 'You are not authorized to manage registrations for this event.' },
+        { status: 403 }
+      );
+    }
+
     log.info('Manually completing payment', {
       registrationId,
       currentStatus: registration.payment_status,
@@ -79,8 +91,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const paymentReference = registration.payment_reference as string | undefined;
     if (paymentReference) {
       try {
-        const paymentApiUrl = process.env.PAYMENT_API_URL || 'https://payment-api.nerdpixel.workers.dev/api';
-        const statusResponse = await fetch(`${paymentApiUrl}/status/${paymentReference}`);
+        const statusResponse = await fetch(`${PAYMENT_API_URL}/status/${paymentReference}`);
         
         if (statusResponse.ok) {
           const paymentData = await statusResponse.json();

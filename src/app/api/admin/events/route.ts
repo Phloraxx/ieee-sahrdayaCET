@@ -16,43 +16,17 @@ export const runtime = 'nodejs';
 
 const createEventSchema = z.object({
   title: z.string().min(1, 'Event title is required').max(200),
-  description: z.string().optional(),
+  description: z.string().max(5000).optional(),
   date: z.string().datetime({ message: 'Invalid date format' }),
-  venue: z.string().optional(),
+  venue: z.string().max(500).optional(),
   price: z.number().min(0, 'Price must be non-negative').default(0),
   banner_url: z.string().url().optional(),
   society_id: z.string().min(1, 'Society ID is required'),
   status: z.enum(['draft', 'published', 'archived', 'completed']).default('draft'),
   max_capacity: z.number().min(0).optional(),
   registration_deadline: z.string().datetime().optional(),
-  form_template: z.string().optional(), // JSON string
+  form_template: z.string().max(5000).optional(),
 });
-
-/**
- * Check if user is chair of a society
- */
-async function isUserChairOfSociety(userId: string, societyId: string): Promise<boolean> {
-  try {
-    const users = getUsers();
-    const memberships = await users.listMemberships(userId);
-    
-    // Get society to check chair team
-    const db = getDatabases();
-    const society = await db.getDocument(DATABASE_ID, SOCIETIES_COLLECTION_ID, societyId);
-    const chairTeamId = `chair_${society.slug}`;
-    
-    // Check if user is chair of this society or global admin
-    return memberships.memberships.some(m => 
-      m.teamId === chairTeamId || 
-      m.teamName === chairTeamId ||
-      m.teamId === 'admins' ||
-      m.teamName?.toLowerCase() === 'admins'
-    );
-  } catch (error) {
-    console.error('Error checking chair access:', error);
-    return false;
-  }
-}
 
 /**
  * GET /api/admin/events
@@ -171,9 +145,26 @@ export async function POST(req: NextRequest) {
 
     const eventData = parsed.data;
 
-    // Check if user is chair of the society
-    const isChair = await isUserChairOfSociety(userId, eventData.society_id);
-    if (!isChair) {
+    // Check if user is chair of this society BEFORE creating event
+    const users = getUsers();
+    const memberships = await users.listMemberships(userId);
+    const chairTeamIds = memberships.memberships
+      .filter(m => m.teamId?.startsWith('chair_') || m.teamName?.startsWith('chair_'))
+      .map(m => m.teamId || m.teamName);
+
+    const societiesResult = await getDatabases().listDocuments(
+      DATABASE_ID,
+      SOCIETIES_COLLECTION_ID,
+      [Query.equal('$id', eventData.society_id), Query.limit(1)]
+    );
+    const society = societiesResult.documents[0] as Record<string, unknown> | undefined;
+    const societySlug = society?.slug as string | undefined;
+
+    const isSocietyChair = societySlug
+      ? chairTeamIds.includes(`chair_${societySlug}`)
+      : false;
+
+    if (!isSocietyChair) {
       log.warn('User not authorized for society', { userId, societyId: eventData.society_id });
       return NextResponse.json(
         { error: 'FORBIDDEN', message: 'You are not authorized to create events for this society.' },

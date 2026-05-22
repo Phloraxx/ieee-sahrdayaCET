@@ -8,9 +8,9 @@ import {
   DATABASE_ID,
   EVENTS_COLLECTION_ID,
   REGISTRATIONS_COLLECTION_ID,
-  SOCIETIES_COLLECTION_ID,
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
 
 export const runtime = 'nodejs';
 
@@ -19,34 +19,6 @@ interface RouteParams {
 }
 
 type CsvRow = Record<string, unknown>;
-
-async function isUserChairOfEvent(userId: string, eventId: string): Promise<boolean> {
-  try {
-    const db = getDatabases();
-    const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-
-    const users = getUsers();
-    const memberships = await users.listMemberships(userId);
-
-    const isAdmin = memberships.memberships.some(
-      (m) => m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-    );
-    if (isAdmin) return true;
-
-    const society = await db.getDocument(
-      DATABASE_ID,
-      SOCIETIES_COLLECTION_ID,
-      event.society_id as string
-    );
-    const chairTeamId = `chair_${society.slug}`;
-
-    return memberships.memberships.some(
-      (m) => m.teamId === chairTeamId || m.teamName === chairTeamId
-    );
-  } catch {
-    return false;
-  }
-}
 
 function normalizeKey(key: string): string {
   return key.toLowerCase().replace(/[^a-z0-9]/g, '');

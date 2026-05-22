@@ -2,70 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import { 
   getDatabases, 
-  getUsers, 
   Query, 
   DATABASE_ID,
-  EVENTS_COLLECTION_ID,
   EVENT_REGISTRATIONS_COLLECTION_ID,
-  SOCIETIES_COLLECTION_ID,
   parseEmbeddedTicket,
   getLocationRecency,
   type RegistrationDocument,
   type LocationRecencyInfo,
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
+import { handleError } from '@/lib/errorHandler';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
 
 export const runtime = 'nodejs';
 
 interface RouteParams {
   params: Promise<{ eventId: string }>;
-}
-
-// Cache for chair authorization (TTL: 2 minutes)
-const authCache = new Map<string, { isAuthorized: boolean; expires: number }>();
-const AUTH_CACHE_TTL = 2 * 60 * 1000;
-
-// Helper function to check if user is chair of the event (with caching)
-async function isUserChairOfEvent(userId: string, eventId: string): Promise<boolean> {
-    const cacheKey = `${userId}_${eventId}`;
-    const cached = authCache.get(cacheKey);
-    if (cached && cached.expires > Date.now()) {
-      return cached.isAuthorized;
-    }
-    
-    const databases = getDatabases();
-    const users = getUsers();
-
-    try {
-        const [event, memberships] = await Promise.all([
-            databases.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId),
-            users.listMemberships(userId)
-        ]);
-
-        const isGlobalAdmin = memberships.memberships.some(
-            m => m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-        );
-        if (isGlobalAdmin) {
-            authCache.set(cacheKey, { isAuthorized: true, expires: Date.now() + AUTH_CACHE_TTL });
-            return true;
-        }
-
-        try {
-            const society = await databases.getDocument(DATABASE_ID, SOCIETIES_COLLECTION_ID, event.society_id as string);
-            const chairTeamId = `chair_${society.slug}`;
-            const isChair = memberships.memberships.some(
-                m => m.teamId === chairTeamId || m.teamName === chairTeamId
-            );
-            authCache.set(cacheKey, { isAuthorized: isChair, expires: Date.now() + AUTH_CACHE_TTL });
-            return isChair;
-        } catch {
-            authCache.set(cacheKey, { isAuthorized: false, expires: Date.now() + AUTH_CACHE_TTL });
-            return false;
-        }
-    } catch (error) {
-        console.error('Error verifying chair access:', error);
-        return false;
-    }
 }
 
 interface SearchResult {
@@ -271,9 +223,6 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     log.error('Search failed', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Search failed.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

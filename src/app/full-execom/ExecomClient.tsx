@@ -5,7 +5,8 @@ import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Users, Cpu, Zap, Radio, Atom, GraduationCap, Activity, Bolt, Heart, Cog, Wrench, Sparkles, Camera, FileText, MessageSquare, Palette, X, Linkedin, Instagram, Mail, Phone } from 'lucide-react';
 import TransitionLink from '@/components/PageTransition/TransitionLink';
-import { databases, DATABASE_ID, EXECOM_COLLECTION_ID } from '@/lib/appwrite';
+import { databases } from '@/lib/appwrite';
+import { DATABASE_ID, EXECOM_COLLECTION_ID } from '@/lib/constants/collections';
 import { Query } from 'appwrite';
 
 // ===== TYPES =====

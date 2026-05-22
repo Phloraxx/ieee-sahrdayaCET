@@ -7,53 +7,18 @@ import {
   DATABASE_ID,
   EVENTS_COLLECTION_ID,
   EVENT_REGISTRATIONS_COLLECTION_ID,
-  SOCIETIES_COLLECTION_ID,
   getLocationRecency,
   type RegistrationDocument,
   type LocationRecencyInfo,
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
+import { handleError } from '@/lib/errorHandler';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
 
 export const runtime = 'nodejs';
 
 interface RouteParams {
   params: Promise<{ eventId: string }>;
-}
-
-// Helper function to check if user is chair of the event
-async function isUserChairOfEvent(userId: string, eventId: string, db: ReturnType<typeof getDatabases>, users: ReturnType<typeof getUsers>): Promise<boolean> {
-    try {
-        // Get event
-        const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-        
-        // List user's team memberships
-        const memberships = await users.listMemberships(userId);
-        
-        // Check if user is global admin first
-        const isGlobalAdmin = memberships.memberships.some(
-            m => m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-        );
-        
-        if (isGlobalAdmin) return true;
-        
-        // Try to get society, but handle if it doesn't exist
-        try {
-            const society = await db.getDocument(DATABASE_ID, SOCIETIES_COLLECTION_ID, event.society_id as string);
-            const chairTeamId = `chair_${society.slug}`;
-            
-            // Check for chair team
-            return memberships.memberships.some(
-                m => m.teamId === chairTeamId || m.teamName === chairTeamId
-            );
-        } catch (societyError) {
-            // Society not found - user needs to be admin
-            console.warn('Society not found for event:', event.society_id);
-            return false;
-        }
-    } catch (error) {
-        console.error('Error verifying chair access:', error);
-        return false;
-    }
 }
 
 /**
@@ -79,7 +44,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const users = getUsers();
 
     // Check authorization
-    const isAuthorized = await isUserChairOfEvent(user.$id, eventId, db, users);
+    const isAuthorized = await isUserChairOfEvent(user.$id, eventId);
     if (!isAuthorized) {
       log.warn('Unauthorized check-in access', { userId: user.$id, eventId });
       return NextResponse.json(
@@ -176,18 +141,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       notice: 'Sessionless mode: Check-ins work without session tracking.',
     });
   } catch (error) {
-    const appwriteError = error as { code?: number };
-    if (appwriteError.code === 404) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: 'Event not found.' },
-        { status: 404 }
-      );
-    }
-
     log.error('Failed to get check-in status', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to retrieve check-in status.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

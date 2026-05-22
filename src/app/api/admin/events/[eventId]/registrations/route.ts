@@ -8,9 +8,9 @@ import {
   DATABASE_ID,
   EVENTS_COLLECTION_ID,
   REGISTRATIONS_COLLECTION_ID,
-  SOCIETIES_COLLECTION_ID,
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
 
 export const runtime = 'nodejs';
 
@@ -114,41 +114,6 @@ function getRegistrationPhone(reg: Record<string, unknown>, formPayload: Record<
     asNonEmptyString(formPayload.phone) ||
     ''
   );
-}
-
-/**
- * Check if user is chair of event's society or global admin
- */
-async function isUserChairOfEvent(userId: string, eventId: string): Promise<boolean> {
-  try {
-    const db = getDatabases();
-    const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-    
-    const users = getUsers();
-    const memberships = await users.listMemberships(userId);
-    
-    // Check if user is global admin
-    const isAdmin = memberships.memberships.some(m => 
-      m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-    );
-    if (isAdmin) return true;
-    
-    // Get society to check chair team
-    const society = await db.getDocument(
-      DATABASE_ID,
-      SOCIETIES_COLLECTION_ID,
-      event.society_id as string
-    );
-    const chairTeamId = `chair_${society.slug}`;
-    
-    // Check if user is chair
-    return memberships.memberships.some(m => 
-      m.teamId === chairTeamId || m.teamName === chairTeamId
-    );
-  } catch (error) {
-    console.error('Error checking chair access:', error);
-    return false;
-  }
 }
 
 /**

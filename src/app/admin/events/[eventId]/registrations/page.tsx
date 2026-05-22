@@ -177,8 +177,7 @@ export default function RegistrationsPage() {
         }, 400); // Reduced from 500ms but with better handling
 
         return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchQuery]);
+    }, [searchQuery, currentPage, fetchRegistrations]);
 
     // Selection handlers
     const handleSelectAll = useCallback(() => {

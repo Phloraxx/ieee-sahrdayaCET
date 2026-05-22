@@ -8,9 +8,8 @@
 
 import { logger } from '@/lib/api/logger';
 import { getUsers } from '@/lib/api/appwrite-admin';
-import { sendRegistrationEmailDirect, sendPaymentEmailDirect, sendReceiptEmailDirect } from '@/lib/emailSender';
-import { getDefaultTemplate } from '@/lib/emailService';
-import QRCode from 'qrcode';
+import { sendRegistrationEmailDirect, sendReceiptEmailDirect } from '@/lib/emailSender';
+import { generateQRCodeDataUrl } from '@/lib/ticketGenerator';
 
 interface EventDetails {
   $id: string;
@@ -34,44 +33,6 @@ function getAppBaseUrl(): string {
 }
 
 /**
- * Generate QR code data URL for ticket
- */
-async function generateQRCode(ticketId: string): Promise<string> {
-  try {
-    const qrData = `${getAppBaseUrl()}/ticket/${ticketId}`;
-    const dataUrl = await QRCode.toDataURL(qrData, {
-      width: 300,
-      margin: 2,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF',
-      },
-    });
-    return dataUrl;
-  } catch (error) {
-    logger.error('Failed to generate QR code', error instanceof Error ? error : new Error(String(error)));
-    return '';
-  }
-}
-
-async function generateTicketQrDataUrl(ticketId?: string): Promise<string> {
-  if (!ticketId) return '';
-
-  const primary = await generateQRCode(ticketId);
-  if (primary) return primary;
-
-  try {
-    const { generateQRCodeDataUrl } = await import('@/lib/ticketGenerator');
-    return await generateQRCodeDataUrl(`${getAppBaseUrl()}/ticket/${ticketId}`);
-  } catch (error) {
-    logger.error('QR fallback generation failed', error instanceof Error ? error : new Error(String(error)), {
-      ticketId,
-    });
-    return '';
-  }
-}
-
-/**
  * Send registration confirmation email
  * Called after free event registration or payment confirmation
  */
@@ -88,11 +49,10 @@ export async function sendRegistrationConfirmation(
       return { success: false, error: 'User has no email address' };
     }
 
-    // Use default template
-    const template = getDefaultTemplate('registration_confirmation');
-
     // Generate QR code if ticket exists
-    const qrCodeUrl = await generateTicketQrDataUrl(registration.ticket_id);
+    const qrCodeUrl = registration.ticket_id
+      ? await generateQRCodeDataUrl(`${getAppBaseUrl()}/ticket/${registration.ticket_id}`)
+      : '';
 
     // Prepare template variables
     const eventDate = new Date(event.start_date || event.date || '');
@@ -131,9 +91,6 @@ export async function sendRegistrationConfirmation(
     const result = await sendRegistrationEmailDirect(
       user.email,
       variables,
-      template.body,
-      event.$id,
-      registration.$id
     );
 
     if (result.success) {
@@ -192,9 +149,6 @@ export async function sendPaymentReceipt(
       logger.warn('User has no email address', { userId: registration.user_id });
       return;
     }
-
-    // Use default template
-    const template = getDefaultTemplate('payment_receipt');
 
     // Prepare template variables
     const eventDate = new Date(event.start_date || event.date || '');
@@ -261,7 +215,6 @@ export async function sendPaymentReceipt(
     const result = await sendReceiptEmailDirect(
       user.email,
       variables,
-      template.body,
       event.$id,
       registration.$id,
       pdfBase64,
@@ -287,100 +240,6 @@ export async function sendPaymentReceipt(
     }
   } catch (error) {
     logger.error('Failed to send payment receipt',
-      error instanceof Error ? error : new Error(String(error)),
-      {
-        registrationId: registration.$id,
-        eventId: event.$id,
-      }
-    );
-  }
-}
-
-/**
- * Send payment confirmation email
- * Called after payment is verified
- */
-export async function sendPaymentConfirmation(
-  registration: RegistrationDetails,
-  event: EventDetails,
-  amount: number
-): Promise<void> {
-  try {
-    const users = getUsers();
-    const user = await users.get(registration.user_id);
-
-    if (!user.email) {
-      logger.warn('User has no email address', { userId: registration.user_id });
-      return;
-    }
-
-    // Use default template
-    const template = getDefaultTemplate('payment_confirmation');
-
-    // Generate QR code
-    const qrCodeUrl = await generateTicketQrDataUrl(registration.ticket_id);
-
-    // Prepare template variables
-    const eventDate = new Date(event.start_date || event.date || '');
-    const eventYear = eventDate.getFullYear() || new Date().getFullYear();
-    const variables = {
-      student_name: user.name || 'Student',
-      event_name: event.title,
-      event_year: String(eventYear),
-      event_date: eventDate.toLocaleDateString('en-IN', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      }),
-      event_time: eventDate.toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      event_venue: event.venue || 'TBA',
-      ticket_id: registration.ticket_id || 'Pending',
-      ticket_url: registration.ticket_id
-        ? `${getAppBaseUrl()}/ticket/${registration.ticket_id}`
-        : '',
-      qr_code_data_url: qrCodeUrl,
-      amount: amount,
-    };
-
-    if (registration.ticket_id && !qrCodeUrl) {
-      logger.error('Skipping payment confirmation email: QR generation failed', new Error('QR_GENERATION_FAILED'), {
-        registrationId: registration.$id,
-        ticketId: registration.ticket_id,
-      });
-      return;
-    }
-
-    // Send email directly (synchronous for Vercel)
-    const result = await sendPaymentEmailDirect(
-      user.email,
-      variables,
-      template.body,
-      event.$id,
-      registration.$id
-    );
-
-    if (result.success) {
-      logger.info('Payment confirmation email sent', {
-        userId: user.$id,
-        email: user.email,
-        registrationId: registration.$id,
-        eventId: event.$id,
-        amount: String(amount),
-      });
-    } else {
-      logger.error('Failed to send payment confirmation email', new Error(result.error || 'Unknown error'), {
-        userId: user.$id,
-        email: user.email,
-        registrationId: registration.$id,
-        eventId: event.$id,
-      });
-    }
-  } catch (error) {
-    logger.error('Failed to send payment confirmation',
       error instanceof Error ? error : new Error(String(error)),
       {
         registrationId: registration.$id,

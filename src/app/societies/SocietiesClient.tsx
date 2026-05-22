@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import { databases, DATABASE_ID, SOCIETIES_COLLECTION_ID, EVENTS_COLLECTION_ID, EXECOM_COLLECTION_ID } from '@/lib/appwrite';
+import { databases } from '@/lib/appwrite';
+import { DATABASE_ID, SOCIETIES_COLLECTION_ID, EVENTS_COLLECTION_ID, EXECOM_COLLECTION_ID } from '@/lib/constants/collections';
 import { Society, Event } from '@/types';
 import { getImage, ExecomMember } from '@/lib/execomData';
 import { Query } from 'appwrite';

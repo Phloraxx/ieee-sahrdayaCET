@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { databases, DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/appwrite';
+import { databases } from '@/lib/appwrite';
+import { DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/constants/collections';
 import { ID } from 'appwrite';
 
 const SEMESTERS = ['1', '2', '3', '4', '5', '6', '7', '8'];

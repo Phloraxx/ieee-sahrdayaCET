@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as SimpleWebAuthnServer from '@simplewebauthn/server';
 import * as SimpleWebAuthnServerHelpers from '@simplewebauthn/server/helpers';
 
+import { createLogger } from '@/lib/api/logger';
+
 import {
   createChallenge,
   getCredentials,
   getSignedInUserFromRequest,
   upsertMemberFromSignedInUser,
 } from '@/lib/passkeys/passkeyStore';
+
+const log = createLogger({ action: 'passkey-register-start' });
 
 export const runtime = 'nodejs';
 
@@ -37,8 +41,7 @@ export async function GET(req: NextRequest) {
       hasPasskey: existingCredentials.length > 0,
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('Passkey register/start status error:', err);
+    log.error('Passkey register/start status error', err as Error);
     return NextResponse.json({ error: 'PASSKEY_STATUS_FAILED' }, { status: 500 });
   }
 }
@@ -82,8 +85,7 @@ export async function POST(req: NextRequest) {
       existingPasskeys: existingCredentials.length,
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('Passkey register/start error:', err);
+    log.error('Passkey register/start error', err as Error);
     return NextResponse.json({ error: 'REGISTER_START_FAILED' }, { status: 500 });
   }
 }
