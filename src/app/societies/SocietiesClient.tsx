@@ -123,14 +123,14 @@ export default function SocietiesClient() {
                 DATABASE_ID,
                 EVENTS_COLLECTION_ID,
                 [
+                    Query.equal('society_id', societyId),
                     Query.orderDesc('date')
                 ]
             );
-            // Filter for this society and only published/completed events
+            // Filter for only published/completed events
             const events = (response.documents as unknown as Event[])
                 .filter(event => 
-                    event.society_id === societyId && 
-                    (event.status === 'published' || event.status === 'completed')
+                    event.status === 'published' || event.status === 'completed'
                 );
             setSocietyEvents(events);
         } catch (err: unknown) {

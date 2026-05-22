@@ -128,28 +128,25 @@ export default function Events1Page() {
                 ]
             );
 
-            // Fetch societies for each event
-            const eventsWithSocieties: EventWithSociety[] = await Promise.all(
-                response.documents.map(async (doc) => {
-                    const event = doc as unknown as Event;
-                    let society: Society | undefined;
+            // Batch fetch all societies in a single query (fixes N+1)
+            const societyIds = [...new Set(response.documents.map((doc: Record<string, unknown>) => doc.society_id).filter(Boolean))] as string[];
+            const societyMap = new Map<string, Society>();
+            if (societyIds.length > 0) {
+                const societyResponse = await databases.listDocuments(
+                    DATABASE_ID,
+                    SOCIETIES_COLLECTION_ID,
+                    [Query.equal('$id', ...societyIds)]
+                );
+                for (const sDoc of societyResponse.documents) {
+                    const society = sDoc as unknown as Society;
+                    societyMap.set(society.$id, society);
+                }
+            }
 
-                    if (event.society_id) {
-                        try {
-                            const societyDoc = await databases.getDocument(
-                                DATABASE_ID,
-                                SOCIETIES_COLLECTION_ID,
-                                event.society_id
-                            );
-                            society = societyDoc as unknown as Society;
-                        } catch {
-                            // Society not found, continue without it
-                        }
-                    }
-
-                    return { ...event, society };
-                })
-            );
+            const eventsWithSocieties: EventWithSociety[] = response.documents.map((doc) => {
+                const event = doc as unknown as Event;
+                return { ...event, society: event.society_id ? societyMap.get(event.society_id) : undefined };
+            });
 
             setEvents(eventsWithSocieties);
         } catch (err) {
