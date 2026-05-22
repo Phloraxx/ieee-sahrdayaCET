@@ -41,16 +41,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 2. Check admin permission
-    const isAdmin = await isUserAdmin(user.$id);
-    if (!isAdmin) {
-      return NextResponse.json(
-        { error: 'FORBIDDEN', message: 'Admin permission required.' },
-        { status: 403 }
-      );
-    }
-
-    // 3. Get registration
+    // 2. Get registration
     const registration = await getRegistration(registrationId);
     if (!registration) {
       return NextResponse.json(
@@ -59,9 +50,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Verify the admin is chair of this registration's event
+    // 3. Check authorization: user must be admin OR chair of the event
+    const isAdmin = await isUserAdmin(user.$id);
     const isChair = await isUserChairOfEvent(user.$id, registration.event_id);
-    if (!isChair) {
+    if (!isAdmin && !isChair) {
       log.warn('User not authorized for this event', { userId: user.$id, eventId: registration.event_id });
       return NextResponse.json(
         { error: 'FORBIDDEN', message: 'You are not authorized to manage registrations for this event.' },

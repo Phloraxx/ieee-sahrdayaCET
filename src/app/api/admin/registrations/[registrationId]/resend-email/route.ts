@@ -34,15 +34,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const isAdmin = await isUserAdmin(user.$id);
-    if (!isAdmin) {
-      log.warn('Non-admin user attempted to use admin resend email route', { userId: user.$id });
-      return NextResponse.json(
-        { error: 'FORBIDDEN', message: 'You must be an admin to perform this action.' },
-        { status: 403 }
-      );
-    }
-
     const db = getDatabases();
 
     // 2. Find registration document
@@ -62,9 +53,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
     }
 
-    // Verify the admin is chair of this registration's event
+    // 3. Check authorization: user must be admin OR chair of the event
+    const isAdmin = await isUserAdmin(user.$id);
     const isChair = await isUserChairOfEvent(user.$id, registration.event_id);
-    if (!isChair) {
+    if (!isAdmin && !isChair) {
       log.warn('User not authorized for this event', { userId: user.$id, eventId: registration.event_id });
       return NextResponse.json(
         { error: 'FORBIDDEN', message: 'You are not authorized to manage registrations for this event.' },
