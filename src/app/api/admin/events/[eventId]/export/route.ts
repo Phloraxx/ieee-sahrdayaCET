@@ -1,29 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Client, Databases, Query } from 'node-appwrite';
+import { Query } from 'node-appwrite';
 import Papa from 'papaparse';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
-import { getUsers, EVENTS_COLLECTION_ID, REGISTRATIONS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/api/appwrite-admin';
+import { getDatabases, DATABASE_ID, EVENTS_COLLECTION_ID, REGISTRATIONS_COLLECTION_ID } from '@/lib/api/appwrite-admin';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
+import { createLogger } from '@/lib/api/logger';
 
 export const runtime = 'nodejs';
 
-// Environment variables
-const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '';
-const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
-const API_KEY = process.env.APPWRITE_API_KEY || '';
-const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'ieee_sahrdaya_db';
 interface RouteParams {
     params: Promise<{ eventId: string }>;
-}
-
-// Get admin client
-function getAdminClient(): Client {
-    if (!ENDPOINT || !PROJECT_ID || !API_KEY) {
-        throw new Error('Missing Appwrite configuration');
-    }
-    return new Client()
-        .setEndpoint(ENDPOINT)
-        .setProject(PROJECT_ID)
-        .setKey(API_KEY);
 }
 
 // Format date for export
@@ -99,8 +85,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
             );
         }
 
-        const client = getAdminClient();
-        const databases = new Databases(client);
+        const databases = getDatabases();
 
         // Get event details
         let event;
@@ -113,36 +98,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
             );
         }
 
-        // Authorization - check if user is admin or chair of this event's society
-        const users = getUsers();
-        const memberships = await users.listMemberships(user.$id);
-
-        // Check if user is global admin
-        const isGlobalAdmin = memberships.memberships.some(
-            m => m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-        );
-
-        // Check if user is chair of event's society
-        let isEventChair = false;
-        if (!isGlobalAdmin && event.society_id) {
-            try {
-                // Get society to find the chair team
-                const society = await databases.getDocument(
-                    DATABASE_ID,
-                    SOCIETIES_COLLECTION_ID,
-                    event.society_id as string
-                );
-                const chairTeamId = `chair_${society.slug}`;
-                
-                isEventChair = memberships.memberships.some(
-                    m => m.teamId === chairTeamId || m.teamName === chairTeamId
-                );
-            } catch (error) {
-                console.error('Error checking society chair access:', error);
-            }
-        }
-
-        if (!isGlobalAdmin && !isEventChair) {
+        // Authorization - check if user is chair of this event
+        const isEventChair = await isUserChairOfEvent(user.$id, eventId);
+        if (!isEventChair) {
             return NextResponse.json(
                 { error: 'FORBIDDEN', message: 'You do not have permission to export this event.' },
                 { status: 403 }
@@ -191,7 +149,6 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         // Generate CSV based on filter type
         let csvData: Record<string, unknown>[];
         let filename: string;
-        const eventSlug = (event.title as string).replace(/[^a-z0-9]/gi, '_').substring(0, 30);
         const timestamp = new Date().toISOString().split('T')[0];
 
         if (filter === 'contacts') {
@@ -202,7 +159,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                 'Email': r.user_email || '-',
                 'Phone': getPhoneValue(r),
             }));
-            filename = `${eventSlug}_Contacts_${timestamp}.csv`;
+            filename = `export_${eventId}_${timestamp}.csv`;
         } else if (filter === 'checked_in') {
             // Attendance report: Checked-in students with check-in time
             csvData = registrations.map((r, index) => {
@@ -219,7 +176,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
                     'Checked In By': r.checked_in_by || '-',
                 };
             });
-            filename = `${eventSlug}_Attendance_${timestamp}.csv`;
+            filename = `export_${eventId}_${timestamp}.csv`;
         } else {
             // All registrations: Full data with all fields
             csvData = registrations.map((r, index) => {
@@ -270,7 +227,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
                 return row;
             });
-            filename = `${eventSlug}_Registrations_${timestamp}.csv`;
+            filename = `export_${eventId}_${timestamp}.csv`;
         }
 
         // Generate CSV using papaparse
@@ -293,7 +250,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
             },
         });
     } catch (error) {
-        console.error('Export API error:', error);
+        createLogger({ action: 'admin-events-export' }).error('Export API error', error instanceof Error ? error : new Error(String(error)));
         return NextResponse.json(
             { error: 'INTERNAL_ERROR', message: 'Failed to export data' },
             { status: 500 }

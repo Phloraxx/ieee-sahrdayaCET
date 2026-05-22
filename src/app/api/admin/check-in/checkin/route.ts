@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import { 
   getDatabases, 
-  getUsers, 
   DATABASE_ID, 
-  EVENTS_COLLECTION_ID,
   EVENT_REGISTRATIONS_COLLECTION_ID,
-  SOCIETIES_COLLECTION_ID,
   incrementEventCheckInCount,
   buildCheckInUpdatePayload,
   getLocationRecency,
@@ -16,49 +13,16 @@ import {
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
 import { z } from 'zod';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
-
-// Helper function to check if user is chair of the event
-async function isUserChairOfEvent(userId: string, eventId: string): Promise<boolean> {
-    const databases = getDatabases();
-    const users = getUsers();
-
-    try {
-        // Get event
-        const event = await databases.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-
-        // List user's team memberships
-        const memberships = await users.listMemberships(userId);
-
-        // Global admins are always authorized
-        const isGlobalAdmin = memberships.memberships.some(
-            m => m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-        );
-        if (isGlobalAdmin) return true;
-
-        // Fall back to society chair team
-        try {
-            const society = await databases.getDocument(DATABASE_ID, SOCIETIES_COLLECTION_ID, event.society_id as string);
-            const chairTeamId = `chair_${society.slug}`;
-            return memberships.memberships.some(
-                m => m.teamId === chairTeamId || m.teamName === chairTeamId
-            );
-        } catch {
-            return false;
-        }
-    } catch (error) {
-        console.error('Error verifying chair access:', error);
-        return false;
-    }
-}
-
 const checkinSchema = z.object({
-  registration_id: z.string().min(1, 'Registration ID is required'),
-  session_id: z.string().optional(), // Ignored - sessionless mode
-  ticket_id: z.string().optional(),
-  event_id: z.string().optional(),
-  location: z.string().optional(), // Multi-location support: entrance, food-court-1, workshop-1, etc.
+  registration_id: z.string().min(1, 'Registration ID is required').max(500),
+  session_id: z.string().max(500).optional(),
+  ticket_id: z.string().max(500).optional(),
+  event_id: z.string().max(500).optional(),
+  location: z.string().max(500).optional(),
 });
 
 /**
@@ -240,18 +204,7 @@ export async function POST(req: NextRequest) {
       message: `Successfully checked in ${userName}.`,
     });
   } catch (error) {
-    const appwriteError = error as { code?: number };
-    if (appwriteError.code === 404) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: 'Registration not found.' },
-        { status: 404 }
-      );
-    }
-
     log.error('Check-in failed', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to complete check-in.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

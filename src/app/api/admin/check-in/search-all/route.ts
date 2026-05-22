@@ -13,6 +13,7 @@ import {
   type LocationRecencyInfo,
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
@@ -293,9 +294,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     log.error('Search failed', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Search failed.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

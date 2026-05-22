@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import {
   getDatabases,
-  getUsers,
   DATABASE_ID,
   EVENTS_COLLECTION_ID,
-  SOCIETIES_COLLECTION_ID,
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
 import { z } from 'zod';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
 
 export const runtime = 'nodejs';
 
@@ -18,48 +17,16 @@ interface RouteParams {
 
 const updateEventSchema = z.object({
   title: z.string().min(1).max(200).optional(),
-  description: z.string().optional(),
+  description: z.string().max(5000).optional(),
   date: z.string().datetime().optional(),
-  venue: z.string().optional(),
+  venue: z.string().max(500).optional(),
   price: z.number().min(0).optional(),
   banner_url: z.string().url().optional(),
   status: z.enum(['draft', 'published', 'archived', 'completed']).optional(),
   max_capacity: z.number().min(0).optional(),
   registration_deadline: z.string().datetime().optional(),
-  form_template: z.string().optional(),
+  form_template: z.string().max(5000).optional(),
 });
-
-/**
- * Check if user is chair of event's society
- */
-async function isUserChairOfEvent(userId: string, eventId: string): Promise<boolean> {
-  try {
-    const db = getDatabases();
-    const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-    
-    const users = getUsers();
-    const memberships = await users.listMemberships(userId);
-    
-    // Get society to check chair team
-    const society = await db.getDocument(
-      DATABASE_ID,
-      SOCIETIES_COLLECTION_ID,
-      event.society_id as string
-    );
-    const chairTeamId = `chair_${society.slug}`;
-    
-    // Check if user is chair or admin
-    return memberships.memberships.some(m => 
-      m.teamId === chairTeamId || 
-      m.teamName === chairTeamId ||
-      m.teamId === 'admins' ||
-      m.teamName?.toLowerCase() === 'admins'
-    );
-  } catch (error) {
-    console.error('Error checking chair access:', error);
-    return false;
-  }
-}
 
 /**
  * GET /api/admin/events/[eventId]

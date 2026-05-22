@@ -10,6 +10,7 @@ import {
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
 import { RegistrationDocument } from '@/lib/api/appwrite-admin';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
 import { resendTicketEmail } from '@/lib/emailIntegration';
 
 export const runtime = 'nodejs';
@@ -59,6 +60,16 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     if (!registration) {
       return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+    }
+
+    // Verify the admin is chair of this registration's event
+    const isChair = await isUserChairOfEvent(user.$id, registration.event_id);
+    if (!isChair) {
+      log.warn('User not authorized for this event', { userId: user.$id, eventId: registration.event_id });
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: 'You are not authorized to manage registrations for this event.' },
+        { status: 403 }
+      );
     }
 
     const embeddedTicket = parseEmbeddedTicket(registration);

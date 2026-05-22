@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
-import { getDatabases, getUsers, DATABASE_ID, Query } from '@/lib/api/appwrite-admin';
+import { getDatabases, getUsers, DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID, Query } from '@/lib/api/appwrite-admin';
 import { EMAIL_LOGS_COLLECTION_ID } from '@/lib/constants/collections';
 import { getBatchStatus, getQueueStats } from '@/lib/emailQueue';
 import { createLogger } from '@/lib/api/logger';
@@ -26,6 +26,43 @@ async function hasAdminAccess(userId: string): Promise<boolean> {
     );
   } catch {
     return false;
+  }
+}
+
+/**
+ * Get user's accessible society IDs
+ */
+async function getUserSocietyIds(userId: string): Promise<{ ids: string[]; isAdmin: boolean }> {
+  try {
+    const users = getUsers();
+    const memberships = await users.listMemberships(userId);
+
+    const db = getDatabases();
+    const societiesRes = await db.listDocuments(
+      DATABASE_ID,
+      SOCIETIES_COLLECTION_ID,
+      [Query.limit(100)]
+    );
+
+    const isAdmin = memberships.memberships.some(m =>
+      m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
+    );
+
+    if (isAdmin) {
+      return { ids: societiesRes.documents.map(s => s.$id), isAdmin: true };
+    }
+
+    const chairSlugs = memberships.memberships
+      .filter(m => m.teamId?.startsWith('chair_') || m.teamName?.startsWith('chair_'))
+      .map(m => (m.teamId?.replace('chair_', '') || m.teamName?.replace('chair_', '') || ''));
+
+    const ids = societiesRes.documents
+      .filter(s => chairSlugs.includes((s as unknown as { slug: string }).slug))
+      .map(s => s.$id);
+
+    return { ids, isAdmin: false };
+  } catch {
+    return { ids: [], isAdmin: false };
   }
 }
 
@@ -76,12 +113,23 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const isAdmin = await hasAdminAccess(user.$id);
-    if (!isAdmin) {
+    const { ids: societyIds, isAdmin } = await getUserSocietyIds(user.$id);
+    if (societyIds.length === 0 && !isAdmin) {
       return NextResponse.json(
         { error: 'FORBIDDEN', message: 'Admin access required.' },
         { status: 403 }
       );
+    }
+
+    // Scope by user's societies
+    let scopedEventIds: string[] | undefined;
+    if (!isAdmin) {
+      const db = getDatabases();
+      const eventsRes = await db.listDocuments(DATABASE_ID, EVENTS_COLLECTION_ID, [
+        Query.equal('society_id', societyIds),
+        Query.limit(500),
+      ]);
+      scopedEventIds = eventsRes.documents.map(e => e.$id);
     }
 
     const batchId = req.nextUrl.searchParams.get('batch_id');
@@ -111,10 +159,15 @@ export async function GET(req: NextRequest) {
     const failedRecipients: BulkStatusResponse['failed_recipients'] = [];
 
     try {
-      const logsResult = await db.listDocuments(DATABASE_ID, EMAIL_LOGS_COLLECTION_ID, [
+      const logQueries = [
         Query.equal('batch_id', batchId),
-        Query.limit(500),
-      ]);
+      ];
+      if (scopedEventIds) {
+        logQueries.push(Query.equal('event_id', scopedEventIds));
+      }
+      logQueries.push(Query.limit(500));
+
+      const logsResult = await db.listDocuments(DATABASE_ID, EMAIL_LOGS_COLLECTION_ID, logQueries);
 
       persistedStatus.total = logsResult.total;
       

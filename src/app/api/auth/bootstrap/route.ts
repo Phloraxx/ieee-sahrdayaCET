@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSignedInUserFromRequest, upsertMemberFromSignedInUser } from '@/lib/passkeys/passkeyStore';
+import { logger } from '@/lib/api/logger';
 
 export const runtime = 'nodejs';
 
@@ -18,8 +19,7 @@ export async function POST(req: NextRequest) {
       userId: signedInUser.$id,
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('Auth bootstrap error:', err);
+    logger.error('Auth bootstrap error', err instanceof Error ? err : new Error(String(err)));
     return NextResponse.json({ error: 'BOOTSTRAP_FAILED' }, { status: 500 });
   }
 }

@@ -2,55 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import { verifyQRCode } from '@/lib/checkInHelpers';
 import { createLogger } from '@/lib/api/logger';
+import { handleError } from '@/lib/errorHandler';
 import { z } from 'zod';
-import {
-  getDatabases,
-  getUsers,
-  DATABASE_ID,
-  EVENTS_COLLECTION_ID,
-  SOCIETIES_COLLECTION_ID,
-} from '@/lib/api/appwrite-admin';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
 
 export const runtime = 'nodejs';
 
-// Helper function to check if user is chair of the event
-async function isUserChairOfEvent(userId: string, eventId: string): Promise<boolean> {
-    const databases = getDatabases();
-    const users = getUsers();
-
-    try {
-        // Get event
-        const event = await databases.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-
-        // List user's team memberships
-        const memberships = await users.listMemberships(userId);
-
-        // Global admins are always authorized
-        const isGlobalAdmin = memberships.memberships.some(
-            m => m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-        );
-        if (isGlobalAdmin) return true;
-
-        // Fall back to society chair team
-        try {
-            const society = await databases.getDocument(DATABASE_ID, SOCIETIES_COLLECTION_ID, event.society_id as string);
-            const chairTeamId = `chair_${society.slug}`;
-            return memberships.memberships.some(
-                m => m.teamId === chairTeamId || m.teamName === chairTeamId
-            );
-        } catch {
-            return false;
-        }
-    } catch (error) {
-        console.error('Error verifying chair access:', error);
-        return false;
-    }
-}
-
 const verifyQRSchema = z.object({
-  ticket_id: z.string().min(1, 'Ticket ID is required'),
-  event_id: z.string().min(1, 'Event ID is required'),
-  location: z.string().optional(),
+  ticket_id: z.string().min(1, 'Ticket ID is required').max(500),
+  event_id: z.string().min(1, 'Event ID is required').max(500),
+  location: z.string().max(500).optional(),
 });
 
 /**
@@ -129,10 +90,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     log.error('QR verification failed', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to verify QR code.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 

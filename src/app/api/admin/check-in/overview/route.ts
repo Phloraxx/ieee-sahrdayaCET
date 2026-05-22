@@ -13,6 +13,7 @@ import {
   type LocationRecencyInfo,
 } from '@/lib/api/appwrite-admin';
 import { createLogger } from '@/lib/api/logger';
+import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
@@ -314,9 +315,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     log.error('Failed to get check-in overview', error instanceof Error ? error : new Error(String(error)));
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: 'Failed to retrieve check-in overview.' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }

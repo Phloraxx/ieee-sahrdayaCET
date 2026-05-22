@@ -2,16 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import {
   getDatabases,
-  getUsers,
   DATABASE_ID,
   EVENTS_COLLECTION_ID,
   REGISTRATIONS_COLLECTION_ID,
-  SOCIETIES_COLLECTION_ID,
-  RegistrationDocument,
 } from '@/lib/api/appwrite-admin';
 import { Query } from 'node-appwrite';
 import Papa from 'papaparse';
 import { createLogger } from '@/lib/api/logger';
+import { isUserChairOfEvent } from '@/lib/api/auth-check';
 
 export const runtime = 'nodejs';
 
@@ -22,38 +20,6 @@ interface BulkOperationRequest {
   registration_ids: string[];
   eventId?: string;
   event_id?: string; // Support both formats
-}
-
-// Check if user is chair of event's society or global admin
-async function isUserAuthorized(userId: string, eventId: string): Promise<boolean> {
-  try {
-    const db = getDatabases();
-    const event = await db.getDocument(DATABASE_ID, EVENTS_COLLECTION_ID, eventId);
-
-    const users = getUsers();
-    const memberships = await users.listMemberships(userId);
-
-    // Check global admin
-    const isAdmin = memberships.memberships.some(
-      (m) => m.teamId === 'admins' || m.teamName?.toLowerCase() === 'admins'
-    );
-    if (isAdmin) return true;
-
-    // Check chair of event's society
-    const society = await db.getDocument(
-      DATABASE_ID,
-      SOCIETIES_COLLECTION_ID,
-      event.society_id as string
-    );
-    const chairTeamId = `chair_${society.slug}`;
-
-    return memberships.memberships.some(
-      (m) => m.teamId === chairTeamId || m.teamName === chairTeamId
-    );
-  } catch (error) {
-    logger.error('Authorization check failed', { userId, eventId, error });
-    return false;
-  }
 }
 
 // Format date for export
@@ -148,7 +114,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Authorization
-    const isAuthorized = await isUserAuthorized(user.$id, eventId);
+    const isAuthorized = await isUserChairOfEvent(user.$id, eventId);
     if (!isAuthorized) {
       return NextResponse.json(
         { error: 'FORBIDDEN', message: 'You do not have permission to perform this operation.' },
@@ -271,6 +237,16 @@ export async function POST(req: NextRequest) {
         // Update each registration
         for (const regId of registration_ids) {
           try {
+            const reg = await db.getDocument(
+              DATABASE_ID,
+              REGISTRATIONS_COLLECTION_ID,
+              regId
+            );
+            if (reg.event_id !== eventId) {
+              results.failed++;
+              results.failed_ids.push(regId);
+              continue;
+            }
             await db.updateDocument(
               DATABASE_ID,
               REGISTRATIONS_COLLECTION_ID,
@@ -313,6 +289,16 @@ export async function POST(req: NextRequest) {
         // Delete each registration
         for (const regId of registration_ids) {
           try {
+            const reg = await db.getDocument(
+              DATABASE_ID,
+              REGISTRATIONS_COLLECTION_ID,
+              regId
+            );
+            if (reg.event_id !== eventId) {
+              results.failed++;
+              results.failed_ids.push(regId);
+              continue;
+            }
             await db.deleteDocument(
               DATABASE_ID,
               REGISTRATIONS_COLLECTION_ID,
