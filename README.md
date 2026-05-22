@@ -12,7 +12,7 @@
 
 **Complete event management platform for IEEE Sahrdaya Student Branch**
 
-[Live Site](https://ieeesahrdaya.com) GÇó [Documentation](#documentation) GÇó [Quick Start](#quick-start)
+[Live Site](https://ieeesahrdaya.com) â€¢ [Documentation](#documentation) â€¢ [Quick Start](#quick-start)
 
 </div>
 
@@ -130,38 +130,38 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 ```
 ieee-sahrdaya/
-Gö£GöÇGöÇ src/
-Göé   Gö£GöÇGöÇ app/                      # Next.js App Router
-Göé   Göé   Gö£GöÇGöÇ admin/                # Admin dashboard pages
-Göé   Göé   Göé   Gö£GöÇGöÇ events/           # Event management
-Göé   Göé   Göé   Gö£GöÇGöÇ checkins/         # Check-in scanner
-Göé   Göé   Göé   GööGöÇGöÇ dashboard/        # Analytics
-Göé   Göé   Gö£GöÇGöÇ api/                  # API routes
-Göé   Göé   Göé   Gö£GöÇGöÇ admin/            # Admin endpoints
-Göé   Göé   Göé   Gö£GöÇGöÇ events/           # Public event endpoints
-Göé   Göé   Göé   Gö£GöÇGöÇ registrations/    # Registration endpoints
-Göé   Göé   Göé   GööGöÇGöÇ emails/           # Email endpoints
-Göé   Göé   Gö£GöÇGöÇ events/               # Events page
-Göé   Göé   Gö£GöÇGöÇ societies/            # Societies showcase
-Göé   Göé   GööGöÇGöÇ full-execom/          # Execom directory
-Göé   Göé
-Göé   Gö£GöÇGöÇ components/               # React components
-Göé   Göé   Gö£GöÇGöÇ admin/                # Admin-specific components
-Göé   Göé   GööGöÇGöÇ ...                   # Shared components
-Göé   Göé
-Göé   Gö£GöÇGöÇ contexts/                 # React contexts (Auth)
-Göé   Göé
-Göé   Gö£GöÇGöÇ lib/                      # Utilities
-Göé   Göé   Gö£GöÇGöÇ api/                  # API helpers
-Göé   Göé   Gö£GöÇGöÇ appwrite.ts           # Appwrite client
-Göé   Göé   Gö£GöÇGöÇ emailService.ts       # Email sending
-Göé   Göé   GööGöÇGöÇ validation/           # Zod schemas
-Göé   Göé
-Göé   GööGöÇGöÇ types/                    # TypeScript types
-Göé
-Gö£GöÇGöÇ scripts/                      # Setup scripts
-Gö£GöÇGöÇ public/                       # Static assets
-GööGöÇGöÇ docs/                         # Documentation
+â”œâ”€â”€ src/
+â”‚   â”œâ”€â”€ app/                      # Next.js App Router
+â”‚   â”‚   â”œâ”€â”€ admin/                # Admin dashboard pages
+â”‚   â”‚   â”‚   â”œâ”€â”€ events/           # Event management
+â”‚   â”‚   â”‚   â”œâ”€â”€ checkins/         # Check-in scanner
+â”‚   â”‚   â”‚   â””â”€â”€ dashboard/        # Analytics
+â”‚   â”‚   â”œâ”€â”€ api/                  # API routes
+â”‚   â”‚   â”‚   â”œâ”€â”€ admin/            # Admin endpoints
+â”‚   â”‚   â”‚   â”œâ”€â”€ events/           # Public event endpoints
+â”‚   â”‚   â”‚   â”œâ”€â”€ registrations/    # Registration endpoints
+â”‚   â”‚   â”‚   â””â”€â”€ emails/           # Email endpoints
+â”‚   â”‚   â”œâ”€â”€ events/               # Events page
+â”‚   â”‚   â”œâ”€â”€ societies/            # Societies showcase
+â”‚   â”‚   â””â”€â”€ full-execom/          # Execom directory
+â”‚   â”‚
+â”‚   â”œâ”€â”€ components/               # React components
+â”‚   â”‚   â”œâ”€â”€ admin/                # Admin-specific components
+â”‚   â”‚   â””â”€â”€ ...                   # Shared components
+â”‚   â”‚
+â”‚   â”œâ”€â”€ contexts/                 # React contexts (Auth)
+â”‚   â”‚
+â”‚   â”œâ”€â”€ lib/                      # Utilities
+â”‚   â”‚   â”œâ”€â”€ api/                  # API helpers
+â”‚   â”‚   â”œâ”€â”€ appwrite.ts           # Appwrite client
+â”‚   â”‚   â”œâ”€â”€ emailService.ts       # Email sending
+â”‚   â”‚   â””â”€â”€ validation/           # Zod schemas
+â”‚   â”‚
+â”‚   â””â”€â”€ types/                    # TypeScript types
+â”‚
+â”œâ”€â”€ scripts/                      # Setup scripts
+â”œâ”€â”€ public/                       # Static assets
+â””â”€â”€ docs/                         # Documentation
 ```
 
 ---
@@ -251,7 +251,7 @@ See [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) for detailed configuration instru
 
 Chairs are managed through Appwrite Teams:
 - Team ID format: `chair_<society_slug>` (e.g., `chair_cs`, `chair_ras`)
-- Add chairs via Appwrite Console GåÆ Auth GåÆ Teams
+- Add chairs via Appwrite Console â†’ Auth â†’ Teams
 
 ---
 
@@ -338,7 +338,7 @@ This platform serves 14 IEEE technical societies:
 
 ## License
 
--¬ 2024-2026 IEEE Sahrdaya Student Branch. All rights reserved.
+Â© 2024-2026 IEEE Sahrdaya Student Branch. All rights reserved.
 
 This is proprietary software. Unauthorized copying, modification, distribution, or use of this software is strictly prohibited.
 
@@ -348,6 +348,6 @@ This is proprietary software. Unauthorized copying, modification, distribution, 
 
 **Built by IEEE Sahrdaya Student Branch**
 
-[Website](https://ieeesahrdaya.com) GÇó [Instagram](https://instagram.com/ieeesahrdaya) GÇó [LinkedIn](https://linkedin.com/company/ieee-sahrdaya)
+[Website](https://ieeesahrdaya.com) â€¢ [Instagram](https://instagram.com/ieeesahrdaya) â€¢ [LinkedIn](https://linkedin.com/company/ieee-sahrdaya)
 
 </div>
