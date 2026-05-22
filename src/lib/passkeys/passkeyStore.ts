@@ -2,6 +2,7 @@ import { Client, Databases, Users, Query, ID, Account } from 'node-appwrite';
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/browser';
 import type { NextRequest } from 'next/server';
 import { DATABASE_ID, MEMBERS_COLLECTION_ID } from '@/lib/constants/collections';
+import { logger } from '@/lib/api/logger';
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -10,8 +11,9 @@ function requireEnv(name: string) {
 }
 
 function getBaseClient() {
-  const endpoint = requireEnv('NEXT_PUBLIC_APPWRITE_ENDPOINT');
+  const endpoint = process.env.APPWRITE_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '';
   const projectId = requireEnv('NEXT_PUBLIC_APPWRITE_PROJECT_ID');
+  if (!endpoint) throw new Error('Missing APPWRITE_ENDPOINT or NEXT_PUBLIC_APPWRITE_ENDPOINT');
   return new Client().setEndpoint(endpoint).setProject(projectId);
 }
 
@@ -67,21 +69,21 @@ export async function getSignedInUserFromRequest(req: NextRequest) {
     try {
       return await mapAccount(getBaseClient().setJWT(jwt));
     } catch (error) {
-      console.warn('JWT validation failed:', error instanceof Error ? error.message : String(error));
+      logger.warn('JWT validation failed', error instanceof Error ? error : new Error(String(error)));
       // Fall back to cookie-based session check.
     }
   }
 
   const session = getSessionCookieFromRequest(req);
   if (!session) {
-    console.warn('No session cookie found');
+    logger.warn('No session cookie found');
     return null;
   }
 
   try {
     return await mapAccount(getBaseClient().setSession(session));
   } catch (error) {
-    console.warn('Session validation failed:', error instanceof Error ? error.message : String(error));
+    logger.warn('Session validation failed', error instanceof Error ? error : new Error(String(error)));
     return null;
   }
 }
@@ -235,7 +237,7 @@ async function ensureMemberDoc(userId: string, user?: SignedInUser): Promise<Mem
         const updated = await databases.updateDocument(DATABASE_ID, MEMBERS_COLLECTION_ID, existing.$id, patch);
         return updated as unknown as MemberDoc;
       } catch (error) {
-        console.error('Error updating member doc:', error);
+        logger.error('Failed to update member doc', error instanceof Error ? error : new Error(String(error)));
         return existing;
       }
     }
@@ -268,7 +270,7 @@ async function ensureMemberDoc(userId: string, user?: SignedInUser): Promise<Mem
 
     return created as unknown as MemberDoc;
   } catch (error) {
-    console.error('Error creating member doc:', error);
+    logger.error('Failed to create member doc', error instanceof Error ? error : new Error(String(error)));
     // Return a minimal placeholder if creation fails
     return {
       $id: userId,

@@ -13,7 +13,7 @@
  */
 
 // Database ID
-export const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '69958465003804b8fe9d';
+export const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '';
 
 // Collection IDs - centralized source of truth
 export const COLLECTIONS = {
@@ -32,40 +32,7 @@ export const COLLECTIONS = {
 } as const;
 
 // Type for collection keys
-export type CollectionKey = keyof typeof COLLECTIONS;
-
-// Type for collection IDs
-export type CollectionId = typeof COLLECTIONS[CollectionKey];
-
-/**
- * Helper function to get collection ID by key
- * Useful for dynamic collection access
- */
-export function getCollectionId(key: CollectionKey): string {
-  return COLLECTIONS[key];
-}
-
-/**
- * Validate that all required collections are configured
- * Call this at startup to catch configuration issues early
- */
-export function validateCollections(): { valid: boolean; missing: string[] } {
-  const required: CollectionKey[] = ['EVENTS', 'EVENT_REGISTRATIONS', 'SOCIETIES'];
-  const missing: string[] = [];
-  
-  for (const key of required) {
-    const envKey = `NEXT_PUBLIC_APPWRITE_${key}_COLLECTION_ID`;
-    if (!process.env[envKey]) {
-      // Not strictly missing since we have defaults, but good to log
-      console.warn(`Collection ${key} using default ID: ${COLLECTIONS[key]}`);
-    }
-  }
-  
-  return {
-    valid: missing.length === 0,
-    missing,
-  };
-}
+type CollectionKey = keyof typeof COLLECTIONS;
 
 // Collection exports
 export const EVENTS_COLLECTION_ID = COLLECTIONS.EVENTS;

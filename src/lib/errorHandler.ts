@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { AppwriteException } from 'node-appwrite';
 import { ZodError } from 'zod';
-import { logger } from './logger';
+import { logger } from '@/lib/api/logger';
 
 // ============================================================================
 // Error Types
@@ -25,28 +25,6 @@ export class RateLimitError extends Error {
   ) {
     super(message);
     this.name = 'RateLimitError';
-  }
-}
-
-export class PaymentError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public details?: unknown
-  ) {
-    super(message);
-    this.name = 'PaymentError';
-  }
-}
-
-export class EmailError extends Error {
-  constructor(
-    message: string,
-    public recipient?: string,
-    public details?: unknown
-  ) {
-    super(message);
-    this.name = 'EmailError';
   }
 }
 
@@ -220,38 +198,6 @@ function handleRateLimitError(error: RateLimitError): { status: number; response
 }
 
 /**
- * Handle payment errors
- */
-function handlePaymentError(error: PaymentError): { status: number; response: ErrorResponse } {
-  logger.error('Payment error', error, { code: error.code });
-
-  return {
-    status: 402,
-    response: {
-      error: 'PAYMENT_ERROR',
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.details : undefined,
-    },
-  };
-}
-
-/**
- * Handle email errors
- */
-function handleEmailError(error: EmailError): { status: number; response: ErrorResponse } {
-  logger.error('Email error', error, { recipient: error.recipient });
-
-  return {
-    status: 500,
-    response: {
-      error: 'EMAIL_ERROR',
-      message: 'Failed to send email. The operation may have succeeded, but notification failed.',
-      details: process.env.NODE_ENV === 'development' ? error.details : undefined,
-    },
-  };
-}
-
-/**
  * Handle capacity errors
  */
 function handleCapacityError(error: CapacityError): { status: number; response: ErrorResponse } {
@@ -336,18 +282,6 @@ export function handleError(error: unknown): NextResponse<ErrorResponse> {
     return NextResponse.json(response, { status });
   }
 
-  // Payment errors
-  if (error instanceof PaymentError) {
-    const { status, response } = handlePaymentError(error);
-    return NextResponse.json(response, { status });
-  }
-
-  // Email errors
-  if (error instanceof EmailError) {
-    const { status, response } = handleEmailError(error);
-    return NextResponse.json(response, { status });
-  }
-
   // Capacity errors
   if (error instanceof CapacityError) {
     const { status, response } = handleCapacityError(error);
@@ -377,18 +311,4 @@ export function handleError(error: unknown): NextResponse<ErrorResponse> {
   );
 }
 
-/**
- * Async error wrapper for API route handlers
- * Automatically catches and handles errors
- */
-export function withErrorHandler<T extends (...args: Parameters<T>) => ReturnType<T>>(
-  handler: T
-): T {
-  return (async (...args: Parameters<T>) => {
-    try {
-      return await handler(...args);
-    } catch (error) {
-      return handleError(error);
-    }
-  }) as T;
-}
+

@@ -2,7 +2,7 @@ import { Client, Account, Databases, Storage, Teams } from 'appwrite';
 import { COLLECTIONS } from '@/lib/constants/collections';
 
 // Environment variables with fallbacks
-const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '';
 const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
 
 // Initialize Appwrite Client only if we have valid config
