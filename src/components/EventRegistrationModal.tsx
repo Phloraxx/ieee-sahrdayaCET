@@ -264,6 +264,7 @@ export default function EventRegistrationModal({
                 setFormTemplate(getDefaultTemplate(event.$id));
             }
         } catch {
+            console.error('Failed to fetch form template, using default');
             setFormTemplate(getDefaultTemplate(event.$id));
         }
     }, [event]);

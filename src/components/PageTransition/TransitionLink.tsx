@@ -15,14 +15,12 @@
 import React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
-type Props = {
+interface TransitionLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
   href: string;
   children: React.ReactNode;
-  className?: string;
-  [key: string]: unknown;
-};
+}
 
-export default function TransitionLink({ href, children, className, ...rest }: Props) {
+export default function TransitionLink({ href, children, className, ...rest }: TransitionLinkProps) {
   const router   = useRouter();
   const pathname = usePathname();
 
