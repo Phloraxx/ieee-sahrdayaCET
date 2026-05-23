@@ -95,7 +95,7 @@ function checkAlreadyCheckedIn(
         studentName = formResponses.name.trim();
       }
     } catch {
-      // fall back to registration.user_name
+      console.error('Failed to parse form response for student name, falling back to user_name');
     }
     
     return { 

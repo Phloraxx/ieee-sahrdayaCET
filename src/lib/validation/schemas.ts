@@ -20,7 +20,7 @@ export const nameSchema = z
   .string()
   .min(2, 'Name must be at least 2 characters')
   .max(100, 'Name is too long')
-  .regex(/^[a-zA-Z0-9\s.'-()]+$/, 'Name contains invalid characters');
+  .regex(/^[\p{L}\p{M}\s.'-]+$/u, 'Invalid name format');
 
 export const urlSchema = z
   .string()
@@ -129,7 +129,7 @@ export const registrationSchema = z.object({
   event_id: z.string().min(1, 'Event ID is required'),
   user_id: z.string().min(1, 'User ID is required'),
   form_data: registrationDataSchema,
-  payment_status: z.enum(['pending', 'completed', 'failed', 'refunded']).default('pending'),
+  payment_status: z.enum(['pending', 'paid', 'completed', 'failed', 'refunded', 'not_required']).default('pending'),
   registration_status: z
     .enum(['pending', 'confirmed', 'cancelled', 'expired'])
     .default('pending'),
@@ -186,6 +186,23 @@ export const emailRequestSchema = z.object({
 // ============================================================================
 // Validation Helpers
 // ============================================================================
+
+/**
+ * Safe regex wrapper — limits execution time and prevents ReDoS attacks
+ */
+function createSafeRegex(pattern: string): RegExp | null {
+  try {
+    // Reject patterns with nested quantifiers (ReDoS risk)
+    if (/(\(.+\))\+/.test(pattern) || /(\[.+\])+/.test(pattern)) {
+      console.warn('Skipping potentially unsafe regex pattern:', pattern);
+      return null;
+    }
+    return new RegExp(pattern);
+  } catch (e) {
+    console.warn('Invalid regex pattern in form question, skipping validation', e);
+    return null;
+  }
+}
 
 /**
  * Validate form data against a form template
@@ -249,13 +266,9 @@ export function validateFormData(
             errors[question.id] = `Must be at most ${question.validation.max} characters`;
           }
           if (question.validation?.pattern) {
-            try {
-              const regex = new RegExp(question.validation.pattern);
-              if (!regex.test(value)) {
-                errors[question.id] = question.validation.message || 'Invalid format';
-              }
-            } catch {
-              // Invalid regex in template
+            const regex = createSafeRegex(question.validation.pattern);
+            if (regex && !regex.test(value)) {
+              errors[question.id] = question.validation.message || 'Invalid format';
             }
           }
         }

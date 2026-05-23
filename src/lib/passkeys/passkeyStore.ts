@@ -133,7 +133,8 @@ function parseStoredCredentials(raw: unknown): StoredCredential[] {
   try {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as StoredCredential[]) : [];
-  } catch {
+  } catch (e) {
+    console.error('Failed to parse stored credentials JSON', e);
     return [];
   }
 }
