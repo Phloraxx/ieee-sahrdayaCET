@@ -1,5 +1,5 @@
 import { createLogger } from '@/lib/api/logger';
-import { getDatabases } from '@/lib/api/appwrite-admin';
+import { getDatabases, EventDocument } from '@/lib/api/appwrite-admin';
 import { DATABASE_ID, EVENTS_COLLECTION_ID, MEMBERS_COLLECTION_ID } from '@/lib/constants/collections';
 
 const log = createLogger({ action: 'auth-check' });
@@ -19,8 +19,8 @@ export async function isUserChairOfEvent(userId: string, eventId: string): Promi
       DATABASE_ID!,
       EVENTS_COLLECTION_ID!,
       eventId
-    );
-    const eventTeamId = (event as any).team_id as string;
+    ) as unknown as EventDocument;
+    const eventTeamId = event.team_id;
 
     if (!eventTeamId) {
       log.warn('Event has no team_id', { eventId });

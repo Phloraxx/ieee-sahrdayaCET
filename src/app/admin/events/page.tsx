@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserSocieties } from '@/hooks/useUserSocieties';
 import { databases } from '@/lib/appwrite';
 import { DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/constants/collections';
 import { Query } from 'appwrite';
@@ -38,51 +39,24 @@ export default function AdminEventsPage() {
     });
     const [deleting, setDeleting] = useState(false);
 
-    // Get user's society slugs
-    const getUserSocietySlugs = useCallback(() => {
-        // Check if user is in admins team (global admin)
-        const isGlobalAdmin = userTeams.some(team => 
-            team.$id === 'admins' || team.name?.toLowerCase() === 'admins'
-        );
-        
-        // Global admins get access to all societies
-        if (isGlobalAdmin) {
-            return null; // null means "all societies"
-        }
-        
-        // Otherwise, get chair teams
-        return userTeams
-            .filter(team => team.$id?.startsWith('chair_') || team.name?.toLowerCase().startsWith('chair_'))
-            .map(team => {
-                const id = team.$id || team.name || '';
-                return id.replace('chair_', '');
-            });
-    }, [userTeams]);
+    const userSocietyIds = useUserSocieties(
+        societies.length > 0 ? societies.map(s => ({ slug: s.slug, $id: s.$id })) : null
+    );
+    const displaySocieties = userSocietyIds === null
+        ? societies
+        : societies.filter(s => userSocietyIds.includes(s.$id));
 
     const fetchEvents = useCallback(async () => {
+        if (societies.length === 0) return;
         try {
             setLoading(true);
-            const societySlugs = getUserSocietySlugs();
 
-            // Fetch all societies
-            const societiesRes = await databases.listDocuments(
-                DATABASE_ID,
-                SOCIETIES_COLLECTION_ID,
-                [Query.limit(100)]
-            );
-            const allSocieties = societiesRes.documents as unknown as Society[];
-            
-            // If societySlugs is null (global admin), show all societies
-            // Otherwise filter societies user is chair of
-            const userSocieties = societySlugs === null 
-                ? allSocieties 
-                : allSocieties.filter(s => societySlugs.includes(s.slug));
-            setSocieties(userSocieties);
+            const societyIds = userSocietyIds === null
+                ? societies.map(s => s.$id)
+                : userSocietyIds;
 
-            const societyIds = userSocieties.map(s => s.$id);
-
-            // For global admins, don't filter by society if no societies loaded yet
-            if (societyIds.length === 0 && societySlugs !== null) {
+            // For non-global admins with no accessible societies, bail
+            if (societyIds.length === 0 && userSocietyIds !== null) {
                 setEvents([]);
                 setLoading(false);
                 return;
@@ -96,7 +70,7 @@ export default function AdminEventsPage() {
             ];
             
             // Only filter by society_id if not global admin or if specific society selected
-            if (societyIds.length > 0 && societySlugs !== null) {
+            if (societyIds.length > 0 && userSocietyIds !== null) {
                 queries.unshift(Query.equal('society_id', societyIds));
             }
 
@@ -111,7 +85,7 @@ export default function AdminEventsPage() {
             // Attach society data
             const eventsWithSociety = eventsData.map(event => ({
                 ...event,
-                society: allSocieties.find(s => s.$id === event.society_id),
+                society: societies.find(s => s.$id === event.society_id),
             }));
 
             setEvents(eventsWithSociety);
@@ -121,7 +95,7 @@ export default function AdminEventsPage() {
         } finally {
             setLoading(false);
         }
-    }, [getUserSocietySlugs]);
+    }, [userSocietyIds, societies]);
 
     useEffect(() => {
         fetchEvents();
@@ -276,7 +250,7 @@ export default function AdminEventsPage() {
                                             className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-ieee-blue/20 focus:border-ieee-blue"
                                         >
                                             <option value="all">All Societies</option>
-                                            {societies.map((society) => (
+                                            {displaySocieties.map((society) => (
                                                 <option key={society.$id} value={society.$id}>
                                                     {society.name}
                                                 </option>
