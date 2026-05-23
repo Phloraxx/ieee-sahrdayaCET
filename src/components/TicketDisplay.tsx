@@ -262,8 +262,7 @@ export default function TicketDisplay({
                     <div
                         ref={ticketRef}
                         data-ticket="true"
-                        className="rounded-[32px] flex flex-col relative w-full drop-shadow-[0_20px_40px_rgba(0,0,0,0.15)]"
-                        style={{ background: 'transparent' }}
+                        className="rounded-[32px] flex flex-col relative w-full drop-shadow-[0_20px_40px_rgba(0,0,0,0.15)] bg-transparent"
                     >
                         {/* Ticket Header Area */}
                         <div className="bg-gradient-to-br from-gray-900 to-gray-800 px-6 pt-7 pb-6 text-white relative overflow-hidden rounded-t-[32px]">

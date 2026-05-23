@@ -36,8 +36,7 @@ export function UrgencyTag({ type }: UrgencyTagProps) {
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${colors} shadow-lg`}
-      style={{ transform: 'rotate(-3deg)' }}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${colors} shadow-lg -rotate-3`}
     >
       {Icon}
       <span>{label}</span>

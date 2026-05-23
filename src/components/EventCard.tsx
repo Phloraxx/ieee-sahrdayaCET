@@ -177,13 +177,12 @@ const EventCard = memo(function EventCard({
                 {/* Title - BOLD, ALL-CAPS, TIGHTENED KERNING */}
                 <div className="relative mb-3">
                     <h3
-                        className="text-gray-900 font-bold text-lg mb-3 line-clamp-2 group-hover:text-ieee-light-blue transition-colors uppercase tracking-tight"
-                        style={{ letterSpacing: '-0.02em' }}
+                        className="text-gray-900 font-bold text-lg mb-3 line-clamp-2 group-hover:text-ieee-light-blue transition-colors uppercase tracking-tighter"
                     >
                         {event.title}
                     </h3>
                     {/* Misalignment: Slight rotation on title */}
-                    <div className="absolute -top-1 -right-2 w-1 h-8 bg-ieee-light-blue/30 rounded-full group-hover:bg-ieee-light-blue/60 transition-colors" style={{ transform: 'rotate(-3deg)' }} />
+                    <div className="absolute -top-1 -right-2 w-1 h-8 bg-ieee-light-blue/30 rounded-full group-hover:bg-ieee-light-blue/60 transition-colors -rotate-3" />
                 </div>
 
                 {/* Details - LAYER 1: Always visible */}

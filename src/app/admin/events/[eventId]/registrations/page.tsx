@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -495,7 +495,7 @@ export default function RegistrationsPage() {
                     
                     // Use setTimeout to ensure it appears after the toast
                     setTimeout(() => {
-                        alert(`Import completed with errors:\n\n${errorDetails}${moreErrors}`);
+                        toast.error(`Import completed with errors:\n\n${errorDetails}${moreErrors}`, { duration: 8000 });
                     }, 500);
                 }
             }

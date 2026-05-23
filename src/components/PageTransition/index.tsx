@@ -135,8 +135,7 @@ export default function PageTransitionOverlay() {
     <div
       ref={wrapperRef}
       aria-hidden="true"
-      className="fixed inset-0 w-full h-full pointer-events-none z-[9999]"
-      style={{ visibility: 'hidden' }}
+      className="fixed inset-0 w-full h-full pointer-events-none z-[9999] invisible"
     >
       <div 
         ref={bgRef}
