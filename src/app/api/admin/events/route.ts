@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCSRF } from '@/lib/api/csrf';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import {
   getDatabases,
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
   const log = createLogger({ action: 'create_event' });
 
   try {
+    validateCSRF(req);
     // Check authentication
     const user = await getSignedInUserFromRequest(req);
     if (!user) {

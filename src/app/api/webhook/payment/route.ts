@@ -25,6 +25,15 @@ import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
 
+// In-memory idempotency set for processed transaction IDs
+const processedTransactions = new Set<string>();
+
+// Periodically clean old entries every hour
+const IDEMPOTENCY_CLEANUP_INTERVAL = 60 * 60 * 1000;
+setInterval(() => {
+  processedTransactions.clear();
+}, IDEMPOTENCY_CLEANUP_INTERVAL).unref();
+
 // Webhook payload types based on the payment gateway docs
 interface PaymentWebhookPayload {
   // Standard fields from payment gateway
@@ -184,6 +193,23 @@ export async function POST(request: NextRequest) {
 
     const eventId = registration.event_id as string;
     const userId = registration.user_id as string;
+
+    // Check in-memory idempotency set first (faster than DB read)
+    const transactionId = payload.rrn || payload.transactionId || '';
+    if (transactionId && processedTransactions.has(transactionId)) {
+      logger.info('Payment already processed (in-memory idempotency), skipping duplicate', {
+        registrationId: registration.$id,
+        transactionId,
+      });
+      return NextResponse.json({
+        success: true,
+        message: 'Payment already processed',
+        registration_id: registration.$id,
+        ticket_id: registration.ticket_id,
+        status: 'confirmed',
+      });
+    }
+
     const alreadyProcessedPayment =
       registration.payment_status === 'paid' ||
       registration.payment_status === 'completed';
@@ -377,6 +403,11 @@ export async function POST(request: NextRequest) {
         ticketId: ticketIdForResponse,
         duration: String(duration),
       });
+
+    // Track in in-memory idempotency set
+    if (transactionId) {
+      processedTransactions.add(transactionId);
+    }
 
     return NextResponse.json({
         success: true,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCSRF } from '@/lib/api/csrf';
 import * as SimpleWebAuthnServer from '@simplewebauthn/server';
 import * as SimpleWebAuthnServerHelpers from '@simplewebauthn/server/helpers';
 
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    validateCSRF(req);
     await req.json().catch(() => ({}));
 
     const signedInUser = await getSignedInUserFromRequest(req);

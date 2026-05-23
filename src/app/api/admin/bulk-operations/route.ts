@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCSRF } from '@/lib/api/csrf';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import {
   getDatabases,
@@ -40,6 +41,7 @@ function parseFormResponses(formResponses: string | null | undefined): Record<st
  */
 export async function POST(req: NextRequest) {
   try {
+    validateCSRF(req);
     // Authentication
     const user = await getSignedInUserFromRequest(req);
     if (!user) {

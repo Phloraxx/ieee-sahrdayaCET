@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCSRF } from '@/lib/api/csrf';
 import * as SimpleWebAuthnServer from '@simplewebauthn/server';
 import * as SimpleWebAuthnServerHelpers from '@simplewebauthn/server/helpers';
 import type { RegistrationResponseJSON } from '@simplewebauthn/browser';
@@ -28,6 +29,7 @@ function getExpectedOrigin(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    validateCSRF(req);
     const signedInUser = await getSignedInUserFromRequest(req);
     if (!signedInUser) {
       return NextResponse.json({ error: 'NOT_SIGNED_IN' }, { status: 401 });

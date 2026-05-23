@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCSRF } from '@/lib/api/csrf';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import { verifyQRCode } from '@/lib/checkInHelpers';
 import { createLogger } from '@/lib/api/logger';
 import { handleError } from '@/lib/errorHandler';
 import { z } from 'zod';
 import { isUserChairOfEvent } from '@/lib/api/auth-check';
+import { isUserAdmin } from '@/lib/api/appwrite-admin';
 
 export const runtime = 'nodejs';
 
@@ -22,6 +24,7 @@ export async function POST(req: NextRequest) {
   const log = createLogger({ action: 'verify_qr' });
 
   try {
+    validateCSRF(req);
     const user = await getSignedInUserFromRequest(req);
     if (!user) {
       log.warn('Unauthorized QR verification attempt');
@@ -46,7 +49,7 @@ export async function POST(req: NextRequest) {
     const { ticket_id, event_id, location } = parsed.data;
 
     // Check authorization
-    const isAuthorized = await isUserChairOfEvent(user.$id, event_id);
+    const isAuthorized = await isUserAdmin(user.$id) || await isUserChairOfEvent(user.$id, event_id);
     if (!isAuthorized) {
       log.warn('Unauthorized QR verification attempt', { userId: user.$id, eventId: event_id });
       return NextResponse.json(

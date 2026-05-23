@@ -14,12 +14,14 @@ export function validateCSRF(req: NextRequest): boolean {
 
   // Check origin
   if (origin) {
-    return allowedDomains.some(domain => origin.startsWith(domain));
+    return allowedDomains.some(domain => origin === domain || origin === domain.replace('https://', 'http://'));
   }
 
-  // Check referer
+  // Check referer with exact match to prevent subdomain spoofing
   if (referer) {
-    return allowedDomains.some(domain => referer.startsWith(domain));
+    return allowedDomains.some(domain =>
+      referer === domain || referer.startsWith(domain + '/')
+    );
   }
 
   return false;

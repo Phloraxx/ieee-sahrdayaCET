@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCSRF } from '@/lib/api/csrf';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import {
   getDatabases,
@@ -368,6 +369,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const log = createLogger({ action: 'manual_registration', eventId });
 
   try {
+    validateCSRF(req);
     // Authentication
     const user = await getSignedInUserFromRequest(req);
     if (!user) {
