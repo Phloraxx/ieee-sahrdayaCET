@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserSocieties } from '@/hooks/useUserSocieties';
 import { databases } from '@/lib/appwrite';
 import { DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/constants/collections';
 import { Query } from 'appwrite';
@@ -53,52 +54,39 @@ export default function AdminDashboard() {
     const [societies, setSocieties] = useState<Society[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Get user's society IDs
-    const getUserSocietySlugs = useCallback(() => {
-        // Check if user is in admins team (global admin)
-        const isGlobalAdmin = userTeams.some(team => 
-            team.$id === 'admins' || team.name?.toLowerCase() === 'admins'
-        );
-        
-        // Global admins get access to all societies
-        if (isGlobalAdmin) {
-            return null; // null means "all societies"
-        }
-        
-        // Otherwise, get chair teams
-        return userTeams
-            .filter(team => team.$id?.startsWith('chair_') || team.name?.toLowerCase().startsWith('chair_'))
-            .map(team => {
-                const id = team.$id || team.name || '';
-                return id.replace('chair_', '');
-            });
-    }, [userTeams]);
+    const userSocietyIds = useUserSocieties(
+        societies.length > 0 ? societies.map(s => ({ slug: s.slug, $id: s.$id })) : null
+    );
+    const displaySocieties = userSocietyIds === null
+        ? societies
+        : societies.filter(s => userSocietyIds.includes(s.$id));
 
+    // Effect 1: Fetch societies on mount
     useEffect(() => {
+        const fetchSocieties = async () => {
+            const societiesRes = await databases.listDocuments(
+                DATABASE_ID,
+                SOCIETIES_COLLECTION_ID,
+                [Query.limit(100)]
+            );
+            setSocieties(societiesRes.documents as unknown as Society[]);
+        };
+        fetchSocieties();
+    }, []);
+
+    // Effect 2: Fetch dashboard data when societies/userSocietyIds change
+    useEffect(() => {
+        if (societies.length === 0) return;
+
         const fetchDashboardData = async () => {
             try {
                 setLoading(true);
-                const societySlugs = getUserSocietySlugs();
+                const societyIds = userSocietyIds === null
+                    ? societies.map(s => s.$id)
+                    : userSocietyIds;
 
-                // Fetch societies
-                const societiesRes = await databases.listDocuments(
-                    DATABASE_ID,
-                    SOCIETIES_COLLECTION_ID,
-                    [Query.limit(100)]
-                );
-                const allSocieties = societiesRes.documents as unknown as Society[];
-                
-                // If societySlugs is null (global admin), show all societies
-                // Otherwise filter societies user is chair of
-                const userSocieties = societySlugs === null 
-                    ? allSocieties 
-                    : allSocieties.filter(s => societySlugs.includes(s.slug));
-                setSocieties(userSocieties);
-
-                const societyIds = userSocieties.map(s => s.$id);
-
-                // For global admins, continue even if no societies
-                if (societyIds.length === 0 && societySlugs !== null) {
+                // For non-global admins with no accessible societies, bail
+                if (societyIds.length === 0 && userSocietyIds !== null) {
                     setLoading(false);
                     return;
                 }
@@ -111,7 +99,7 @@ export default function AdminDashboard() {
                 ];
                 
                 // Only filter by society_id if not global admin
-                if (societyIds.length > 0 && societySlugs !== null) {
+                if (societyIds.length > 0 && userSocietyIds !== null) {
                     queries.unshift(Query.equal('society_id', societyIds));
                 }
                 
@@ -136,7 +124,7 @@ export default function AdminDashboard() {
                 // Set upcoming events (next 5)
                 const upcomingWithSociety = upcoming.slice(0, 5).map(event => ({
                     ...event,
-                    society: allSocieties.find(s => s.$id === event.society_id),
+                    society: societies.find(s => s.$id === event.society_id),
                 }));
                 setUpcomingEvents(upcomingWithSociety);
 
@@ -150,7 +138,7 @@ export default function AdminDashboard() {
         };
 
         fetchDashboardData();
-    }, [getUserSocietySlugs]);
+    }, [userSocietyIds, societies]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -406,11 +394,11 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Societies */}
-                {societies.length > 0 && (
+                {displaySocieties.length > 0 && (
                     <div className="bg-white rounded-xl border border-gray-200 p-6">
                         <h2 className="font-bold text-gray-900 mb-4">Your Societies</h2>
                         <div className="flex flex-wrap gap-3">
-                            {societies.map((society) => (
+                            {displaySocieties.map((society) => (
                                 <div
                                     key={society.$id}
                                     className="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-xl"

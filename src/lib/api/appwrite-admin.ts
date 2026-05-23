@@ -126,6 +126,9 @@ export interface EventDocument {
   // Soft delete
   is_deleted?: boolean;
   deleted_at?: string;
+
+  // Team association
+  team_id?: string;
 }
 
 // ============================================================================
@@ -324,7 +327,7 @@ export async function createRegistration(data: {
   user_id: string;
   event_id: string;
   form_data: Record<string, unknown>;
-  payment_status: "pending" | "completed";
+  payment_status: "pending" | "paid" | "completed" | "failed" | "refunded" | "not_required";
   registration_status: "pending" | "confirmed";
 }): Promise<RegistrationDocument> {
   const db = getDatabases();
@@ -345,7 +348,7 @@ export async function createRegistration(data: {
       user_email: userEmail,
       user_phone: userPhone,
       form_responses: JSON.stringify(data.form_data), // Use form_responses to match schema
-      payment_status: data.payment_status === "completed" ? "paid" : "pending",
+      payment_status: data.payment_status,
       registration_status: data.registration_status,
       registration_date: new Date().toISOString()
     },
@@ -572,7 +575,8 @@ export function parseEmbeddedTicket(registration: RegistrationDocument): Embedde
   if (!registration.ticket) return null;
   try {
     return JSON.parse(registration.ticket) as EmbeddedTicket;
-  } catch {
+  } catch (e) {
+    console.error('Failed to parse embedded ticket JSON', e);
     return null;
   }
 }
@@ -616,7 +620,8 @@ export function parseCheckInHistory(registration: RegistrationDocument): CheckIn
         typeof entry.location === 'string' &&
         typeof entry.checked_in_at === 'string'
     );
-  } catch {
+  } catch (e) {
+    console.error('Failed to parse check-in history JSON', e);
     return [];
   }
 }
@@ -643,8 +648,8 @@ export function appendCheckInHistory(
             typeof entry.checked_in_at === 'string'
         );
       }
-    } catch {
-      // Start fresh if malformed
+    } catch (e) {
+      console.error('Failed to parse existing check-in history', e);
     }
   }
   

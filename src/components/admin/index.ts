@@ -5,3 +5,6 @@ export { AdminEventCard } from './AdminEventCard';
 export { StatsCard } from './StatsCard';
 export { ConfirmDialog } from './ConfirmDialog';
 export { RegistrationDetails } from './RegistrationDetails';
+export { CheckInLog } from './CheckInLog';
+export { default as EventFormBuilder } from './EventFormBuilder';
+export { QRScanner } from './QRScanner';

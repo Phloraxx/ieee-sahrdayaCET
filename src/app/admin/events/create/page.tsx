@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserSocieties } from '@/hooks/useUserSocieties';
 import { databases, storage, SOCIETY_IMAGES_BUCKET_ID } from '@/lib/appwrite';
 import { DATABASE_ID, EVENTS_COLLECTION_ID, SOCIETIES_COLLECTION_ID } from '@/lib/constants/collections';
 import { Query, ID } from 'appwrite';
@@ -60,50 +61,23 @@ export default function CreateEventPage() {
     const [bannerPreview, setBannerPreview] = useState<string | null>(null);
     const [errors, setErrors] = useState<Partial<Record<keyof EventFormData, string>>>({});
 
-    // Get user's society slugs
-    const getUserSocietySlugs = useCallback(() => {
-        // Check if user is in admins team (global admin)
-        const isGlobalAdmin = userTeams.some(team => 
-            team.$id === 'admins' || team.name?.toLowerCase() === 'admins'
-        );
-        
-        // Global admins get access to all societies
-        if (isGlobalAdmin) {
-            return null; // null means "all societies"
-        }
-        
-        // Otherwise, get chair teams
-        return userTeams
-            .filter(team => team.$id?.startsWith('chair_') || team.name?.toLowerCase().startsWith('chair_'))
-            .map(team => {
-                const id = team.$id || team.name || '';
-                return id.replace('chair_', '');
-            });
-    }, [userTeams]);
+    const userSocietyIds = useUserSocieties(
+        societies.length > 0 ? societies.map(s => ({ slug: s.slug, $id: s.$id })) : null
+    );
+    const displaySocieties = userSocietyIds === null
+        ? societies
+        : societies.filter(s => userSocietyIds.includes(s.$id));
 
     useEffect(() => {
         const fetchSocieties = async () => {
             try {
-                const societySlugs = getUserSocietySlugs();
-
                 const societiesRes = await databases.listDocuments(
                     DATABASE_ID,
                     SOCIETIES_COLLECTION_ID,
                     [Query.limit(100)]
                 );
                 const allSocieties = societiesRes.documents as unknown as Society[];
-                
-                // If societySlugs is null (global admin), show all societies
-                // Otherwise filter societies user is chair of
-                const userSocieties = societySlugs === null 
-                    ? allSocieties 
-                    : allSocieties.filter(s => societySlugs.includes(s.slug));
-                setSocieties(userSocieties);
-
-                // Auto-select if user is chair of only one society
-                if (userSocieties.length === 1) {
-                    setFormData(prev => ({ ...prev, society_id: userSocieties[0].$id }));
-                }
+                setSocieties(allSocieties);
             } catch (error) {
                 console.error('Error fetching societies:', error);
                 toast.error('Failed to load societies');
@@ -113,7 +87,14 @@ export default function CreateEventPage() {
         };
 
         fetchSocieties();
-    }, [getUserSocietySlugs]);
+    }, []);
+
+    // Auto-select when societies are loaded
+    useEffect(() => {
+        if (displaySocieties.length === 1) {
+            setFormData(prev => ({ ...prev, society_id: displaySocieties[0].$id }));
+        }
+    }, [displaySocieties]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -276,7 +257,7 @@ export default function CreateEventPage() {
                                 }`}
                             >
                                 <option value="">Select a society</option>
-                                {societies.map((society) => (
+                                {displaySocieties.map((society) => (
                                     <option key={society.$id} value={society.$id}>
                                         {society.name}
                                     </option>
