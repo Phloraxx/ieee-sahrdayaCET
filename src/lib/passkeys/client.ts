@@ -85,8 +85,8 @@ async function withAuthHeaders(initHeaders: HeadersInit = {}) {
   try {
     const jwt = await account.createJWT();
     headers.set('x-appwrite-jwt', jwt.jwt);
-  } catch {
-    // No active session; endpoint will decide if auth is required.
+  } catch (e) {
+    console.error('Failed to create JWT for auth headers', e);
   }
 
   return headers;

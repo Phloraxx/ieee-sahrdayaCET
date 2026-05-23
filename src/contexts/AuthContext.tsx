@@ -35,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ]);
             setProfileCompleted(res.documents.length > 0 && res.documents[0].profileCompleted === true);
         } catch {
+            console.error('Failed to check profile completion status');
             setProfileCompleted(false);
         } finally {
             setProfileLoading(false);
@@ -54,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             // Fetch user's team memberships
             const teamsList = await teams.list();
-            setUserTeams(teamsList.teams as unknown as TeamMembership[]);
+            setUserTeams(teamsList.teams.map(t => ({ $id: t.$id, name: t.name, userId: '' })));
 
             // Check if profile exists
             await checkProfile(currentUser.$id);

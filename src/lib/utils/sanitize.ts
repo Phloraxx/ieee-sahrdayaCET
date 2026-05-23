@@ -1,5 +1,5 @@
 /**
- * Strip all HTML tags from a string to prevent XSS
+ * HTML-encode special characters for safe rendering
  */
 export function stripHtml(str: string): string {
   return str

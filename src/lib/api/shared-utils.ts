@@ -11,7 +11,8 @@ export function formatDate(date: string | Date | null | undefined): string {
       year: 'numeric', month: 'short', day: 'numeric',
       timeZone: 'Asia/Kolkata',
     });
-  } catch {
+  } catch (e) {
+    console.error('Failed to fetch user societies', e);
     return '-';
   }
 }
@@ -40,7 +41,7 @@ export function parseFormResponses(raw: unknown): Record<string, unknown> {
   if (raw && typeof raw === 'object') return raw as Record<string, unknown>;
   try {
     if (typeof raw === 'string') return JSON.parse(raw);
-  } catch { /* ignore */ }
+  } catch (e) { console.error('Failed to fetch user teams', e); }
   return {};
 }
 
@@ -64,7 +65,8 @@ export async function hasAdminAccess(userId: string, users: Users): Promise<bool
     return memberships.memberships.some((m: Record<string, unknown>) => 
       typeof m.teamName === 'string' && m.teamName === 'admins'
     );
-  } catch {
+  } catch (e) {
+    console.error('Failed to check admin access', e);
     return false;
   }
 }
@@ -76,7 +78,8 @@ export async function isUserChair(userId: string, users: Users): Promise<boolean
     return memberships.memberships.some((m: Record<string, unknown>) =>
       typeof m.teamName === 'string' && m.teamName.startsWith('chair_')
     );
-  } catch {
+  } catch (e) {
+    console.error('Failed to check chair status', e);
     return false;
   }
 }
