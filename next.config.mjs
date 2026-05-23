@@ -66,13 +66,7 @@ const nextConfig = {
         source: "/ticket/:path*",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
       },
-      {
-        // Allow embedding ADSSSC flipbook in iframes
-        source: "/ADSSSC/embed",
-        headers: [
-          { key: "Content-Security-Policy", value: "frame-ancestors *" },
-        ],
-      },
+
       {
         // Allow camera access for check-in pages (QR scanner)
         source: "/admin/events/:eventId/check-in",
