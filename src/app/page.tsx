@@ -3,7 +3,6 @@ import React from 'react';
 import Navbar from '@/components/Navbar';
 
 export const metadata: Metadata = {
-  title: 'IEEE Sahrdaya Student Branch — Home',
   description:
     'Official home of IEEE Sahrdaya Student Branch. Explore technical events, workshops, hackathons and IEEE societies at Sahrdaya College of Engineering, Kerala.',
   openGraph: {

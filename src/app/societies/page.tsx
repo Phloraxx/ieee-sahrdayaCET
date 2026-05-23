@@ -12,9 +12,9 @@ export const metadata: Metadata = {
     url: 'https://ieeesahrdaya.com/societies',
     images: [
       {
-        url: '/emblem.png',
-        width: 800,
-        height: 800,
+        url: '/web.png',
+        width: 1200,
+        height: 630,
         alt: 'IEEE Sahrdaya Societies',
       },
     ],
