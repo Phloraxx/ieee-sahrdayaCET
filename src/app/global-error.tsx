@@ -9,8 +9,11 @@ export default function GlobalError({
 }) {
   return (
     <html>
+      <head>
+        <title>Error — IEEE Sahrdaya</title>
+      </head>
       <body>
-        <div className="flex flex-col items-center justify-center min-h-screen px-4">
+        <main className="flex flex-col items-center justify-center min-h-screen px-4">
           <h1 className="text-4xl font-bold mb-4">Something went wrong</h1>
           <p className="text-muted-foreground mb-8 text-center max-w-md">
             An unexpected error occurred. Please try again.
@@ -21,7 +24,7 @@ export default function GlobalError({
           >
             Try Again
           </button>
-        </div>
+        </main>
       </body>
     </html>
   );

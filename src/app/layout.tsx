@@ -55,10 +55,10 @@ export const metadata: Metadata = {
     url: BASE_URL,
     images: [
       {
-        url: "/emblem.png",
-        width: 800,
-        height: 800,
-        alt: "IEEE Sahrdaya Student Branch Emblem",
+        url: "/web.png",
+        width: 1200,
+        height: 630,
+        alt: "IEEE Sahrdaya Student Branch",
       },
     ],
   },
@@ -67,14 +67,17 @@ export const metadata: Metadata = {
     title: "IEEE Sahrdaya Student Branch",
     description:
       "Official website of IEEE Sahrdaya Student Branch — technical events, workshops, societies and execom directory.",
-    images: ["/emblem.png"],
+    images: ["/web.png"],
   },
   alternates: {
     canonical: BASE_URL,
   },
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    apple: "/favicon.svg",
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
     other: [{ rel: "manifest", url: "/site.webmanifest" }],
   },
 };
@@ -91,7 +94,13 @@ const organizationSchema = {
   logo: `${BASE_URL}/emblem.png`,
   description:
     "Official IEEE Student Branch at Sahrdaya College of Engineering & Technology, Thrissur, Kerala, India.",
-  sameAs: ["https://www.ieee.org", "https://ieeekerala.org"],
+  sameAs: [
+    "https://www.ieee.org",
+    "https://ieeekerala.org",
+    "https://www.instagram.com/ieee_sahrdaya_sb/",
+    "https://www.linkedin.com/company/ieee-sahrdaya-sb/",
+    "https://www.youtube.com/@ieeesahrdaya",
+  ],
   parentOrganization: {
     "@type": "Organization",
     name: "IEEE Kerala Section",
@@ -114,7 +123,7 @@ const websiteSchema = {
     "@type": "SearchAction",
     target: {
       "@type": "EntryPoint",
-      urlTemplate: `${BASE_URL}/events?society={search_term_string}`,
+      urlTemplate: `${BASE_URL}/events?search={search_term_string}`,
     },
     "query-input": "required name=search_term_string",
   },
