@@ -1,6 +1,15 @@
 import type { Metadata } from 'next';
 import React from 'react';
 import Navbar from '@/components/Navbar';
+import { Hero } from '@/components/Hero';
+import { GridBackground } from '@/components/GridBackground';
+import { TechnicalDetails } from '@/components/TechnicalDetails';
+import { FloatingIcons } from '@/components/FloatingIcons';
+import { FloatingAction } from '@/components/FloatingAction';
+import { WhatsHappening } from '@/components/WhatsHappening';
+import { Execom } from '@/components/Execom';
+import { EventsShowcase } from '@/components/EventsShowcase';
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
   description:
@@ -23,15 +32,6 @@ export const metadata: Metadata = {
     canonical: 'https://ieeesahrdaya.com',
   },
 };
-import { Hero } from '@/components/Hero';
-import { GridBackground } from '@/components/GridBackground';
-import { TechnicalDetails } from '@/components/TechnicalDetails';
-import { FloatingIcons } from '@/components/FloatingIcons';
-import { FloatingAction } from '@/components/FloatingAction';
-import { WhatsHappening } from '@/components/WhatsHappening';
-import { Execom } from '@/components/Execom';
-import { EventsShowcase } from '@/components/EventsShowcase';
-import Footer from '@/components/Footer';
 
 export default function Home() {
   return (
