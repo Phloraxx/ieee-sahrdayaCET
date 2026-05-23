@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCSRF } from '@/lib/api/csrf';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import {
   getEvent,
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const log = createLogger({ action: 'register', eventId });
 
   try {
+    validateCSRF(req);
     // 1. Check authentication
     const user = await getSignedInUserFromRequest(req);
     const userId = user?.$id;

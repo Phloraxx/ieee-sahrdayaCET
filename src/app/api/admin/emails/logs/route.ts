@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCSRF } from '@/lib/api/csrf';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import { getDatabases, getUsers, DATABASE_ID, EVENTS_COLLECTION_ID, Query } from '@/lib/api/appwrite-admin';
 import { EMAIL_LOGS_COLLECTION_ID } from '@/lib/constants/collections';
@@ -158,6 +159,7 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    validateCSRF(req);
     const user = await getSignedInUserFromRequest(req);
     if (!user) {
       return NextResponse.json(
@@ -188,8 +190,27 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { log_ids, retry_all_failed, event_id } = body;
 
-    // Import email queue for retry functionality
-    const { retryMultipleFromLogs } = await import('@/lib/emailQueue');
+    // Inline helper: retry emails by resetting their DB status to pending
+    async function retryLogs(ids: string[]): Promise<{ queued: number; failed: number; batch_id?: string }> {
+      let queued = 0;
+      let failed = 0;
+      for (const logId of ids) {
+        try {
+          const doc = await db.getDocument(DATABASE_ID, EMAIL_LOGS_COLLECTION_ID, logId) as unknown as { status: string };
+          if (doc.status !== 'failed') {
+            failed++;
+            continue;
+          }
+          await db.updateDocument(DATABASE_ID, EMAIL_LOGS_COLLECTION_ID, logId, { status: 'pending', error_message: null });
+          queued++;
+        } catch {
+          log.warn('Failed to retry email log', { logId });
+          failed++;
+        }
+      }
+      const batchId = queued > 0 ? `retry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : undefined;
+      return { queued, failed, batch_id: batchId };
+    }
 
     if (retry_all_failed) {
       // Retry all failed emails
@@ -213,7 +234,7 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        const result = await retryMultipleFromLogs(failedIds);
+        const result = await retryLogs(failedIds);
         
         log.info('Retried failed emails', {
           count: String(result.queued),
@@ -254,7 +275,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await retryMultipleFromLogs(log_ids);
+    const result = await retryLogs(log_ids);
 
     log.info('Retried selected emails', {
       requested: String(log_ids.length),

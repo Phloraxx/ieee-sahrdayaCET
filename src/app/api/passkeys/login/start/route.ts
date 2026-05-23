@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCSRF } from '@/lib/api/csrf';
 import * as SimpleWebAuthnServer from '@simplewebauthn/server';
 import crypto from 'crypto';
 import { createLogger } from '@/lib/api/logger';
@@ -32,6 +33,7 @@ type AuthIntent = 'login' | 'reauth';
 
 export async function POST(req: NextRequest) {
   try {
+    validateCSRF(req);
     const body = await req.json().catch(() => ({}));
     const intent = (body as { intent?: AuthIntent })?.intent ?? 'login';
     if (intent !== 'login' && intent !== 'reauth') {

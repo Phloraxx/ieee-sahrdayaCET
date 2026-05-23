@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import { getDatabases, getUsers, DATABASE_ID, EVENTS_COLLECTION_ID, Query } from '@/lib/api/appwrite-admin';
 import { EMAIL_LOGS_COLLECTION_ID } from '@/lib/constants/collections';
-import { getBatchStatus, getQueueStats } from '@/lib/emailQueue';
 import { createLogger } from '@/lib/api/logger';
 import { getUserSocietyIds, hasAdminAccess } from '@/lib/api/shared-utils';
 import { handleError } from '@/lib/errorHandler';
@@ -14,7 +13,7 @@ const log = createLogger({ action: 'bulk-email-status-api' });
 export interface BulkStatusResponse {
   success: boolean;
   batch_id: string;
-  // In-memory queue status
+  // In-memory queue status (always empty — queue infra removed)
   queue: {
     total: number;
     pending: number;
@@ -39,6 +38,14 @@ export interface BulkStatusResponse {
   }>;
   // Progress percentage
   progress: number;
+}
+
+function emptyQueueStats() {
+  return { total: 0, pending: 0, processing: 0, completed: 0, failed: 0, isProcessing: false };
+}
+
+function emptyBatchStatus() {
+  return { total: 0, pending: 0, processing: 0, completed: 0, failed: 0, jobs: [] as Array<{ id: string; status: string }> };
 }
 
 /**
@@ -82,7 +89,7 @@ export async function GET(req: NextRequest) {
     
     if (!batchId) {
       // Return overall queue stats if no batch_id
-      const stats = getQueueStats();
+      const stats = emptyQueueStats();
       return NextResponse.json({
         success: true,
         queue: {
@@ -97,7 +104,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get in-memory queue status for this batch
-    const queueStatus = getBatchStatus(batchId);
+    const queueStatus = emptyBatchStatus();
 
     // Get persisted status from database
     const persistedStatus = { total: 0, sent: 0, failed: 0, pending: 0 };

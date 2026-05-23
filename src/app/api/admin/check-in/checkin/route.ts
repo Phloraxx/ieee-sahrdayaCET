@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCSRF } from '@/lib/api/csrf';
 import { getSignedInUserFromRequest } from '@/lib/passkeys/passkeyStore';
 import { 
   getDatabases, 
@@ -14,6 +15,7 @@ import {
 import { createLogger } from '@/lib/api/logger';
 import { z } from 'zod';
 import { isUserChairOfEvent } from '@/lib/api/auth-check';
+import { isUserAdmin } from '@/lib/api/appwrite-admin';
 import { handleError } from '@/lib/errorHandler';
 
 export const runtime = 'nodejs';
@@ -34,6 +36,7 @@ export async function POST(req: NextRequest) {
   const log = createLogger({ action: 'checkin' });
 
   try {
+    validateCSRF(req);
     const user = await getSignedInUserFromRequest(req);
     if (!user) {
       log.warn('Unauthorized check-in attempt');
@@ -65,7 +68,7 @@ export async function POST(req: NextRequest) {
     const registration = await db.getDocument(DATABASE_ID, EVENT_REGISTRATIONS_COLLECTION_ID, registration_id) as unknown as RegistrationDocument;
 
     // Check authorization
-    const isAuthorized = await isUserChairOfEvent(userId, registration.event_id);
+    const isAuthorized = await isUserAdmin(userId) || await isUserChairOfEvent(userId, registration.event_id);
     if (!isAuthorized) {
       log.warn('Unauthorized check-in attempt', { userId, eventId: registration.event_id });
       return NextResponse.json(

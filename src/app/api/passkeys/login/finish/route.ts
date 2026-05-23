@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCSRF } from '@/lib/api/csrf';
 import * as SimpleWebAuthnServer from '@simplewebauthn/server';
 import * as SimpleWebAuthnServerHelpers from '@simplewebauthn/server/helpers';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/browser';
@@ -104,6 +105,7 @@ function userHandleToUserId(userHandle?: string | null) {
 
 export async function POST(req: NextRequest) {
   try {
+    validateCSRF(req);
     const { challengeId, authentication } = await req.json() as {
       challengeId?: string;
       authentication?: AuthenticationResponseJSON;
