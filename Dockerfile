@@ -5,6 +5,14 @@ COPY package.json package-lock.json .npmrc ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
+FROM node:22-alpine AS deps-prod
+WORKDIR /app
+RUN apk add --no-cache libc6-compat
+COPY package.json package-lock.json .npmrc ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev && \
+    npm cache clean --force
+
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -42,6 +50,7 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_ENABLE_PAYMENTS=$NEXT_PUBLIC_ENABLE_PAYMENTS
 ENV NEXT_PUBLIC_ENABLE_EMAILS=$NEXT_PUBLIC_ENABLE_EMAILS
 ENV NEXT_PUBLIC_ENABLE_PASSKEYS=$NEXT_PUBLIC_ENABLE_PASSKEYS
+ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY . .
 RUN --mount=type=cache,target=/app/.next/cache \
@@ -55,10 +64,10 @@ ENV NODE_ENV=production \
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/package.json /app/next.config.mjs ./
+COPY --from=deps-prod /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 
 USER nextjs
 EXPOSE 3000
-
-CMD ["node", "server.js"]
+CMD ["node_modules/.bin/next", "start"]
