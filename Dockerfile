@@ -57,10 +57,10 @@ ENV NODE_ENV=production \
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-COPY package.json next.config.mjs ./
+COPY package.json package-lock.json .npmrc next.config.mjs ./
 
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --only=production && \
+    npm ci --omit=dev && \
     npm cache clean --force
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
