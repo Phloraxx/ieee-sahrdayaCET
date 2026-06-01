@@ -57,7 +57,7 @@ ENV NODE_ENV=production \
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json next.config.mjs ./
+COPY --from=builder /app/package.json /app/next.config.mjs ./
 
 COPY --from=builder /app/node_modules ./node_modules
 RUN npm prune --omit=dev && npm cache clean --force
