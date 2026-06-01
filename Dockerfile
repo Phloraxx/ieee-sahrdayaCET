@@ -44,7 +44,8 @@ ENV NEXT_PUBLIC_ENABLE_EMAILS=$NEXT_PUBLIC_ENABLE_EMAILS
 ENV NEXT_PUBLIC_ENABLE_PASSKEYS=$NEXT_PUBLIC_ENABLE_PASSKEYS
 
 COPY . .
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
